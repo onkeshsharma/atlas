@@ -42,6 +42,7 @@ export function CommandPalette({
   query: controlledQuery,
   onQueryChange,
   tip = "tip — start with a slash for actions, # for Tickets",
+  autoFocus = true,
 }: {
   groups: PaletteGroup[];
   recents?: string[];
@@ -49,6 +50,8 @@ export function CommandPalette({
   query?: string;
   onQueryChange?: (q: string) => void;
   tip?: React.ReactNode;
+  /** the palette autofocuses in product (UU:91); galleries pass false. */
+  autoFocus?: boolean;
 }) {
   const [internalQuery, setInternalQuery] = useState("");
   const query = controlledQuery ?? internalQuery;
@@ -72,7 +75,7 @@ export function CommandPalette({
           <span className="font-mono text-stone-400 text-2xl">⌕</span>
           <input
             type="text"
-            autoFocus
+            autoFocus={autoFocus}
             placeholder={placeholder}
             value={query}
             onChange={(e) => {
