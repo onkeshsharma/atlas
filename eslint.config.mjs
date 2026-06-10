@@ -9,6 +9,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // M4 — sandboxed distDir for the Playwright webServer (see next.config.ts)
+    ".next-e2e/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
