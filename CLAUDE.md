@@ -24,6 +24,13 @@ Repo-local facts (recorded nowhere else):
   (excluded from ESLint via config). Live render: `/dev-variants/<key>`,
   index at `/dev-variants/`, dev-only via `ATLAS_DEV_VARIANTS_ENABLED=1`
   in `.env.development` (never set in prod).
+- `src/components/kit/` (M4) holds the 28 canon §5 primitives — barrel
+  `index.ts`; gallery at `/dev-kit` (same dev-only gate). Surfaces
+  compose from the kit; never define local variants of its primitives
+  (master plan §7.3).
+- Playwright's webServer (port 3100) builds into `.next-e2e` via
+  `ATLAS_E2E_DISTDIR` so it can run beside a normal `pnpm dev` on :3000
+  (Next 16 per-distDir dev lock).
 - Husky pre-commit: `typecheck` + `lint` + tripwire on staged `.tsx`
   under `app/` + `src/`. Never `--no-verify` without Onkesh's say-so.
 - Evidence + handoffs live OUTSIDE the repo in `../notes/` (M-doc
