@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/* ────────────────────────────────────────────────────────────────────
+   DESIGN-CANON.md §1.4 token sheet — VERBATIM. Do not edit here; canon
+   changes require a new ledger entry (canon §7).
+   ──────────────────────────────────────────────────────────────────── */
+
+/* app/globals.css — Atlas v2 canon tokens (M2, 2026-06-11) */
+:root {
+  /* type */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  /* surfaces — derived from stock steps, never hand-rounded (review grill 2026-06-11) */
+  --color-page: color-mix(in oklab, var(--color-amber-50) 30%, transparent);
+  --color-card: color-mix(in oklab, var(--color-white) 70%, transparent);
+  --color-card-border: var(--color-stone-200);   /* used at /80 */
+  /* ink */
+  --color-ink: var(--color-stone-900);
+  --color-ink-body: var(--color-stone-700);
+  --color-ink-muted: var(--color-stone-500);
+  --color-ink-faint: var(--color-stone-400);
+  --color-line: var(--color-stone-200);
+  /* brand + semantics */
+  --color-brand: var(--color-amber-500);
+  --color-brand-text: var(--color-amber-600);
+  --color-ship: var(--color-emerald-500);
+  --color-ship-action: var(--color-emerald-600);
+  --color-fail: var(--color-rose-500);
+  --color-fail-action: var(--color-rose-600);
+  --color-merge: var(--color-violet-500);
+  --color-social: var(--color-sky-500);
+  /* layout */
+  --w-sidebar: 56px;
+  --w-sidebar-expanded: 260px;
+  --w-rail: 360px;
+  --w-rail-dense: 320px;
+  --w-rail-docs: 280px;
+  --w-subnav: 200px;
+  --radius-card: 1rem;       /* rounded-2xl */
+  --radius-kanban: 0.5rem;   /* rounded-lg */
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   Tailwind v4 @theme mapping prescribed by canon §1.4:
+   - fonts wired to Geist Sans/Mono (next/font variables on <html>)
+   - layout vars exposed as spacing/width utilities
+     (w-sidebar, w-rail, w-rail-dense, w-rail-docs, w-subnav, …)
+   - color palette stays STOCK stone/amber/emerald/rose/violet/sky —
+     no custom color values beyond the wash alias above. The page wash
+     is applied as `bg-amber-50/30` once on the app shell root
+     (app/layout.tsx), not per-page.
+   ──────────────────────────────────────────────────────────────────── */
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --spacing-sidebar: var(--w-sidebar);
+  --spacing-sidebar-expanded: var(--w-sidebar-expanded);
+  --spacing-rail: var(--w-rail);
+  --spacing-rail-dense: var(--w-rail-dense);
+  --spacing-rail-docs: var(--w-rail-docs);
+  --spacing-subnav: var(--w-subnav);
+}
