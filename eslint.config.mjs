@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored variant prototypes are BYTE-IDENTICAL design sources —
+    // the canon cites them by file:line; lint must never touch them
+    // (excluded via config, per the M3 charter — never by editing them).
+    "design/variants/**",
   ]),
 ]);
 

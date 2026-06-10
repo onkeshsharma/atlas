@@ -1,0 +1,4 @@
+# Vendored variant prototypes must stay BYTE-IDENTICAL to
+# atlas-design-gallery/src/_prototype — the design canon cites them by
+# file:line. No EOL normalization, ever.
+design/variants/** -text
