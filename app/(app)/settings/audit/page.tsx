@@ -131,8 +131,8 @@ export default async function AuditLogPage({
         kind="routed"
         breadcrumb="Settings · Security · Audit log"
         nav={
-          /* TT:229–234 — honest meta (deviations in header) */
-          <span className="text-stone-400 normal-case">
+          /* TT:229–234 — honest meta in the variant's mono register */
+          <span className="text-stone-400">
             {beginsAt
               ? `record since ${beginsAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
               : "no events recorded yet"}

@@ -62,27 +62,30 @@ export function InviteForm({ projectId, slug }: { projectId: string; slug: strin
         </div>
       )}
 
-      <form action={formAction} className="mt-8 space-y-7">
+      <form action={formAction}>
         <input type="hidden" name="projectId" value={projectId} />
         <input type="hidden" name="slug" value={slug} />
-        {/* Email (M:208–217) */}
-        <UnderlineInput
-          name="email"
-          type="email"
-          label="Email"
-          placeholder="name@example.com"
-          validation={state.fieldError ? "error" : undefined}
-          message={state.fieldError}
-        />
-        {/* Welcome note (M:219–230) */}
-        <UnderlineTextarea
-          name="welcomeNote"
-          rows={3}
-          label="Welcome note"
-          labelMeta="· optional"
-          placeholder="A quick line so they know what they're being invited to."
-        />
-        <div className="flex items-center gap-4">
+        <div className="mt-8 space-y-7">
+          {/* Email (M:208–217) */}
+          <UnderlineInput
+            name="email"
+            type="email"
+            label="Email"
+            placeholder="name@example.com"
+            validation={state.fieldError ? "error" : undefined}
+            message={state.fieldError}
+          />
+          {/* Welcome note (M:219–230) */}
+          <UnderlineTextarea
+            name="welcomeNote"
+            rows={3}
+            label="Welcome note"
+            labelMeta="· optional"
+            placeholder="A quick line so they know what they're being invited to."
+          />
+        </div>
+        {/* CTA row sits OUTSIDE the field stack (M:232's own mt-8) */}
+        <div className="mt-8 flex items-center gap-4">
           <PillButton kind="primary" size="page" type="submit" arrow>
             Create invite
           </PillButton>

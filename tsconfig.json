@@ -44,7 +44,9 @@
     ".next-e2e-m10/types/**/*.ts",
     ".next-e2e-m10/dev/types/**/*.ts",
     ".next-e2e-debug/types/**/*.ts",
-    ".next-e2e-debug/dev/types/**/*.ts"
+    ".next-e2e-debug/dev/types/**/*.ts",
+    ".next-e2e-m11/types/**/*.ts",
+    ".next-e2e-m11/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
