@@ -67,7 +67,14 @@ Repo-local facts (recorded nowhere else):
   needs a free slot; auth is branch-scoped, both vars must point at the
   same branch). Never destructive SQL on main from specs/tooling. Never
   `waitUntil: "networkidle"` on authed pages (the SSE stream never
-  settles). Next 16's `<nextjs-portal>` dev indicator intercepts
+  settles). If a suite run is killed mid-flight its afterAll cleanup never
+  ran — reset the branch before the next run (`scripts/reset-e2e-branch.mjs`
+  + `pnpm db:seed`, endpoint-guarded) or later specs fail on poisoned
+  seeded assertions. Next 16's dev worker self-restarts at 80% heap AFTER
+  EVERY REQUEST (orphaning the in-flight goto → 180s "load" hangs);
+  playwright.config.ts pins max-old-space-size for the e2e server — if
+  "approaching the used memory threshold" reappears in webServer output,
+  raise the dial or move the suite to a prod build (M-SHIP note). Next 16's `<nextjs-portal>` dev indicator intercepts
   pointer events bottom-left — hide it before hovering the sidebar
   user mark (see `hideDevOverlay`, `e2e/m6-cockpit.spec.ts`).
 - Evidence + handoffs live OUTSIDE the repo in `../notes/` (M-doc

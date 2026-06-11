@@ -46,6 +46,23 @@ export default defineConfig({
     // above reaches the dev server even though `next dev` also loads
     // .env.local (real env vars beat Next's dotenv loader).
     env: {
+      // Integration round 2 (2026-06-12): Next 16's dev worker checks heap
+      // AFTER EVERY REQUEST and process.exit()s for a self-restart when
+      // used heap crosses 80% of the V8 limit
+      // (next/dist/server/lib/start-server.js — UNCONDITIONAL in dev;
+      // __NEXT_DISABLE_MEMORY_WATCHER only gates the config-file watcher).
+      // The navigation in flight at that moment is orphaned, so page.goto
+      // hangs at "load" until the test timeout. Next defaults the worker
+      // to 50% of RAM (next-dev.js) unless NODE_OPTIONS already carries
+      // max-old-space-size; the 68-spec suite's dev heap grows past that
+      // default's 80% line late in the run (reproduced: m7 ingest ×2,
+      // m8 /board, m10 /settings/bridges — whichever goto is in flight;
+      // a 6144 trial lowered the limit and tripped EARLIER, confirming the
+      // mechanism). 12288 puts the threshold at ~9.8GB, ~3GB above the
+      // observed peak, and keeps the watcher as a genuine-OOM backstop.
+      // M-SHIP: the durable fix is a prod-build e2e server or a split
+      // suite — this dial only buys headroom as the route graph grows.
+      NODE_OPTIONS: "--max-old-space-size=12288",
       // Overridable like ATLAS_E2E_PORT — two concurrent suite runs need
       // disjoint distDirs (Next 16 per-distDir dev lock) as well as ports.
       ATLAS_E2E_DISTDIR: process.env.ATLAS_E2E_DISTDIR ?? ".next-e2e",
