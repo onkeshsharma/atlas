@@ -30,6 +30,10 @@ const OPEN_STATES = ["triage", "backlog", "in-progress", "review-ready", "failed
 export type ProjectRow = {
   id: string;
   name: string;
+  /** M7 — route key + honest ingest state for /projects rows. */
+  slug: string;
+  ingestStatus: "none" | "queued" | "ready";
+  createdAt: Date;
   pinned: boolean;
   openCount: number;
   lastActivityAt: Date | null;
@@ -56,6 +60,9 @@ export async function projectRows(): Promise<ProjectRow[]> {
     .select({
       id: projects.id,
       name: projects.name,
+      slug: projects.slug,
+      ingestStatus: projects.ingestStatus,
+      createdAt: projects.createdAt,
       pinned: projects.pinned,
       openCount: sql<number>`coalesce(${openCounts.n}, 0)`,
       lastActivityAt: lastActivity.at,

@@ -32,18 +32,24 @@ const daysAgo = (d, hour = 14) => {
 };
 
 async function main() {
-  // ── wipe previous seed (FK order) ──
+  // ── wipe previous seed (FK order; M7 added context_terms + ticket_pins) ──
   await sql`delete from feed_events where seeded`;
+  await sql`delete from ticket_pins where seeded`;
+  await sql`delete from context_terms where seeded`;
   await sql`delete from runs where seeded`;
   await sql`delete from tickets where seeded`;
   await sql`delete from projects where seeded`;
 
   // ── projects (E: acme-website pinned; two quiet others) ──
+  // M7 in-place edit: slug is now NOT NULL (route key), and the three
+  // demo projects carry the honest ingest states — ready / queued / none
+  // — so every J render state is provable. Everything else M7 seeds
+  // lives in the "M7 projects" section below.
   const projectRows = await sql`
-    insert into projects (name, pinned, seeded, created_at) values
-      ('acme-website',    true,  true, ${daysAgo(40)}),
-      ('atlas-internal',  false, true, ${daysAgo(33)}),
-      ('side-experiment', false, true, ${daysAgo(21)})
+    insert into projects (name, slug, description, repo_url, local_path, ingest_status, ingested_at, pinned, seeded, created_at) values
+      ('acme-website',    'acme-website',    ${"Online ordering for ACME's storefront."}, 'https://github.com/acme/website', null, 'ready',  ${hoursAgo(2)}, true,  true, ${daysAgo(40)}),
+      ('atlas-internal',  'atlas-internal',  'Internal tooling for the Atlas team.',      'https://github.com/acme/atlas-internal', null, 'queued', null, false, true, ${daysAgo(33)}),
+      ('side-experiment', 'side-experiment', null,                                        null, ${"C:\\dev\\side-experiment"}, 'none', null, false, true, ${daysAgo(21)})
     returning id, name
   `;
   const project = Object.fromEntries(projectRows.map((p) => [p.name, p.id]));
@@ -153,9 +159,99 @@ async function main() {
     `;
   }
 
+  // ────────────────────────────────────────────────────────────────────
+  // M7 projects — Ingest Summary (J render proof), context terms (P),
+  // ticket pins (O). All additive; all marked seeded=true.
+  // ────────────────────────────────────────────────────────────────────
+
+  // ── acme-website's Engine-written Ingest Summary (J's sections; shape
+  //    in src/domain/project/ingest-summary.ts — schemaVersion 1) ──
+  const ingestSummary = {
+    schemaVersion: 1,
+    tagline: "Online ordering for ACME's storefront.",
+    engineRead: [
+      "acme-website is a well-organised modern Next stack. The Storefront tier is conventional and unsurprising; the Cart layer is the most active codebase with optimistic UI patterns; Fulfillment is the riskiest area because Stripe webhooks, DB orders, and Resend emails compose into a critical path the test suite doesn't fully cover.",
+      "Suggested priorities: extract the long page.tsx into its three obvious components, then backfill payment-actions.ts tests. After that, the codebase is in good shape for the next stretch of work.",
+    ],
+    stack: ["Next.js 15", "TypeScript 5.7", "Tailwind v4", "Prisma", "PostgreSQL", "Stripe", "Resend"],
+    stackProse:
+      "Server-rendered with Next.js 15 and Tailwind v4 for the UI layer. Persistence via Prisma over PostgreSQL. Stripe handles checkout; Resend handles transactional email. A standard modern Next stack — no surprises.",
+    architectureProse: "Three subsystems flow end-to-end — Storefront → Cart → Fulfillment.",
+    architecture: [
+      { name: "Storefront", sub: "Next.js · page tier · marketing", detail: "Server-rendered marketing + product pages. Caching via Vercel." },
+      { name: "Cart", sub: "Server actions · session-backed", detail: "Per-session cart state with optimistic UI. Server-action mutations." },
+      { name: "Fulfillment", sub: "Stripe · DB · email", detail: "Stripe webhooks → DB orders → Resend email confirmations." },
+    ],
+    smells: [
+      { severity: "high", title: "page.tsx is 1,247 lines long", file: "app/(shop)/[handle]/page.tsx", detail: "Mixed concerns: layout, data fetching, and 3 inline components. Suggest extracting." },
+      { severity: "medium", title: "Missing test coverage on payment flows", file: "src/lib/payment-actions.ts", detail: "Critical path; only happy-path covered. Add failure-case tests." },
+    ],
+    health: [
+      { label: "Tests", value: "142 passing, 0 failing", ok: true },
+      { label: "Lint", value: "clean", ok: true },
+      { label: "Typecheck", value: "clean", ok: true },
+      { label: "Dep audit", value: "0 high · 0 critical", ok: true },
+      { label: "Build", value: "passing", ok: true },
+    ],
+    churnWeeks: [3, 7, 4, 6, 2, 5, 8, 4, 6, 5, 9, 11],
+    coverage: [
+      { area: "Backend", pct: 82 },
+      { area: "Frontend", pct: 64 },
+      { area: "Utilities", pct: 91 },
+      { area: "Overall", pct: 73, hero: true },
+    ],
+    stats: { coveragePct: 73, prevCoveragePct: 68, linesOfCode: "~18,300", files: 412 },
+    commits: [
+      { sha: "ab05f49", subject: "fix(ui): disable system-following dark mode pending toggle", at: hoursAgo(2).toISOString() },
+      { sha: "658bfb8", subject: "fix(build): extract pure helpers to unblock client bundle", at: hoursAgo(5).toISOString() },
+      { sha: "8445322", subject: "merge: T68 — System-following dark mode (FINAL)", at: daysAgo(1, 16).toISOString() },
+      { sha: "7c1c32e", subject: "feat(ui): system-following dark mode across every surface (T68)", at: daysAgo(1, 11).toISOString() },
+      { sha: "1659f00", subject: "merge: T65 — Ingest Summary cards + Mermaid diagrams", at: daysAgo(2, 15).toISOString() },
+    ],
+    commitsTotal: 247,
+    repo: { branch: "main", commitsSinceIngest: 247 },
+  };
+  await sql`
+    update projects set ingest_summary = ${JSON.stringify(ingestSummary)}::jsonb
+    where id = ${project["acme-website"]}
+  `;
+
+  // ── context terms (P:106–255 — confirmed Language + Engine-noticed) ──
+  const termSeed = [
+    // [term, meaning, status, provenance, avoid, uses, createdAt]
+    ["Storefront", "The marketing + product-listing pages. Server-rendered with Next.js 15 + Tailwind v4. Caching via Vercel.", "confirmed", "owner", false, null, daysAgo(12)],
+    ["Cart", "Session-backed shopping cart state. Optimistic UI patterns; server-action mutations.", "confirmed", "owner", false, null, daysAgo(12)],
+    ["Fulfillment", "Stripe Checkout → DB order persistence → Resend email confirmations. The riskiest area; least test coverage.", "confirmed", "owner", false, null, daysAgo(12)],
+    ["Catalog", "Product, variant, and inventory tables. Source of truth for what's for sale.", "confirmed", "owner", false, null, daysAgo(9)],
+    ["User", "Ambiguous — we have Customers and Admins. Use the specific term.", "confirmed", "owner", true, null, daysAgo(3)],
+    ["Webhook", "", "suggested", "engine", false, 23, hoursAgo(4)],
+    ["Invoice", "", "suggested", "engine", false, 41, hoursAgo(4)],
+    ["Refund", "", "suggested", "engine", false, 18, hoursAgo(4)],
+  ];
+  for (const [term, meaning, status, provenance, avoid, uses, at] of termSeed) {
+    await sql`
+      insert into context_terms (project_id, term, meaning, status, provenance, avoid, uses, seeded, created_at, updated_at)
+      values (${project["acme-website"]}, ${term}, ${meaning}, ${status}, ${provenance}, ${avoid}, ${uses}, true, ${at}, ${at})
+    `;
+  }
+
+  // ── ticket pins (O:193–229 — the landing's "Pinned" focused work) ──
+  for (const [tref, at] of [
+    ["T-247", hoursAgo(12)],
+    ["T-310", hoursAgo(3)],
+    ["T-308", hoursAgo(3)],
+  ]) {
+    await sql`
+      insert into ticket_pins (ticket_id, seeded, created_at)
+      values (${ticket[tref]}, true, ${at})
+    `;
+  }
+
   const [{ count: events }] = await sql`select count(*)::int as count from feed_events where seeded`;
+  const [{ count: terms }] = await sql`select count(*)::int as count from context_terms where seeded`;
+  const [{ count: pins }] = await sql`select count(*)::int as count from ticket_pins where seeded`;
   console.log(
-    `seeded: ${projectRows.length} projects · ${ticketSeed.length} tickets · ${runSeed.length} runs · ${events} feed events (all marked seeded=true)`,
+    `seeded: ${projectRows.length} projects · ${ticketSeed.length} tickets · ${runSeed.length} runs · ${events} feed events · ${terms} context terms · ${pins} ticket pins (all marked seeded=true)`,
   );
 }
 

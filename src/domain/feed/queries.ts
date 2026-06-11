@@ -9,12 +9,13 @@ import { feedEvents, projects, type FeedEvent } from "@/src/db/schema";
 
 export type FeedRow = FeedEvent & { projectName: string | null };
 
-/** newest first, with project display name. */
-export async function recentFeedEvents(limit = 50): Promise<FeedRow[]> {
+/** newest first, with project display name. `projectId` scopes to one project (M7). */
+export async function recentFeedEvents(limit = 50, projectId?: string): Promise<FeedRow[]> {
   const rows = await db
     .select({ event: feedEvents, projectName: projects.name })
     .from(feedEvents)
     .leftJoin(projects, eq(feedEvents.projectId, projects.id))
+    .where(projectId ? eq(feedEvents.projectId, projectId) : undefined)
     .orderBy(desc(feedEvents.createdAt), desc(feedEvents.id))
     .limit(limit);
   return rows.map((r) => ({ ...r.event, projectName: r.projectName }));
@@ -34,12 +35,20 @@ export async function markAllRead(): Promise<void> {
   await db.update(feedEvents).set({ readAt: new Date() }).where(isNull(feedEvents.readAt));
 }
 
-/** distinct actors with events since local midnight — the presence line (E:143–152). */
-export async function actorsActiveToday(dayStart: Date): Promise<string[]> {
+/**
+ * distinct actors with events since local midnight — the presence line
+ * (E:143–152). `projectId` scopes to one project (M7 — O:131's
+ * project-level presence).
+ */
+export async function actorsActiveToday(dayStart: Date, projectId?: string): Promise<string[]> {
   const rows = await db
     .selectDistinct({ actor: feedEvents.actor })
     .from(feedEvents)
-    .where(gte(feedEvents.createdAt, dayStart));
+    .where(
+      projectId
+        ? and(gte(feedEvents.createdAt, dayStart), eq(feedEvents.projectId, projectId))
+        : gte(feedEvents.createdAt, dayStart),
+    );
   return rows.map((r) => r.actor).sort();
 }
 

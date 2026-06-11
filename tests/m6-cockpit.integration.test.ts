@@ -25,7 +25,8 @@ let runId: string;
 beforeAll(async () => {
   const [p] = await db
     .insert(projects)
-    .values({ name: `${MARK}-project`, pinned: true, seeded: false })
+    // M7 — slug became required when Projects went first-class.
+    .values({ name: `${MARK}-project`, slug: `${MARK}-project`.toLowerCase(), pinned: true, seeded: false })
     .returning({ id: projects.id });
   projectId = p.id;
   const [t] = await db
