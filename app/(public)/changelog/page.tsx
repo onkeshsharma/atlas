@@ -40,11 +40,26 @@ type Drop = {
 /** the REAL v2 history — master plan §8, newest first. */
 const DROPS: Drop[] = [
   {
+    anchor: "M10 · M14",
+    id: "m10-m14",
+    date: "shipped June 12, 2026",
+    title: "The daemon answers to the browser — and Atlas makes its own case.",
+    current: true,
+    intro:
+      "Two modules built in parallel worktrees: the settings tier that governs the Bridge from the cockpit, and the public pages you are reading right now.",
+    shipped: [
+      "Pair a Bridge from the UI — a show-once token, guided install steps, rotate and revoke",
+      "The Bridge doctor — seven honest checks (git, gh, repo paths, stale worktrees, lock, engine) run on the daemon and reported live",
+      "The concurrency cap as a dial — the daemon echoes the cap it holds, so the page reports rather than guesses",
+      "API tokens, account, notifications, profile — the full settings tier, with type-to-confirm on the one destructive action",
+      "This site: the landing, seven docs, the architecture deep-dive, a real-probes status page, and this changelog",
+    ],
+  },
+  {
     anchor: "M9",
     id: "m9",
     date: "shipped June 12, 2026",
     title: "The Engine takes orders.",
-    current: true,
     intro:
       "The Bridge grew from an idea into the local orchestrator: a daemon on the Owner’s machine that runs Engine sessions in parallel, each Run in its own git worktree, streaming every line back to the cockpit — and taking orders from it.",
     shipped: [
