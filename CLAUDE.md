@@ -60,7 +60,12 @@ Repo-local facts (recorded nowhere else):
 - `pnpm db:seed` reseeds the demo rows (idempotent; all marked
   `seeded=true` — honest data and demo data stay distinguishable).
 - e2e (M6): `workers: 1` is required — specs share one real Neon DB and
-  the one-Owner unique index, so spec files must not interleave. Never
+  the one-Owner unique index, so spec files must not interleave. The
+  suite runs on its OWN Neon branch (`e2e`) via `ATLAS_E2E_DATABASE_URL`
+  + `ATLAS_E2E_NEON_AUTH_BASE_URL` in `.env.local` (M5 flag: main's
+  one-Owner slot is claimed by the real Owner, so the sign-up bootstrap
+  needs a free slot; auth is branch-scoped, both vars must point at the
+  same branch). Never destructive SQL on main from specs/tooling. Never
   `waitUntil: "networkidle"` on authed pages (the SSE stream never
   settles). Next 16's `<nextjs-portal>` dev indicator intercepts
   pointer events bottom-left — hide it before hovering the sidebar
