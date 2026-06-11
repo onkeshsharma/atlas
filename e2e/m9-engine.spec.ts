@@ -236,7 +236,8 @@ test.describe.serial("M9 — the cockpit is true", () => {
 
     // the page is LIVE: the helper round-trips through the real daemon
     // and the Brief section fills without any reload.
-    await expect(page.getByText("drafted by the Engine")).toBeVisible({ timeout: 90_000 });
+    // (Session B's F:201–243 port phrases provenance "drafted by Engine")
+    await expect(page.getByText("drafted by Engine")).toBeVisible({ timeout: 90_000 });
     await expect(page.getByText("executes the drafted Brief below")).toBeVisible();
     await expect(
       page.getByText("The export needs an environment decision", { exact: false }).nth(1),
