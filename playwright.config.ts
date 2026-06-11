@@ -46,7 +46,9 @@ export default defineConfig({
     // above reaches the dev server even though `next dev` also loads
     // .env.local (real env vars beat Next's dotenv loader).
     env: {
-      ATLAS_E2E_DISTDIR: ".next-e2e",
+      // Overridable like ATLAS_E2E_PORT — two concurrent suite runs need
+      // disjoint distDirs (Next 16 per-distDir dev lock) as well as ports.
+      ATLAS_E2E_DISTDIR: process.env.ATLAS_E2E_DISTDIR ?? ".next-e2e",
       ...(process.env.DATABASE_URL
         ? { DATABASE_URL: process.env.DATABASE_URL }
         : {}),
