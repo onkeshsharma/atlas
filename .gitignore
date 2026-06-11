@@ -35,6 +35,8 @@ yarn-error.log*
 .env*
 # dev-variants flag is dev-only by construction — committed deliberately
 !.env.development
+# documented var template — committed deliberately (M5)
+!.env.example
 
 # testing artifacts
 /test-results/
