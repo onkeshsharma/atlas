@@ -1,4 +1,9 @@
 import { defineConfig } from "@playwright/test";
+import { config } from "dotenv";
+
+// M5 — specs seed/clean real-Neon rows and read ATLAS_OWNER_CODE; the
+// config module loads before any spec import, beating ESM hoisting.
+config({ path: ".env.local", quiet: true });
 
 // 1440 is the canonical design viewport (master plan §5).
 export default defineConfig({

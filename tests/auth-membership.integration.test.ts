@@ -6,7 +6,7 @@
 // in afterAll — the suite leaves the shared dev DB as it found it.
 import { randomUUID } from "node:crypto";
 
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { db } from "@/src/db/client";

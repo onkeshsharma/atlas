@@ -77,12 +77,21 @@ export async function issueInvite(input: {
   return { invite, magicLink: inviteMagicLink(token) };
 }
 
+export async function getInviteByToken(token: string): Promise<Invite | undefined> {
+  return db.query.invites.findFirst({ where: eq(invites.token, token) });
+}
+
+/** the invite a signed-in Collaborator joined through (SS step 01). */
+export async function inviteAcceptedBy(userId: string): Promise<Invite | undefined> {
+  return db.query.invites.findFirst({ where: eq(invites.acceptedBy, userId) });
+}
+
 export type InviteValidation =
   | { ok: true; invite: Invite }
   | { ok: false; reason: Exclude<InviteStatus, "pending"> | "not-found" };
 
 export async function validateInvite(token: string): Promise<InviteValidation> {
-  const invite = await db.query.invites.findFirst({ where: eq(invites.token, token) });
+  const invite = await getInviteByToken(token);
   if (!invite) return { ok: false, reason: "not-found" };
   const status = deriveInviteStatus(invite);
   return status === "pending" ? { ok: true, invite } : { ok: false, reason: status };

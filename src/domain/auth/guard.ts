@@ -22,6 +22,7 @@ export async function requireUser(): Promise<CurrentUser> {
 /** Signed-in Owner, else Collaborators land on their onboarding surface. */
 export async function requireOwner(): Promise<CurrentUser> {
   const user = await requireUser();
+  if (user.role === null) redirect("/no-access"); // session without membership (e.g. social sign-in by a stranger)
   if (user.role !== "owner") redirect("/onboarding");
   return user;
 }
@@ -29,6 +30,7 @@ export async function requireOwner(): Promise<CurrentUser> {
 /** Signed-in Collaborator; Owners go to their welcome surface. */
 export async function requireCollaborator(): Promise<CurrentUser> {
   const user = await requireUser();
+  if (user.role === null) redirect("/no-access");
   if (user.role !== "collaborator") redirect("/welcome");
   return user;
 }
