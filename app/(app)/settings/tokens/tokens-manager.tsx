@@ -181,14 +181,14 @@ export function TokensManager({ rows }: { rows: TokenRowData[] }) {
                     <div className="mt-1.5 font-mono text-sm text-stone-700 select-all">
                       {t.prefix}
                     </div>
+                    {/* XX:175–181's three-segment meta — convergence r1: the
+                        created segment dropped, expiry in the bare "in N days" form */}
                     <div className="mt-2 flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-widest text-stone-400 flex-wrap">
                       <span>scope · {t.scopes.join(" · ")}</span>
                       <span className="text-stone-300">·</span>
                       <span>last used never</span>
                       <span className="text-stone-300">·</span>
-                      <span>{t.standing === "revoked" ? "revoked" : t.expiresLabel}</span>
-                      <span className="text-stone-300">·</span>
-                      <span>created {t.createdAgo}</span>
+                      <span>{t.standing === "revoked" ? `revoked · created ${t.createdAgo}` : t.expiresLabel}</span>
                     </div>
                   </div>
                   {t.standing !== "revoked" && (

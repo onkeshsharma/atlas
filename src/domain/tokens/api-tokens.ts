@@ -93,14 +93,14 @@ export function tokenStanding(t: Pick<ApiToken, "revokedAt" | "expiresAt">, now:
   return "active";
 }
 
-/** "in 85 days" / "in 3 hours" / "expired" — the XX meta-line word. */
+/** "in 85 days" / "in 3 hours" / "expired" — XX:180's bare meta form. */
 export function expiresLabel(expiresAt: Date, now: Date): string {
   const ms = expiresAt.getTime() - now.getTime();
   if (ms <= 0) return "expired";
   const days = Math.floor(ms / (24 * 60 * 60 * 1000));
-  if (days >= 1) return `expires in ${days} day${days === 1 ? "" : "s"}`;
+  if (days >= 1) return `in ${days} day${days === 1 ? "" : "s"}`;
   const hours = Math.max(1, Math.floor(ms / (60 * 60 * 1000)));
-  return `expires in ${hours} hour${hours === 1 ? "" : "s"}`;
+  return `in ${hours} hour${hours === 1 ? "" : "s"}`;
 }
 
 export function parseScopes(value: unknown): string[] {

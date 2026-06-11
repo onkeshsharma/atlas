@@ -190,7 +190,9 @@ export default async function ProfilePage() {
           {/* the big monogram — QQ:285–306; the dot is Bridge health (§2.1) */}
           <section className="rounded-2xl bg-white/70 border border-stone-200/80 p-8 text-center">
             <div className="relative inline-flex h-28 w-28 rounded-full bg-stone-900 text-stone-50 items-center justify-center text-6xl font-bold tracking-tighter leading-none">
-              <span className="block leading-none -mt-2">{initial}</span>
+              {/* QQ:287 — the oversized monogram is UPPERCASE (convergence r1);
+                  the sidebar mark stays lowercase per §2.1 */}
+              <span className="block leading-none -mt-2">{initial.toUpperCase()}</span>
               <span
                 className={`absolute right-3 top-3 inline-block h-2.5 w-2.5 rounded-full ring-2 ring-white ${
                   bridge.status === "healthy"
