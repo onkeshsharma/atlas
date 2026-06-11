@@ -10,11 +10,20 @@ import { execSync } from "node:child_process";
 import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
-import { eq, inArray, like } from "drizzle-orm";
+import { eq, inArray, like, or } from "drizzle-orm";
 
 // .env.local is loaded by playwright.config.ts before specs import.
 import { db } from "../src/db/client";
-import { feedEvents, memberships, projects, runs, tickets, userPreferences } from "../src/db/schema";
+import {
+  briefs,
+  feedEvents,
+  memberships,
+  projects,
+  runs,
+  runStdoutChunks,
+  tickets,
+  userPreferences,
+} from "../src/db/schema";
 import { applyRunTransition } from "../src/domain/run/transitions";
 
 const CAPTURE_DIR = join(__dirname, "..", "..", "notes", "m6-captures");
@@ -62,20 +71,33 @@ async function cleanupE2ERows() {
     .select({ id: tickets.id })
     .from(tickets)
     .where(like(tickets.title, "E2E %"));
+  const ticketIds = e2eTickets.map((t) => t.id);
+  // M9: filing a ticket auto-queues an enrichment Helper Run whose title
+  // does NOT carry the "E2E " marker — sweep runs ATTACHED to E2E
+  // tickets (any spec's leftovers; this hook runs first in the suite)
+  // as well as this spec's own title-marked rows, or the tickets delete
+  // hits runs_ticket_id_tickets_id_fk and poisons every later run.
   const e2eRuns = await db
     .select({ id: runs.id })
     .from(runs)
-    .where(like(runs.title, "E2E %"));
-  if (e2eRuns.length) {
-    await db.delete(feedEvents).where(inArray(feedEvents.runId, e2eRuns.map((r) => r.id)));
+    .where(
+      ticketIds.length
+        ? or(like(runs.title, "E2E %"), inArray(runs.ticketId, ticketIds))
+        : like(runs.title, "E2E %"),
+    );
+  const runIds = e2eRuns.map((r) => r.id);
+  if (runIds.length) {
+    await db.delete(runStdoutChunks).where(inArray(runStdoutChunks.runId, runIds));
+    await db.delete(feedEvents).where(inArray(feedEvents.runId, runIds));
   }
-  if (e2eTickets.length) {
-    await db.delete(feedEvents).where(inArray(feedEvents.ticketId, e2eTickets.map((t) => t.id)));
+  if (ticketIds.length) {
+    await db.delete(feedEvents).where(inArray(feedEvents.ticketId, ticketIds));
   }
   await db.delete(feedEvents).where(like(feedEvents.summary, "E2E %"));
-  if (e2eRuns.length) await db.delete(runs).where(inArray(runs.id, e2eRuns.map((r) => r.id)));
-  if (e2eTickets.length) {
-    await db.delete(tickets).where(inArray(tickets.id, e2eTickets.map((t) => t.id)));
+  if (runIds.length) await db.delete(runs).where(inArray(runs.id, runIds));
+  if (ticketIds.length) {
+    await db.delete(briefs).where(inArray(briefs.ticketId, ticketIds));
+    await db.delete(tickets).where(inArray(tickets.id, ticketIds));
   }
   const e2eMembers = await db
     .select({ userId: memberships.userId })

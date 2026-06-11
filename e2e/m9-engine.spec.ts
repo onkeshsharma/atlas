@@ -286,7 +286,11 @@ test.describe.serial("M9 — the cockpit is true", () => {
         console.log(`[diag] daemon log tail:\n${daemonLog.slice(-4000)}`);
       }
     }
-    await expect(today.getByText(LOOP_QUESTION)).toBeVisible({ timeout: 10_000 });
+    // 60 s window: a healthy stream delivers in ~3 s, but if LiveRefresh's
+    // half-dead-stream watchdog has to reopen the connection (40 s silence
+    // threshold) the live update legitimately takes up to ~50 s — still a
+    // no-reload proof, the tab heals itself.
+    await expect(today.getByText(LOOP_QUESTION)).toBeVisible({ timeout: 60_000 });
 
     // stdout is browser-readable through the per-run SSE cursor (PRD #5)
     const firstFrame = await today.evaluate(
