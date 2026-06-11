@@ -115,6 +115,34 @@ revisit trigger, not a v2.0 requirement.
   deserves the ≤2 s push path. (The sync endpoint means plain polling remains
   a degraded-mode fallback for free.)
 
+## Addendum — M10 (2026-06-12): doctor + governance, additive
+
+M10 extended the vocabulary WITHOUT changing the transport (charter
+hard wall: additive in M9's idioms):
+
+- **Pairing/revocation are domain writers** (`src/domain/bridge/pairing.ts`,
+  shared by the UI and `scripts/pair-bridge.mjs`): atomic name-upsert
+  (rotate on conflict) / revocation mark + `bridge-paired`/`bridge-revoked`
+  outbox rows. A revoked bridge fails §1's token resolution — the 401 →
+  fatal-stop rule needs no daemon change.
+- **The doctor request rides the outbox** (PRD #34; the ship-requested
+  idiom): `requestBridgeDoctor` marks `bridges.doctor_requested_at` +
+  ONE `doctor-requested` row whose payload carries the preflight inputs
+  the daemon can't know (project local_paths; legitimate kept-worktree
+  run ids). §2's events route maps it to a `bridge-doctor` command for
+  the ADDRESSED bridge only — the first non-broadcast command; run
+  commands stay broadcast. `/api/bridge/sync` carries a fresh
+  `doctorRequest` so the catch-up-is-DB-state property holds.
+- **The verdict posts up §3-style:** `POST /api/bridge/doctor` →
+  single-statement writer lands `bridges.doctor`, clears the marker,
+  appends `doctor-completed` — browsers re-render via ADR-0001.
+- **Heartbeats now ECHO the daemon's held cap** (optional body field) so
+  the Bridges page can render "daemon holds cap N" as a report, never an
+  inference. Heartbeats still write no outbox row; the Bridges page
+  alone supplements ADR-0001 with a page-scoped 10 s poll
+  (`src/components/live/HeartbeatPoll.tsx`) because its subject IS the
+  beat — recorded as the one sanctioned exception.
+
 ## Consequences / revisit triggers
 
 - One more long-lived function invocation per connected Bridge (cheap: one
