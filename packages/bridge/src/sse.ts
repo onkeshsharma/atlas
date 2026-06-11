@@ -9,8 +9,12 @@
 export type SseFrame = { id: string | null; event: string; data: string };
 
 /**
- * Open one SSE connection and consume frames until the stream drops or
- * `signal` aborts. Throws TokenRejected-shaped errors upward; returns
+ * Open one SSE connection and consume frames until the stream drops,
+ * `signal` aborts, or the stream goes HALF-DEAD (no bytes — not even
+ * keepalives — for `idleTimeoutMs`; the server beats every 25 s, so a
+ * silent stream is a dead one. Diagnosed against Next dev under e2e
+ * load: recompiles can leave a response open but deliver nothing, and
+ * an unguarded read() waits forever). Throws on abnormal ends; returns
  * normally on clean end-of-stream.
  */
 export async function consumeSse(opts: {
@@ -21,6 +25,7 @@ export async function consumeSse(opts: {
   onFrame: (frame: SseFrame) => void;
   onConnected?: () => void;
   fetchFn?: typeof fetch;
+  idleTimeoutMs?: number;
 }): Promise<void> {
   const fetchFn = opts.fetchFn ?? fetch;
   const res = await fetchFn(opts.url, {
@@ -36,6 +41,17 @@ export async function consumeSse(opts: {
   opts.onConnected?.();
 
   const reader = res.body.getReader();
+
+  // idle watchdog — a stream with no bytes for idleTimeoutMs is half-dead.
+  const idleMs = opts.idleTimeoutMs ?? 45_000;
+  let lastActivity = Date.now();
+  let idled = false;
+  const watchdog = setInterval(() => {
+    if (Date.now() - lastActivity > idleMs) {
+      idled = true;
+      void reader.cancel().catch(() => {});
+    }
+  }, Math.max(1_000, Math.floor(idleMs / 4)));
   const decoder = new TextDecoder();
   let buf = "";
   let id: string | null = null;
@@ -48,27 +64,33 @@ export async function consumeSse(opts: {
     data = "";
   };
 
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) {
-      flush();
-      return;
-    }
-    buf += decoder.decode(value, { stream: true });
-    let nl: number;
-    while ((nl = buf.indexOf("\n")) >= 0) {
-      const line = buf.slice(0, nl).replace(/\r$/, "");
-      buf = buf.slice(nl + 1);
-      if (line === "") {
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
         flush();
-      } else if (line.startsWith("id:")) {
-        id = line.slice(3).trim();
-      } else if (line.startsWith("event:")) {
-        event = line.slice(6).trim();
-      } else if (line.startsWith("data:")) {
-        data += line.slice(5).trim();
+        if (idled) throw new Error("sse-idle");
+        return;
       }
-      // comments / unknown fields ignored
+      lastActivity = Date.now();
+      buf += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).replace(/\r$/, "");
+        buf = buf.slice(nl + 1);
+        if (line === "") {
+          flush();
+        } else if (line.startsWith("id:")) {
+          id = line.slice(3).trim();
+        } else if (line.startsWith("event:")) {
+          event = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          data += line.slice(5).trim();
+        }
+        // comments / unknown fields ignored
+      }
     }
+  } finally {
+    clearInterval(watchdog);
   }
 }

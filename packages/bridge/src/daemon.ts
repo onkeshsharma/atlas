@@ -22,6 +22,10 @@ import { consumeSse } from "./sse.ts";
 
 const BACKOFF_MS = [1_000, 2_000, 4_000, 8_000, 15_000, 30_000];
 
+/** safety resync cadence — new queued work is never hostage to the
+ * stream (belt to the sse idle-watchdog's suspenders). */
+const RESYNC_MS = 15_000;
+
 export type DaemonOptions = {
   client: AtlasClient;
   engine: EngineAdapter;
@@ -39,12 +43,16 @@ export class Daemon {
   private readonly opts: DaemonOptions;
   private readonly log: (line: string) => void;
   private cap = 1;
+  /** last outbox cursor we PROCESSED — resubscribing from here replays
+   * anything a half-dead stream swallowed (at-least-once; ADR-0002 §2). */
+  private lastCursor: number | null = null;
   private queued = new Map<string, SchedulableRun>();
   private running = new Map<string, RunExecution>();
   private stopped = false;
   private aborter: AbortController | null = null;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private resyncTimer: ReturnType<typeof setInterval> | null = null;
   private loopDone: Promise<void> | null = null;
   private fatal: ((err: Error) => void) | null = null;
 
@@ -64,6 +72,7 @@ export class Daemon {
 
     this.tickTimer = setInterval(() => this.tick(), this.opts.tickMs);
     this.heartbeatTimer = setInterval(() => void this.heartbeat(), this.opts.heartbeatMs);
+    this.resyncTimer = setInterval(() => void this.resyncQueue(), RESYNC_MS);
     void this.heartbeat();
     this.loopDone = this.connectionLoop();
 
@@ -75,6 +84,7 @@ export class Daemon {
     this.stopped = true;
     if (this.tickTimer) clearInterval(this.tickTimer);
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    if (this.resyncTimer) clearInterval(this.resyncTimer);
     this.aborter?.abort();
     for (const execution of this.running.values()) execution.cancel();
     await Promise.allSettled([...this.running.values()].map((e) => e.done));
@@ -114,13 +124,18 @@ export class Daemon {
 
         attempt = 0;
         this.aborter = new AbortController();
+        // resume from the last PROCESSED cursor when we have one — the
+        // sync snapshot covers queued state, but an answer/cancel that
+        // landed while the stream was half-dead must replay.
+        const since = this.lastCursor ?? sync.cursor;
         await consumeSse({
-          url: `${this.opts.atlasUrl}/api/bridge/events?since=${sync.cursor}`,
+          url: `${this.opts.atlasUrl}/api/bridge/events?since=${since}`,
           token: this.opts.token,
           signal: this.aborter.signal,
           fetchFn: this.opts.fetchFn,
           onConnected: () => this.log("command stream connected"),
           onFrame: (frame) => {
+            if (frame.id && /^\d+$/.test(frame.id)) this.lastCursor = Number(frame.id);
             if (frame.event === "message") return; // keepalives/comments
             let payload: unknown = null;
             try {
@@ -233,6 +248,37 @@ export class Daemon {
       } catch (err) {
         this.log(`orphan ${record.runId}: sweep failed — ${String(err)}`);
       }
+    }
+  }
+
+  /**
+   * Safety resync (RESYNC_MS): merge the live queued snapshot into the
+   * mirror — adds work the stream missed, drops runs that left the
+   * queue underneath us. Steering commands stay the stream's job (the
+   * idle watchdog + cursor replay bound their latency).
+   */
+  private async resyncQueue(): Promise<void> {
+    if (this.stopped) return;
+    try {
+      const sync = await this.opts.client.sync();
+      this.cap = sync.cap;
+      const queuedNow = new Set(sync.queued.map((q) => q.runId));
+      for (const runId of [...this.queued.keys()]) {
+        if (!queuedNow.has(runId)) this.queued.delete(runId);
+      }
+      for (const q of sync.queued) {
+        if (!this.running.has(q.runId) && !this.queued.has(q.runId)) {
+          this.queued.set(q.runId, {
+            runId: q.runId,
+            lane: q.lane,
+            queuePosition: q.queuePosition,
+            ref: q.ref,
+          });
+        }
+      }
+      this.tick();
+    } catch {
+      // transient — the connection loop owns hard failures.
     }
   }
 
