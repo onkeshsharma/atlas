@@ -3,19 +3,19 @@
  *
  * The daemon sends `Authorization: Bearer <ATLAS_BRIDGE_TOKEN>`; Atlas
  * stores only the sha-256 hex (`bridges.token_hash`) and resolves the
- * row per request. Pairing: `scripts/pair-bridge.mjs` (M9 dev tool —
- * the M10 surface owns rotate/revoke/show-once).
+ * row per request. M10: pairing/rotate/revoke live in ./pairing (shared
+ * by the UI and scripts/pair-bridge.mjs); hashing is re-exported from
+ * there so one implementation exists. A REVOKED bridge no longer
+ * resolves — its daemon 401s into the fatal TokenRejectedError stop.
  */
-import { createHash } from "node:crypto";
-
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { db } from "@/src/db/client";
 import { bridges, type Bridge } from "@/src/db/schema";
 
-export function hashBridgeToken(token: string): string {
-  return createHash("sha256").update(token, "utf8").digest("hex");
-}
+import { hashBridgeToken } from "./pairing";
+
+export { hashBridgeToken };
 
 /** resolve the calling daemon from the Bearer header; null = 401. */
 export async function bridgeFromRequest(req: Request): Promise<Bridge | null> {
@@ -28,7 +28,8 @@ export async function bridgeFromRequest(req: Request): Promise<Bridge | null> {
   const rows = await db
     .select()
     .from(bridges)
-    .where(eq(bridges.tokenHash, hashBridgeToken(token)))
+    // M10 — revocation takes effect on the very next request.
+    .where(and(eq(bridges.tokenHash, hashBridgeToken(token)), isNull(bridges.revokedAt)))
     .limit(1);
   return rows[0] ?? null;
 }
