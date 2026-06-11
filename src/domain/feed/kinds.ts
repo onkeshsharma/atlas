@@ -44,6 +44,9 @@ export const KIND_WORD: Record<FeedEventKind, string> = {
   enriched: "enriched",
   "brief-drafted": "drafted",
   ingested: "ingested",
+  // M9 Session B — the approve-and-ship click ("you approved R-501 — …";
+  // `shipped` is the emerald word and lands when the merge does).
+  "ship-requested": "approved",
 };
 
 export const KIND_CONNECTOR: Partial<Record<FeedEventKind, string>> = {
@@ -76,6 +79,9 @@ export const KIND_TONE: Record<FeedEventKind, DotTone> = {
   enriched: "stone",
   "brief-drafted": "stone",
   ingested: "stone",
+  // Session B — the click is bookkeeping; emerald is reserved for the
+  // landing itself (§1.1: did code move? emerald. did a record update? not).
+  "ship-requested": "stone",
 };
 
 /** colored kind word in inbox sentences (Z:407–413 shape, canon palette). */
@@ -102,6 +108,7 @@ export const KIND_WORD_CLASS: Record<FeedEventKind, string> = {
   enriched: "text-stone-700",
   "brief-drafted": "text-stone-700",
   ingested: "text-stone-700",
+  "ship-requested": "text-stone-700", // Session B
 };
 
 /** display text — dashes read as spaces. */

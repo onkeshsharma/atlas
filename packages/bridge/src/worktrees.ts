@@ -80,6 +80,26 @@ export async function removeRunWorktree(args: {
 }
 
 /**
+ * Session B — the full unified diff for KK's hunks (`git diff --cached`
+ * after captureDiffStats staged everything). Capped so a generated-file
+ * avalanche can't bloat the runs row; the marker is parsed app-side
+ * (src/domain/run/diff-patch.ts) into an honest "truncated" line.
+ */
+export const DIFF_PATCH_MAX_CHARS = 400_000;
+export const DIFF_TRUNCATION_MARKER = "\n…atlas: diff truncated…\n";
+
+export async function captureDiffPatch(args: {
+  worktree: string;
+  exec?: GitExecFn;
+}): Promise<string | null> {
+  const exec = args.exec ?? gitExec;
+  const diff = await exec(["diff", "--cached"], { cwd: args.worktree });
+  if (diff.exitCode !== 0) return null;
+  if (diff.stdout.length <= DIFF_PATCH_MAX_CHARS) return diff.stdout;
+  return diff.stdout.slice(0, DIFF_PATCH_MAX_CHARS) + DIFF_TRUNCATION_MARKER;
+}
+
+/**
  * Stage everything and read the run's real diff stats (`git add -A` +
  * `git diff --cached --numstat` in the run's OWN worktree — staging is
  * private to the run; Session B's ship commits from here). Binary files

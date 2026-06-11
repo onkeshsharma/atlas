@@ -25,6 +25,10 @@ export function rowToBridgeEvents(row: FeedEvent): BridgeEvent[] {
     }
     case "cancelled":
       return [{ type: "run-cancelled", cursor: row.id, runId: row.runId }];
+    case "ship-requested":
+      // Session B — the Owner approved (KK CTA); the daemon ships from
+      // the run's kept worktree (requestShipRun wrote this row).
+      return [{ type: "run-ship", cursor: row.id, runId: row.runId }];
     case "answered": {
       const answer = parseNeedsInputAnswer(payload?.answer);
       return answer

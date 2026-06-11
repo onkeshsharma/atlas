@@ -22,6 +22,7 @@ import type { EngineAdapter, EngineSession } from "./engine/types.ts";
 import type { NeedsInputAnswer, WorkOrder } from "./protocol.ts";
 import { StdoutBatcher } from "./stdout-batcher.ts";
 import {
+  captureDiffPatch,
   captureDiffStats,
   createRunWorktree,
   removeRunWorktree,
@@ -144,7 +145,14 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
     switch (outcome.result) {
       case "review-ready": {
         const diffStats = worktree ? await captureDiffStats({ worktree }) : null;
-        const applied = await deps.client.transition(runId, { to: "review-ready", diffStats });
+        // Session B — the unified diff rides up with the numstat so KK
+        // can render real hunks cloud-side (capped; worktrees.ts).
+        const diffPatch = worktree ? await captureDiffPatch({ worktree }) : null;
+        const applied = await deps.client.transition(runId, {
+          to: "review-ready",
+          diffStats,
+          ...(diffPatch ? { diffPatch } : {}),
+        });
         deps.log(
           applied
             ? `run ${order.ref}: review-ready (${diffStats?.filesChanged ?? 0} files)`

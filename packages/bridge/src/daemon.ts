@@ -18,7 +18,10 @@ import type { EngineAdapter } from "./engine/types.ts";
 import { parseBridgeEvent, type RunLane } from "./protocol.ts";
 import { executeRun, type RunExecution } from "./runner.ts";
 import { nextToStart, type SchedulableRun } from "./scheduler.ts";
+import { executeShip } from "./ship.ts";
 import { consumeSse } from "./sse.ts";
+import { removeRunWorktree, runWorktreePath } from "./worktrees.ts";
+import { existsSync } from "node:fs";
 
 const BACKOFF_MS = [1_000, 2_000, 4_000, 8_000, 15_000, 30_000];
 
@@ -48,6 +51,10 @@ export class Daemon {
   private lastCursor: number | null = null;
   private queued = new Map<string, SchedulableRun>();
   private running = new Map<string, RunExecution>();
+  /** Session B — ship executions in flight. Git ops, not Engine
+   * sessions: they never consume cap slots (the worktree already
+   * holds the work; shipping is seconds, runs are minutes). */
+  private shipping = new Set<string>();
   private stopped = false;
   private aborter: AbortController | null = null;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
@@ -120,6 +127,8 @@ export class Daemon {
           `sync: cap ${sync.cap} · ${sync.queued.length} queued · ${sync.active.length} active on record`,
         );
         await this.orphanSweep(sync.active);
+        // Session B — ships requested while we were away (PRD #35's sibling).
+        for (const runId of sync.shipRequested) this.startShip(runId);
         this.tick();
 
         attempt = 0;
@@ -182,7 +191,15 @@ export class Daemon {
         return;
       case "run-cancelled": {
         this.queued.delete(event.runId);
-        this.running.get(event.runId)?.cancel();
+        const execution = this.running.get(event.runId);
+        if (execution) {
+          execution.cancel();
+        } else {
+          // Session B — a review-ready run cancelled from the cockpit
+          // (KK's send-back declines the result): its KEPT worktree has
+          // no execution to prune it. Best-effort disk hygiene.
+          void this.pruneKeptWorktree(event.runId);
+        }
         return;
       }
       case "run-answered": {
@@ -190,6 +207,82 @@ export class Daemon {
         if (execution && event.answer) execution.answer(event.answer);
         return;
       }
+      case "run-ship": {
+        this.startShip(event.runId);
+        return;
+      }
+    }
+  }
+
+  /**
+   * Session B — approve-and-ship (PRD #25): commit/merge from the kept
+   * worktree, then post the honest outcome. Stale posts (the run moved,
+   * a duplicate delivery) lose on the conditional claims and drop quietly.
+   */
+  private startShip(runId: string): void {
+    if (this.stopped || this.shipping.has(runId)) return;
+    this.shipping.add(runId);
+    void (async () => {
+      try {
+        const order = await this.opts.client.workOrder(runId);
+        if (!order) {
+          this.log(`ship ${runId}: no work order (gone) — dropping`);
+          return;
+        }
+        if (order.state !== "review-ready") {
+          this.log(`ship ${order.ref}: not review-ready (${order.state}) — dropping`);
+          return;
+        }
+        const outcome = await executeShip({
+          order,
+          dataDir: this.opts.dataDir,
+          log: this.log,
+        });
+        if (outcome.result === "shipped") {
+          const applied = await this.opts.client.transition(runId, {
+            to: "shipped",
+            ...(outcome.prUrl ? { prUrl: outcome.prUrl } : {}),
+            ...(outcome.mergeSha ? { mergeSha: outcome.mergeSha } : {}),
+          });
+          this.log(
+            applied
+              ? `ship ${order.ref}: shipped${outcome.mergeSha ? ` (${outcome.mergeSha.slice(0, 7)})` : ""}`
+              : `ship ${order.ref}: shipped post lost the claim (run moved)`,
+          );
+        } else {
+          const applied = await this.opts.client.transition(runId, {
+            to: "failed",
+            from: "review-ready",
+            failureKind: outcome.failureKind,
+            failureDetail: outcome.detail,
+            ...(outcome.prUrl ? { prUrl: outcome.prUrl } : {}),
+          });
+          this.log(
+            applied
+              ? `ship ${order.ref}: failed (${outcome.failureKind})`
+              : `ship ${order.ref}: failure post lost the claim (run moved)`,
+          );
+        }
+      } catch (err) {
+        this.log(`ship ${runId}: executor error — ${String(err)}`);
+      } finally {
+        this.shipping.delete(runId);
+      }
+    })();
+  }
+
+  /** prune the kept worktree of a run that left review-ready without shipping. */
+  private async pruneKeptWorktree(runId: string): Promise<void> {
+    try {
+      if (!existsSync(runWorktreePath(this.opts.dataDir, runId))) return;
+      const order = await this.opts.client.workOrder(runId);
+      const repoDir = order?.project.localPath;
+      if (repoDir) {
+        await removeRunWorktree({ repoDir, runId, dataDir: this.opts.dataDir });
+        this.log(`worktree ${runId}: pruned (run cancelled at review-ready)`);
+      }
+    } catch (err) {
+      this.log(`worktree ${runId}: prune failed — ${String(err)}`);
     }
   }
 
@@ -276,6 +369,7 @@ export class Daemon {
           });
         }
       }
+      for (const runId of sync.shipRequested) this.startShip(runId);
       this.tick();
     } catch {
       // transient — the connection loop owns hard failures.

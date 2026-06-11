@@ -24,7 +24,10 @@ import { parseRunDiffStats, type RunDiffStats } from "../run/diff-stats";
 export type BridgeEvent =
   | { type: "run-available"; cursor: number; runId: string; lane: "owner" | "helper" }
   | { type: "run-cancelled"; cursor: number; runId: string }
-  | { type: "run-answered"; cursor: number; runId: string; answer: NeedsInputAnswer };
+  | { type: "run-answered"; cursor: number; runId: string; answer: NeedsInputAnswer }
+  // Session B — approve-and-ship (PRD #25): commit/merge from the run's
+  // KEPT review-ready worktree; outcome posts back as shipped / failed.
+  | { type: "run-ship"; cursor: number; runId: string };
 
 export type BridgeEventType = BridgeEvent["type"];
 
@@ -32,6 +35,7 @@ export const BRIDGE_EVENT_TYPES = [
   "run-available",
   "run-cancelled",
   "run-answered",
+  "run-ship",
 ] as const satisfies readonly BridgeEventType[];
 
 /** one SSE frame — id: carries the outbox cursor for Last-Event-ID resume. */
@@ -52,6 +56,7 @@ export function parseBridgeEvent(value: unknown): BridgeEvent | null {
       if (value.lane !== "owner" && value.lane !== "helper") return null;
       return value as BridgeEvent;
     case "run-cancelled":
+    case "run-ship":
       return value as BridgeEvent;
     case "run-answered":
       if (!parseNeedsInputAnswer(value.answer)) return null;
@@ -64,15 +69,32 @@ export function parseBridgeEvent(value: unknown): BridgeEvent | null {
 /** Bridge → Atlas: POST /api/bridge/runs/:id/transition body. */
 export type BridgeTransitionBody =
   | { to: "needs-input"; question: unknown }
-  | { to: "review-ready"; diffStats?: unknown }
-  | { to: "failed"; failureKind: FailureKind; failureDetail?: string }
-  | { to: "cancelled"; from: "needs-input" };
+  | { to: "review-ready"; diffStats?: unknown; diffPatch?: string }
+  | {
+      to: "failed";
+      failureKind: FailureKind;
+      failureDetail?: string;
+      /** ship failures claim from review-ready (Session B); default running. */
+      from?: "running" | "review-ready";
+      /** the gh path may have opened a PR before the merge refused (K:307). */
+      prUrl?: string;
+    }
+  | { to: "cancelled"; from: "needs-input" }
+  // Session B — the ship executor's success post (PRD #25/#27).
+  | { to: "shipped"; prUrl?: string; mergeSha?: string };
 
 export type ParsedTransition =
   | { to: "needs-input"; question: NonNullable<ReturnType<typeof parseNeedsInputQuestion>> }
-  | { to: "review-ready"; diffStats: RunDiffStats | null }
-  | { to: "failed"; failureKind: FailureKind; failureDetail: string | null }
-  | { to: "cancelled"; from: "needs-input" };
+  | { to: "review-ready"; diffStats: RunDiffStats | null; diffPatch: string | null }
+  | {
+      to: "failed";
+      failureKind: FailureKind;
+      failureDetail: string | null;
+      from: "running" | "review-ready";
+      prUrl: string | null;
+    }
+  | { to: "cancelled"; from: "needs-input" }
+  | { to: "shipped"; prUrl: string | null; mergeSha: string | null };
 
 export function parseBridgeTransition(value: unknown): ParsedTransition | null {
   if (!isRecord(value)) return null;
@@ -82,22 +104,37 @@ export function parseBridgeTransition(value: unknown): ParsedTransition | null {
       return question ? { to: "needs-input", question } : null;
     }
     case "review-ready": {
+      const diffPatch = typeof value.diffPatch === "string" ? value.diffPatch : null;
       if (value.diffStats === undefined || value.diffStats === null) {
-        return { to: "review-ready", diffStats: null };
+        return { to: "review-ready", diffStats: null, diffPatch };
       }
       const diffStats = parseRunDiffStats(value.diffStats);
-      return diffStats ? { to: "review-ready", diffStats } : null;
+      return diffStats ? { to: "review-ready", diffStats, diffPatch } : null;
     }
     case "failed": {
       if (!isFailureKind(value.failureKind)) return null;
       const detail = typeof value.failureDetail === "string" ? value.failureDetail : null;
-      return { to: "failed", failureKind: value.failureKind, failureDetail: detail };
+      const from = value.from === "review-ready" ? "review-ready" : "running";
+      if (value.from !== undefined && value.from !== "running" && value.from !== "review-ready") {
+        return null;
+      }
+      const prUrl = typeof value.prUrl === "string" ? value.prUrl : null;
+      return { to: "failed", failureKind: value.failureKind, failureDetail: detail, from, prUrl };
     }
     case "cancelled":
       // the daemon may only cancel a needs-input orphan it cannot legally
       // fail (bridge-writers.ts note); browser cancels go through the
       // live-command executor, never this route.
       return value.from === "needs-input" ? { to: "cancelled", from: "needs-input" } : null;
+    case "shipped": {
+      if (value.prUrl !== undefined && typeof value.prUrl !== "string") return null;
+      if (value.mergeSha !== undefined && typeof value.mergeSha !== "string") return null;
+      return {
+        to: "shipped",
+        prUrl: (value.prUrl as string | undefined) ?? null,
+        mergeSha: (value.mergeSha as string | undefined) ?? null,
+      };
+    }
     default:
       return null;
   }
@@ -204,12 +241,17 @@ export type BridgeSyncResponse = {
     queuePosition: number | null;
   }>;
   active: Array<{ runId: string; state: RunState }>;
+  /** Session B — ship requests pending on THIS bridge's kept worktrees
+   * (review-ready + ship_requested_at set): a ship clicked while the
+   * daemon was offline executes on reconnect (PRD #35's sibling). */
+  shipRequested: string[];
 };
 
 export function parseBridgeSync(value: unknown): BridgeSyncResponse | null {
   if (!isRecord(value)) return null;
   if (typeof value.cursor !== "number" || typeof value.cap !== "number") return null;
   if (!Array.isArray(value.queued) || !Array.isArray(value.active)) return null;
+  if (!Array.isArray(value.shipRequested)) return null;
   for (const q of value.queued) {
     if (!isRecord(q)) return null;
     if (typeof q.runId !== "string" || typeof q.ref !== "string") return null;
@@ -218,5 +260,6 @@ export function parseBridgeSync(value: unknown): BridgeSyncResponse | null {
   for (const a of value.active) {
     if (!isRecord(a) || typeof a.runId !== "string" || !isRunState(a.state)) return null;
   }
+  if (value.shipRequested.some((id) => typeof id !== "string")) return null;
   return value as unknown as BridgeSyncResponse;
 }

@@ -90,6 +90,12 @@ describe("rowToBridgeEvents — the outbox IS the command log (ADR-0002 §2)", (
     ).toEqual([]);
   });
 
+  it("ship-requested → run-ship (Session B: the KK CTA's command)", () => {
+    expect(
+      rowToBridgeEvents(feedRow({ kind: "ship-requested", payload: { shipRequested: true } })),
+    ).toEqual([{ type: "run-ship", cursor: 7, runId: RUN_ID }]);
+  });
+
   it("non-command kinds and runless rows map to nothing", () => {
     expect(rowToBridgeEvents(feedRow({ kind: "started" }))).toEqual([]);
     expect(rowToBridgeEvents(feedRow({ kind: "shipped" }))).toEqual([]);
@@ -108,6 +114,7 @@ describe("SSE frames round-trip the daemon's line grammar", () => {
         runId: RUN_ID,
         answer: { choice: "Allow", answeredBy: "you", answeredAt: "2026-06-11T12:00:00Z" },
       },
+      { type: "run-ship" as const, cursor: 44, runId: RUN_ID },
     ].map((event) => ({ event })),
   )("$event.type", ({ event }) => {
     const frame = bridgeSseFrame(event);
@@ -150,7 +157,7 @@ describe("wire-body parsers", () => {
     expect(parseBridgeTransition({ to: "needs-input", question: { prompt: "" } })).toBeNull();
   });
 
-  it("transition: review-ready takes optional diff stats, garbage rejected", () => {
+  it("transition: review-ready takes optional diff stats + patch, garbage rejected", () => {
     const diffStats = {
       filesChanged: 1,
       insertions: 2,
@@ -160,10 +167,15 @@ describe("wire-body parsers", () => {
     expect(parseBridgeTransition({ to: "review-ready", diffStats })).toEqual({
       to: "review-ready",
       diffStats,
+      diffPatch: null,
     });
+    expect(
+      parseBridgeTransition({ to: "review-ready", diffStats, diffPatch: "diff --git a/a b/a" }),
+    ).toMatchObject({ diffPatch: "diff --git a/a b/a" });
     expect(parseBridgeTransition({ to: "review-ready" })).toEqual({
       to: "review-ready",
       diffStats: null,
+      diffPatch: null,
     });
     expect(
       parseBridgeTransition({ to: "review-ready", diffStats: { filesChanged: -1 } }),
@@ -176,6 +188,7 @@ describe("wire-body parsers", () => {
       expect(parseBridgeTransition({ to: "failed", failureKind: kind })).toMatchObject({
         to: "failed",
         failureKind: kind,
+        from: "running", // default — engine failures
       });
     }
     expect(parseBridgeTransition({ to: "failed", failureKind: "mystery" })).toBeNull();
@@ -184,6 +197,36 @@ describe("wire-body parsers", () => {
       from: "needs-input",
     });
     expect(parseBridgeTransition({ to: "cancelled", from: "running" })).toBeNull();
+  });
+
+  it("transition: ship outcomes — failed from review-ready (with PR ref) and shipped (Session B)", () => {
+    expect(
+      parseBridgeTransition({
+        to: "failed",
+        failureKind: "conflict",
+        from: "review-ready",
+        prUrl: "https://github.com/acme/x/pull/9",
+        failureDetail: "conflicting files: a.ts",
+      }),
+    ).toEqual({
+      to: "failed",
+      failureKind: "conflict",
+      from: "review-ready",
+      prUrl: "https://github.com/acme/x/pull/9",
+      failureDetail: "conflicting files: a.ts",
+    });
+    expect(
+      parseBridgeTransition({ to: "failed", failureKind: "conflict", from: "queued" }),
+    ).toBeNull();
+    expect(
+      parseBridgeTransition({ to: "shipped", mergeSha: "abc", prUrl: "https://x/pull/1" }),
+    ).toEqual({ to: "shipped", mergeSha: "abc", prUrl: "https://x/pull/1" });
+    expect(parseBridgeTransition({ to: "shipped" })).toEqual({
+      to: "shipped",
+      prUrl: null,
+      mergeSha: null,
+    });
+    expect(parseBridgeTransition({ to: "shipped", mergeSha: 7 })).toBeNull();
   });
 
   it("stdout: positive integer seqs only", () => {

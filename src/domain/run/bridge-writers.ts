@@ -66,10 +66,12 @@ export async function claimRun(input: {
   return asResult(result.rows);
 }
 
-/** running → review-ready with the run's real diff stats (`review-ready` outbox row). */
+/** running → review-ready with the run's real diff stats + patch (`review-ready` outbox row). */
 export async function completeRun(input: {
   runId: string;
   diffStats: RunDiffStats | null;
+  /** the full unified diff (KK's hunks — migration 0005); capped Bridge-side. */
+  diffPatch?: string | null;
   actor?: string;
 }): Promise<WriterResult> {
   const payload = JSON.stringify({ from: "running", to: "review-ready" });
@@ -79,6 +81,7 @@ export async function completeRun(input: {
       update runs
       set state = 'review-ready',
           diff_stats = coalesce(${diffJson}::jsonb, diff_stats),
+          diff_patch = coalesce(${input.diffPatch ?? null}, diff_patch),
           updated_at = now()
       where id = ${input.runId} and state = 'running'
       returning id, ref, project_id, ticket_id, title
@@ -171,6 +174,132 @@ export async function answerRun(input: {
     select
       'answered',
       ${input.actor ?? "you"},
+      updated.ref || ' — ' || updated.title,
+      updated.project_id,
+      updated.ticket_id,
+      updated.id,
+      (select t.ref from tickets t where t.id = updated.ticket_id),
+      ${payload}::jsonb,
+      false
+    from updated
+    returning id
+  `);
+  return asResult(result.rows);
+}
+
+/**
+ * The Owner's approve-and-ship click (KK's emerald CTA — PRD #25;
+ * Session B). The run STAYS review-ready: shipping is the daemon's job
+ * (commit/merge from the kept worktree), and the row only flips when the
+ * code actually lands (shipRun) or honestly fails (shipFailRun). The
+ * `ship-requested` outbox row IS the daemon's `run-ship` command
+ * (src/domain/bridge/events.ts); ship_requested_at makes the request
+ * durable across daemon downtime (sync carries pending ids — ADR-0002
+ * §2: catch-up is DB state). The IS NULL claim makes double-clicks
+ * no-ops.
+ */
+export async function requestShipRun(input: {
+  runId: string;
+  actor?: string;
+}): Promise<WriterResult> {
+  const payload = JSON.stringify({ shipRequested: true });
+  const result = await db.execute(sql`
+    with updated as (
+      update runs
+      set ship_requested_at = now(),
+          updated_at = now()
+      where id = ${input.runId} and state = 'review-ready' and ship_requested_at is null
+      returning id, ref, project_id, ticket_id, title
+    )
+    insert into feed_events (kind, actor, summary, project_id, ticket_id, run_id, ticket_ref, payload, seeded)
+    select
+      'ship-requested',
+      ${input.actor ?? "you"},
+      updated.ref || ' — ' || updated.title,
+      updated.project_id,
+      updated.ticket_id,
+      updated.id,
+      (select t.ref from tickets t where t.id = updated.ticket_id),
+      ${payload}::jsonb,
+      false
+    from updated
+    returning id
+  `);
+  return asResult(result.rows);
+}
+
+/**
+ * review-ready → shipped with the landing's refs (`shipped` outbox row,
+ * PRD #27). Posted by the daemon's ship executor after the merge is
+ * real; pr_url stays null on the local-merge path (no remote).
+ */
+export async function shipRun(input: {
+  runId: string;
+  prUrl?: string | null;
+  mergeSha?: string | null;
+  actor?: string;
+}): Promise<WriterResult> {
+  const payload = JSON.stringify({ from: "review-ready", to: "shipped" });
+  const result = await db.execute(sql`
+    with updated as (
+      update runs
+      set state = 'shipped',
+          pr_url = ${input.prUrl ?? null},
+          merge_sha = ${input.mergeSha ?? null},
+          updated_at = now()
+      where id = ${input.runId} and state = 'review-ready'
+      returning id, ref, project_id, ticket_id, title
+    )
+    insert into feed_events (kind, actor, summary, project_id, ticket_id, run_id, ticket_ref, payload, seeded)
+    select
+      'shipped',
+      ${input.actor ?? "Engine"},
+      updated.ref || ' — ' || updated.title,
+      updated.project_id,
+      updated.ticket_id,
+      updated.id,
+      (select t.ref from tickets t where t.id = updated.ticket_id),
+      ${payload}::jsonb,
+      false
+    from updated
+    returning id
+  `);
+  return asResult(result.rows);
+}
+
+/**
+ * review-ready → failed: the SHIP failed (conflict / not-mergeable /
+ * gh-cli-error / no-changes — KK honesty; PRD #22–23 feed K's framing).
+ * Keeps pr_url when the gh path got as far as opening one (K:307's
+ * "PR ↗" stays real on a failed run).
+ */
+export async function shipFailRun(input: {
+  runId: string;
+  failureKind: FailureKind;
+  failureDetail?: string;
+  prUrl?: string | null;
+  actor?: string;
+}): Promise<WriterResult> {
+  const payload = JSON.stringify({
+    from: "review-ready",
+    to: "failed",
+    failureKind: input.failureKind,
+  });
+  const result = await db.execute(sql`
+    with updated as (
+      update runs
+      set state = 'failed',
+          failure_kind = ${input.failureKind},
+          failure_detail = ${input.failureDetail ?? null},
+          pr_url = coalesce(${input.prUrl ?? null}, pr_url),
+          updated_at = now()
+      where id = ${input.runId} and state = 'review-ready'
+      returning id, ref, project_id, ticket_id, title
+    )
+    insert into feed_events (kind, actor, summary, project_id, ticket_id, run_id, ticket_ref, payload, seeded)
+    select
+      'failed',
+      ${input.actor ?? "Engine"},
       updated.ref || ' — ' || updated.title,
       updated.project_id,
       updated.ticket_id,

@@ -82,6 +82,22 @@ export const runs = pgTable("runs", {
   failureDetail: text("failure_detail"),
   /** RunDiffStats jsonb (src/domain/run/diff-stats.ts) — set at review-ready; feeds KK + the Hints file-sets seam. */
   diffStats: jsonb("diff_stats"),
+  /**
+   * The run's full unified diff, captured with the numstat at
+   * review-ready (migration 0005). KK renders REAL hunks from it —
+   * the worktree lives on the Owner's machine, so the patch must ride
+   * up or the cloud can't show code. Capped Bridge-side
+   * (DIFF_PATCH_MAX_CHARS) with an honest truncation marker.
+   */
+  diffPatch: text("diff_patch"),
+  /**
+   * Approve-and-ship request marker (migration 0005). Set by the KK
+   * CTA's single-statement writer (requestShipRun); the same outbox row
+   * is the daemon's `run-ship` command, and /api/bridge/sync carries
+   * pending ids so a ship clicked while the Bridge was offline still
+   * executes on reconnect (ADR-0002 §2: catch-up is DB state).
+   */
+  shipRequestedAt: timestamp("ship_requested_at", { withTimezone: true }),
   /** ship refs (Session B writes these at approve-and-ship; PRD #27). */
   prUrl: text("pr_url"),
   mergeSha: text("merge_sha"),

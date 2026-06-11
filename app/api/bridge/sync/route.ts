@@ -8,7 +8,11 @@
  */
 import { bridgeFromRequest } from "@/src/domain/bridge/auth";
 import type { BridgeSyncResponse } from "@/src/domain/bridge/protocol";
-import { activeRunsForBridge, queuedWorkOrders } from "@/src/domain/dispatch/queries";
+import {
+  activeRunsForBridge,
+  queuedWorkOrders,
+  shipRequestedRunsForBridge,
+} from "@/src/domain/dispatch/queries";
 import { latestCursor } from "@/src/domain/live/broker";
 import { runCap } from "@/src/domain/settings/instance";
 
@@ -19,11 +23,12 @@ export async function GET(req: Request) {
   const bridge = await bridgeFromRequest(req);
   if (!bridge) return new Response("Unauthorized", { status: 401 });
 
-  const [cursor, cap, queued, active] = await Promise.all([
+  const [cursor, cap, queued, active, shipRequested] = await Promise.all([
     latestCursor(),
     runCap(),
     queuedWorkOrders(),
     activeRunsForBridge(bridge.id),
+    shipRequestedRunsForBridge(bridge.id),
   ]);
 
   const body: BridgeSyncResponse = {
@@ -37,6 +42,7 @@ export async function GET(req: Request) {
       queuePosition: w.queuePosition,
     })),
     active: active.map((a) => ({ runId: a.runId, state: a.state })),
+    shipRequested,
   };
   return Response.json(body);
 }

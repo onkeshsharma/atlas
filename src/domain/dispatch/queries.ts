@@ -194,3 +194,23 @@ export async function activeRunsForBridge(
     .where(and(eq(runs.bridgeId, bridgeId), inArray(runs.state, ["running", "needs-input"])));
   return rows;
 }
+
+/**
+ * Session B — ship requests pending on this Bridge's kept worktrees
+ * (review-ready + ship_requested_at set). Sync carries these so an
+ * approve-and-ship clicked while the daemon was offline executes on
+ * reconnect (ADR-0002 §2: catch-up is DB state, the PRD #35 sibling).
+ */
+export async function shipRequestedRunsForBridge(bridgeId: string): Promise<string[]> {
+  const rows = await db
+    .select({ runId: runs.id })
+    .from(runs)
+    .where(
+      and(
+        eq(runs.bridgeId, bridgeId),
+        eq(runs.state, "review-ready"),
+        sql`${runs.shipRequestedAt} is not null`,
+      ),
+    );
+  return rows.map((r) => r.runId);
+}

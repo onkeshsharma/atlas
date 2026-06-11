@@ -37,6 +37,10 @@ export type FakeRun = {
   failureKind: string | null;
   failureDetail: string | null;
   diffStats: unknown;
+  diffPatch: string | null;
+  shipRequested: boolean;
+  prUrl: string | null;
+  mergeSha: string | null;
   helperResult: unknown;
   stdout: Map<number, string>;
 };
@@ -44,7 +48,8 @@ export type FakeRun = {
 type OutboxRow =
   | { cursor: number; type: "run-available"; runId: string; lane: "owner" | "helper" }
   | { cursor: number; type: "run-cancelled"; runId: string }
-  | { cursor: number; type: "run-answered"; runId: string; answer: NeedsInputAnswer };
+  | { cursor: number; type: "run-answered"; runId: string; answer: NeedsInputAnswer }
+  | { cursor: number; type: "run-ship"; runId: string };
 
 export class FakeAtlas {
   readonly token: string;
@@ -101,6 +106,10 @@ export class FakeAtlas {
       failureKind: null,
       failureDetail: null,
       diffStats: null,
+      diffPatch: null,
+      shipRequested: false,
+      prUrl: null,
+      mergeSha: null,
       helperResult: null,
       stdout: new Map(),
     };
@@ -114,10 +123,14 @@ export class FakeAtlas {
     return run;
   }
 
-  /** the cockpit cancels (Atlas-first steering) and the outbox tells the daemon. */
+  /** the cockpit cancels (Atlas-first steering) and the outbox tells the
+   * daemon. review-ready included: KK's send-back declines a result
+   * (legal table: review-ready → cancelled). */
   cancelRun(runId: string): boolean {
     const run = this.runs.get(runId);
-    if (!run || !["queued", "running", "needs-input"].includes(run.state)) return false;
+    if (!run || !["queued", "running", "needs-input", "review-ready"].includes(run.state)) {
+      return false;
+    }
     run.state = "cancelled";
     this.outbox.push({ cursor: ++this.cursor, type: "run-cancelled", runId });
     return true;
@@ -130,6 +143,15 @@ export class FakeAtlas {
     run.state = "running";
     run.answer = answer;
     this.outbox.push({ cursor: ++this.cursor, type: "run-answered", runId, answer });
+    return true;
+  }
+
+  /** Session B — the KK CTA: ship_requested_at + run-ship command. */
+  requestShip(runId: string): boolean {
+    const run = this.runs.get(runId);
+    if (!run || run.state !== "review-ready" || run.shipRequested) return false;
+    run.shipRequested = true;
+    this.outbox.push({ cursor: ++this.cursor, type: "run-ship", runId });
     return true;
   }
 
@@ -191,6 +213,9 @@ export class FakeAtlas {
       const active = [...this.runs.values()].filter(
         (r) => r.bridged && (r.state === "running" || r.state === "needs-input"),
       );
+      const shipRequested = [...this.runs.values()].filter(
+        (r) => r.state === "review-ready" && r.shipRequested,
+      );
       json(200, {
         cursor: this.cursor,
         cap: this.cap,
@@ -202,6 +227,7 @@ export class FakeAtlas {
           queuePosition: r.queuePosition,
         })),
         active: active.map((r) => ({ runId: r.runId, state: r.state })),
+        shipRequested: shipRequested.map((r) => r.runId),
       });
       return;
     }
@@ -295,16 +321,25 @@ export class FakeAtlas {
         case "review-ready": {
           if (!apply("running", "review-ready")) return json(409, { ok: false });
           run.diffStats = t.diffStats ?? null;
+          run.diffPatch = typeof t.diffPatch === "string" ? t.diffPatch : null;
           return json(200, { ok: true });
         }
         case "failed": {
-          if (!apply("running", "failed")) return json(409, { ok: false });
+          const from: RunState = t.from === "review-ready" ? "review-ready" : "running";
+          if (!apply(from, "failed")) return json(409, { ok: false });
           run.failureKind = String(t.failureKind ?? "");
           run.failureDetail = t.failureDetail ? String(t.failureDetail) : null;
+          run.prUrl = typeof t.prUrl === "string" ? t.prUrl : run.prUrl;
           return json(200, { ok: true });
         }
         case "cancelled": {
           if (!apply("needs-input", "cancelled")) return json(409, { ok: false });
+          return json(200, { ok: true });
+        }
+        case "shipped": {
+          if (!apply("review-ready", "shipped")) return json(409, { ok: false });
+          run.prUrl = typeof t.prUrl === "string" ? t.prUrl : null;
+          run.mergeSha = typeof t.mergeSha === "string" ? t.mergeSha : null;
           return json(200, { ok: true });
         }
         default:

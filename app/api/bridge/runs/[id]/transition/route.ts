@@ -17,7 +17,7 @@ import { db } from "@/src/db/client";
 import { runs } from "@/src/db/schema";
 import { bridgeFromRequest } from "@/src/domain/bridge/auth";
 import { parseBridgeTransition } from "@/src/domain/bridge/protocol";
-import { completeRun, failRun } from "@/src/domain/run/bridge-writers";
+import { completeRun, failRun, shipFailRun, shipRun } from "@/src/domain/run/bridge-writers";
 import { applyRunTransition } from "@/src/domain/run/transitions";
 import { applyTicketTransition } from "@/src/domain/ticket/mutations";
 
@@ -56,7 +56,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return Response.json({ ok: true });
     }
     case "review-ready": {
-      const result = await completeRun({ runId: run.id, diffStats: body.diffStats });
+      const result = await completeRun({
+        runId: run.id,
+        diffStats: body.diffStats,
+        diffPatch: body.diffPatch,
+      });
       if (!result.ok) return Response.json({ ok: false, reason: result.reason }, { status: 409 });
       if (ownerTicket) {
         await applyTicketTransition({
@@ -69,17 +73,45 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       return Response.json({ ok: true });
     }
     case "failed": {
-      const result = await failRun({
+      // Session B: ship failures (conflict / not-mergeable / gh-cli-error /
+      // no-changes) claim from review-ready; engine failures from running.
+      const result =
+        body.from === "review-ready"
+          ? await shipFailRun({
+              runId: run.id,
+              failureKind: body.failureKind,
+              failureDetail: body.failureDetail ?? undefined,
+              prUrl: body.prUrl,
+            })
+          : await failRun({
+              runId: run.id,
+              failureKind: body.failureKind,
+              failureDetail: body.failureDetail ?? undefined,
+            });
+      if (!result.ok) return Response.json({ ok: false, reason: result.reason }, { status: 409 });
+      if (ownerTicket) {
+        await applyTicketTransition({
+          ticketId: ownerTicket,
+          from: body.from === "review-ready" ? "review-ready" : "in-progress",
+          to: "failed",
+          actor: ENGINE_ACTOR,
+        });
+      }
+      return Response.json({ ok: true });
+    }
+    case "shipped": {
+      // Session B — the merge landed (PRD #25/#27); refs ride the claim.
+      const result = await shipRun({
         runId: run.id,
-        failureKind: body.failureKind,
-        failureDetail: body.failureDetail ?? undefined,
+        prUrl: body.prUrl,
+        mergeSha: body.mergeSha,
       });
       if (!result.ok) return Response.json({ ok: false, reason: result.reason }, { status: 409 });
       if (ownerTicket) {
         await applyTicketTransition({
           ticketId: ownerTicket,
-          from: "in-progress",
-          to: "failed",
+          from: "review-ready",
+          to: "shipped",
           actor: ENGINE_ACTOR,
         });
       }

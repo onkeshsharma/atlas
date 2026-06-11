@@ -83,6 +83,86 @@ export async function enqueueHelperRun(input: EnqueueHelperInput): Promise<Enque
   return { ok: true, runId: rows[0].id, ref: rows[0].ref };
 }
 
+/**
+ * Session B — the send-back's run creator (KK "send back to Engine" /
+ * K's Conflict recovery, PRD #22–23): same single-statement shape as
+ * dispatchTicket but conditioned on `review-ready` (the legal table's
+ * "sent back for another pass" edge), then review-ready → in-progress.
+ * The conflict path (ticket at failed) routes through approved +
+ * dispatchTicket instead — failed → in-progress is not a legal move.
+ */
+export async function redispatchTicket(input: {
+  ticketId: string;
+  briefId: string;
+  actor: string;
+}): Promise<DispatchTicketResult> {
+  const payload = JSON.stringify({ from: null, to: "queued", lane: "owner" });
+  const result = await db.execute(sql`
+    with brief as (
+      update briefs
+      set status = 'final', updated_at = now()
+      where id = ${input.briefId}
+        and ticket_id = ${input.ticketId}
+        and exists (select 1 from tickets t where t.id = ${input.ticketId} and t.state = 'review-ready')
+      returning id
+    ),
+    created as (
+      insert into runs (ref, project_id, ticket_id, title, state, lane, brief_id, queue_position)
+      select
+        'R-' || nextval('run_ref_seq'),
+        t.project_id,
+        t.id,
+        t.title,
+        'queued',
+        'owner',
+        brief.id,
+        coalesce((select max(queue_position) from runs where state = 'queued'), 0) + 1
+      from tickets t, brief
+      where t.id = ${input.ticketId} and t.state = 'review-ready'
+      returning id, ref, project_id, ticket_id, title
+    ),
+    outbox as (
+      insert into feed_events (kind, actor, summary, project_id, ticket_id, run_id, ticket_ref, payload, seeded)
+      select
+        'dispatched',
+        ${input.actor},
+        created.ref || ' — ' || created.title,
+        created.project_id,
+        created.ticket_id,
+        created.id,
+        (select t.ref from tickets t where t.id = created.ticket_id),
+        ${payload}::jsonb,
+        false
+      from created
+      returning id
+    )
+    select created.id, created.ref from created
+  `);
+
+  const rows = result.rows as Array<{ id: string; ref: string }>;
+  if (!rows.length) return { ok: false, reason: "no-brief" };
+  const run = rows[0];
+
+  const claimed = await applyTicketTransition({
+    ticketId: input.ticketId,
+    from: "review-ready",
+    to: "in-progress",
+    actor: input.actor,
+    note: "Sent back to the Engine",
+  });
+  if (!claimed.ok) {
+    await applyRunTransition({
+      runId: run.id,
+      from: "queued",
+      to: "cancelled",
+      actor: "atlas",
+    });
+    return { ok: false, reason: "not-approved" };
+  }
+
+  return { ok: true, runId: run.id, ref: run.ref };
+}
+
 export type DispatchTicketResult =
   | { ok: true; runId: string; ref: string }
   | { ok: false; reason: "not-approved" | "no-brief" };

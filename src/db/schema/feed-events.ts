@@ -53,6 +53,10 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   "enriched", //      tickets.enrichment written (PRD #17)
   "brief-drafted", // a Brief row landed for a Ticket (PRD #19)
   "ingested", //      projects.ingest_summary written, status → ready (PRD #29)
+  // M9 Session B — appended in 0005. The Owner's approve-and-ship click
+  // (KK's emerald CTA, PRD #25). The row IS the daemon's `run-ship`
+  // command (ADR-0002 §2); `shipped`/`failed` land when the merge does.
+  "ship-requested",
 ]);
 
 export const feedEvents = pgTable("feed_events", {

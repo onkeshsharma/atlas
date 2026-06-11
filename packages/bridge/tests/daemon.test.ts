@@ -197,6 +197,62 @@ describe("daemon ↔ fake Atlas", () => {
     expect(atlas.runs.get(orphanRunning.runId)!.failureKind).toBe("bridge-lost");
   });
 
+  it("SHIP (Session B): run-ship lands the kept worktree on main and posts shipped + merge sha", async () => {
+    atlas = new FakeAtlas();
+    await atlas.start();
+    await bootDaemon();
+
+    const run = atlas.enqueueRun({ localPath: repoDir, title: "Ship me" });
+    await waitFor(() => atlas.runs.get(run.runId)!.state === "review-ready", "review-ready");
+    expect(existsSync(runWorktreePath(dataDir, run.runId))).toBe(true);
+
+    expect(atlas.requestShip(run.runId)).toBe(true);
+    await waitFor(() => atlas.runs.get(run.runId)!.state === "shipped", "shipped");
+    const shipped = atlas.runs.get(run.runId)!;
+    expect(shipped.mergeSha).toMatch(/^[0-9a-f]{40}$/);
+    expect(shipped.prUrl).toBeNull(); // local-merge path — no remote configured
+    await waitFor(
+      () => !existsSync(runWorktreePath(dataDir, run.runId)),
+      "worktree pruned after landing",
+    );
+  });
+
+  it("SHIP while the daemon is away: the request survives as DB state and executes on reconnect", async () => {
+    atlas = new FakeAtlas();
+    await atlas.start();
+    await bootDaemon();
+
+    const run = atlas.enqueueRun({ localPath: repoDir, title: "Ship later" });
+    await waitFor(() => atlas.runs.get(run.runId)!.state === "review-ready", "review-ready");
+
+    await atlas.stop(); // the Owner clicks Approve & ship while the stream is down
+    expect(atlas.requestShip(run.runId)).toBe(true);
+    await new Promise((r) => setTimeout(r, 1_200));
+
+    await atlas.restart(); // sync carries shipRequested — no event replay needed
+    await waitFor(
+      () => atlas.runs.get(run.runId)!.state === "shipped",
+      "shipped after reconnect",
+      20_000,
+    );
+  });
+
+  it("send-back cancel at review-ready prunes the kept worktree (no execution owns it)", async () => {
+    atlas = new FakeAtlas();
+    await atlas.start();
+    await bootDaemon();
+
+    const run = atlas.enqueueRun({ localPath: repoDir, title: "Declined result" });
+    await waitFor(() => atlas.runs.get(run.runId)!.state === "review-ready", "review-ready");
+    expect(existsSync(runWorktreePath(dataDir, run.runId))).toBe(true);
+
+    expect(atlas.cancelRun(run.runId)).toBe(true); // KK send-back declines the result
+    await waitFor(
+      () => !existsSync(runWorktreePath(dataDir, run.runId)),
+      "kept worktree pruned on cancel",
+    );
+  });
+
   it("the cap holds: two owner runs, cap 1 — never more than one executing", async () => {
     atlas = new FakeAtlas();
     atlas.cap = 1;

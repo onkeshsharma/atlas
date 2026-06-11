@@ -95,7 +95,10 @@ export type RunDiffStats = {
 export type BridgeEvent =
   | { type: "run-available"; cursor: number; runId: string; lane: RunLane }
   | { type: "run-cancelled"; cursor: number; runId: string }
-  | { type: "run-answered"; cursor: number; runId: string; answer: NeedsInputAnswer };
+  | { type: "run-answered"; cursor: number; runId: string; answer: NeedsInputAnswer }
+  // Session B — approve-and-ship: commit/merge from the run's kept
+  // review-ready worktree (ship.ts), then post shipped / failed back.
+  | { type: "run-ship"; cursor: number; runId: string };
 
 export function parseBridgeEvent(value: unknown): BridgeEvent | null {
   if (!isRecord(value)) return null;
@@ -105,6 +108,7 @@ export function parseBridgeEvent(value: unknown): BridgeEvent | null {
       if (value.lane !== "owner" && value.lane !== "helper") return null;
       return value as BridgeEvent;
     case "run-cancelled":
+    case "run-ship":
       return value as BridgeEvent;
     case "run-answered":
       if (!parseNeedsInputAnswer(value.answer)) return null;
@@ -118,9 +122,19 @@ export function parseBridgeEvent(value: unknown): BridgeEvent | null {
 
 export type TransitionBody =
   | { to: "needs-input"; question: NeedsInputQuestion }
-  | { to: "review-ready"; diffStats?: RunDiffStats | null }
-  | { to: "failed"; failureKind: FailureKind; failureDetail?: string }
-  | { to: "cancelled"; from: "needs-input" };
+  | { to: "review-ready"; diffStats?: RunDiffStats | null; diffPatch?: string }
+  | {
+      to: "failed";
+      failureKind: FailureKind;
+      failureDetail?: string;
+      /** ship failures claim from review-ready (Session B); default running. */
+      from?: "running" | "review-ready";
+      /** the gh path may have opened a PR before the merge refused. */
+      prUrl?: string;
+    }
+  | { to: "cancelled"; from: "needs-input" }
+  // Session B — the ship executor's success post.
+  | { to: "shipped"; prUrl?: string; mergeSha?: string };
 
 export type StdoutChunk = { seq: number; content: string };
 
@@ -153,12 +167,16 @@ export type SyncResponse = {
     queuePosition: number | null;
   }>;
   active: Array<{ runId: string; state: RunState }>;
+  /** Session B — pending approve-and-ship requests on this bridge's
+   * kept worktrees; executed on (re)connect like queued runs. */
+  shipRequested: string[];
 };
 
 export function parseSyncResponse(value: unknown): SyncResponse | null {
   if (!isRecord(value)) return null;
   if (typeof value.cursor !== "number" || typeof value.cap !== "number") return null;
   if (!Array.isArray(value.queued) || !Array.isArray(value.active)) return null;
+  if (!Array.isArray(value.shipRequested)) return null;
   for (const q of value.queued) {
     if (!isRecord(q) || typeof q.runId !== "string" || typeof q.ref !== "string") return null;
     if (q.lane !== "owner" && q.lane !== "helper") return null;
@@ -167,6 +185,7 @@ export function parseSyncResponse(value: unknown): SyncResponse | null {
     if (!isRecord(a) || typeof a.runId !== "string" || typeof a.state !== "string") return null;
     if (!(RUN_STATES as readonly string[]).includes(a.state)) return null;
   }
+  if (value.shipRequested.some((id) => typeof id !== "string")) return null;
   return value as unknown as SyncResponse;
 }
 
