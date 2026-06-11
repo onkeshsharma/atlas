@@ -47,7 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       href: "/inbox",
       badge: unread > 0 ? unread : undefined,
     },
-    // M7 projects; M10 settings — honest "soon". Board is real (M8).
+    // Board is real (M8); Projects (M7) and Settings (M10) are real.
     {
       key: "board",
       label: "Board",
@@ -57,7 +57,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     },
     // M7 — Projects is real (charter §4: this line only; M8 claims Board).
     { key: "projects", label: "Projects", initial: "P", href: "/projects" },
-    { key: "settings", label: "Settings", initial: "S", soon: true },
+    { key: "settings", label: "Settings", initial: "S", href: "/settings" }, // M10 — real (charter §2: this line only)
   ];
 
   const initial =

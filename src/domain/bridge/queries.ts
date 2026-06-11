@@ -65,6 +65,29 @@ function parseCapabilities(value: unknown): BridgeCapabilities {
   };
 }
 
+/** N:348–351's status-hero facts, real: queue depth + last failure. */
+export async function runQueueFacts(): Promise<{
+  queued: number;
+  lastFailedAt: Date | null;
+  lastFailedRef: string | null;
+}> {
+  const rows = (await db.execute(sql`
+    select
+      (select count(*)::int from runs where state = 'queued') as queued,
+      (select updated_at from runs where state = 'failed' order by updated_at desc limit 1) as last_failed_at,
+      (select ref from runs where state = 'failed' order by updated_at desc limit 1) as last_failed_ref
+  `)) as unknown as {
+    rows: Array<{ queued: number; last_failed_at: string | Date | null; last_failed_ref: string | null }>;
+  };
+  const row = rows.rows[0];
+  const at = row?.last_failed_at ? new Date(row.last_failed_at) : null;
+  return {
+    queued: row?.queued ?? 0,
+    lastFailedAt: at,
+    lastFailedRef: row?.last_failed_ref ?? null,
+  };
+}
+
 export function bridgeHealth(b: Pick<Bridge, "lastHeartbeatAt">, now: Date): BridgeHealth {
   if (!b.lastHeartbeatAt) return "never";
   return now.getTime() - b.lastHeartbeatAt.getTime() < STALE_AFTER_MS ? "healthy" : "offline";
