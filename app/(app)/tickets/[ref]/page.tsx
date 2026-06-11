@@ -31,11 +31,19 @@ import {
   PullQuote,
   StateDot,
   StateMachineTrack,
+  runStateLabelClass,
+  runStateLabelText,
   type TrackStep,
 } from "@/src/components/kit";
 import { LiveRefresh } from "@/src/components/live/LiveRefresh";
 import type { FeedEvent } from "@/src/db/schema";
 import { requireOwner } from "@/src/domain/auth/guard";
+import { bridgePresence } from "@/src/domain/bridge/status";
+import {
+  activeHelperRun,
+  latestBriefForTicket,
+  latestRunForTicket,
+} from "@/src/domain/dispatch/queries";
 import { latestCursor } from "@/src/domain/live/broker";
 import { CATEGORIES, CATEGORY_COLUMNS, ticketCategory } from "@/src/domain/ticket/categories";
 import { confidenceSegments, parseEnrichment } from "@/src/domain/ticket/enrichment";
@@ -54,7 +62,7 @@ import { shortAgo, timeAgo } from "@/src/lib/format";
 import type { TicketState } from "@/src/db/schema";
 
 import { AddLinkForm } from "./add-link-form";
-import { moveTicketAction } from "./actions";
+import { dispatchTicketAction, moveTicketAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -121,10 +129,14 @@ export default async function TicketDetailPage({
   const ticket = await ticketByRef(decodeURIComponent(ref));
   if (!ticket) notFound();
 
-  const [activity, related, cursor] = await Promise.all([
+  const [activity, related, cursor, brief, draftingRun, ownerRun, bridge] = await Promise.all([
     ticketActivity(ticket.id),
     relatedTickets(ticket.id),
     latestCursor(),
+    latestBriefForTicket(ticket.id),
+    activeHelperRun(ticket.id, "draft-brief"),
+    latestRunForTicket(ticket.id),
+    bridgePresence(),
   ]);
 
   const enrichment = parseEnrichment(ticket.enrichment);
@@ -231,18 +243,37 @@ export default async function TicketDetailPage({
             )}
           </section>
 
-          {/* Brief (F:201–243) — honest empty until the dispatch pipeline (M9) */}
+          {/* Brief — real rows now exist (M9 pipeline). Minimal honest
+              render only: the full F:201–243 port (FeaturedCard chrome,
+              edit/regenerate links) is Session B's, with W. */}
           <section className="mt-20">
             <div className="flex items-baseline justify-between border-b border-stone-200 pb-3">
               <h2 className="text-xs font-mono uppercase tracking-[0.25em] text-stone-500">
                 Brief
               </h2>
+              {brief && (
+                <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
+                  {brief.status} · {brief.source === "helper-run" ? "drafted by the Engine" : "edited by you"}
+                </span>
+              )}
             </div>
-            <div className="pt-5">
-              <EmptyState shape="strip">
-                No Brief drafted yet — Atlas drafts one from this Ticket at dispatch (M9).
-              </EmptyState>
-            </div>
+            {brief ? (
+              <div className="pt-5 font-mono text-xs leading-relaxed text-stone-700 whitespace-pre-wrap">
+                {brief.body}
+              </div>
+            ) : draftingRun ? (
+              <div className="pt-5">
+                <EmptyState shape="strip">
+                  The Engine is drafting the Brief now — {draftingRun.ref} is on it.
+                </EmptyState>
+              </div>
+            ) : (
+              <div className="pt-5">
+                <EmptyState shape="strip">
+                  No Brief drafted yet — dispatching drafts one from this Ticket first.
+                </EmptyState>
+              </div>
+            )}
           </section>
         </div>
 
@@ -294,7 +325,10 @@ export default async function TicketDetailPage({
             )}
           </section>
 
-          {/* IF DISPATCHED (F:338–363) — CTA per spec, honest-disabled (M9) */}
+          {/* IF DISPATCHED (F:338–363) — the CTA is REAL now (M9 charter §8).
+              Two-step pipeline: no Brief → first click drafts it (Helper
+              Run; the page live-updates); Brief present → dispatch for
+              real. Non-approved states keep the honest-disabled form. */}
           {PRE_DISPATCH_STATES.includes(ticket.state) && (
             <FeaturedCard>
               <div className="text-xs font-mono uppercase tracking-[0.25em] text-stone-500">
@@ -304,16 +338,46 @@ export default async function TicketDetailPage({
                 The Engine runs this in its own worktree on your machine, via the Bridge.
               </div>
               <div className="mt-2 text-xs text-stone-500 leading-relaxed">
-                <span className="font-mono text-stone-600">no bridge yet</span> — pairing
-                arrives with the Engine.
+                {bridge.status === "healthy" ? (
+                  <>
+                    <span className="font-mono text-stone-600">{bridge.machine}</span> is
+                    connected and listening.
+                  </>
+                ) : bridge.status === "offline" ? (
+                  <>
+                    <span className="font-mono text-stone-600">{bridge.machine}</span> is
+                    offline — Runs queue until it reconnects.
+                  </>
+                ) : (
+                  <>
+                    <span className="font-mono text-stone-600">no bridge yet</span> — Runs
+                    queue until one pairs.
+                  </>
+                )}
               </div>
               <div className="mt-5">
-                <PillButton kind="primary" fullWidth dot="amber" disabled>
-                  Dispatch to AI
-                </PillButton>
+                <form action={dispatchTicketAction}>
+                  <input type="hidden" name="ticketId" value={ticket.id} />
+                  <input type="hidden" name="ref" value={ticket.ref} />
+                  <PillButton
+                    kind="primary"
+                    fullWidth
+                    dot="amber"
+                    type="submit"
+                    disabled={ticket.state !== "approved" || Boolean(draftingRun)}
+                  >
+                    Dispatch to AI
+                  </PillButton>
+                </form>
               </div>
               <p className="mt-3 text-center text-xs italic text-stone-500">
-                dispatch arrives with the Engine (M9)
+                {ticket.state !== "approved"
+                  ? "dispatch starts from Approved"
+                  : draftingRun
+                    ? `the Engine is drafting the Brief — ${draftingRun.ref}`
+                    : brief
+                      ? "executes the drafted Brief below"
+                      : "drafts the Brief first — you confirm before the Engine starts"}
               </p>
             </FeaturedCard>
           )}
@@ -428,15 +492,34 @@ export default async function TicketDetailPage({
             )}
           </section>
 
-          {/* BRIDGE (F:457–490) — the M6 honest no-bridge-yet strip */}
+          {/* BRIDGE (F:457–490) — real presence from the heartbeat (M9);
+              the full healthy-stats panel is M10's surface. */}
           <section>
             <div className="text-xs font-mono uppercase tracking-[0.25em] text-stone-500">
               Bridge
             </div>
             <div className="mt-3">
-              <EmptyState shape="strip">
-                No bridge paired yet — the Engine and its heartbeat arrive with M9.
-              </EmptyState>
+              {bridge.status === "none" ? (
+                <EmptyState shape="strip">
+                  No bridge paired yet — pair one and its heartbeat appears here.
+                </EmptyState>
+              ) : (
+                <div className="flex items-baseline gap-2 text-sm text-stone-700">
+                  <StateDot tone={bridge.status === "healthy" ? "emerald" : "rose"} />
+                  <span className="font-mono text-xs">{bridge.machine}</span>
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
+                    {bridge.status === "healthy" ? "heartbeat fresh" : "offline"}
+                  </span>
+                </div>
+              )}
+              {ownerRun && (
+                <div className="mt-2 font-mono text-[10px] uppercase tracking-widest text-stone-400">
+                  last run {ownerRun.ref} ·{" "}
+                  <span className={runStateLabelClass(ownerRun.state)}>
+                    {runStateLabelText(ownerRun.state)}
+                  </span>
+                </div>
+              )}
             </div>
           </section>
 
@@ -452,10 +535,21 @@ export default async function TicketDetailPage({
                 <AddLinkForm ticketId={ticket.id} ticketRef={ticket.ref} />
               </li>
               <li className="flex items-baseline justify-between">
-                <span className="text-stone-500">No draft Brief yet</span>
-                <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
-                  drafts at dispatch
-                </span>
+                {brief ? (
+                  <>
+                    <span className="text-stone-500">Brief drafted</span>
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
+                      {brief.status}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-stone-500">No draft Brief yet</span>
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
+                      drafts at dispatch
+                    </span>
+                  </>
+                )}
               </li>
             </ul>
           </section>

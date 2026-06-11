@@ -26,6 +26,7 @@ import {
   PillButton,
   Sparkline,
   TimelineRail,
+  UnderlineInput,
   WeekBars,
   runStateLabelClass,
   runStateLabelText,
@@ -54,6 +55,8 @@ import {
   ticketStateLabel,
 } from "@/src/domain/ticket/states";
 import { dayStamp, shortAgo } from "@/src/lib/format";
+
+import { answerRunAction, cancelRunAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -158,9 +161,49 @@ export default async function TodayPage() {
                         <div className="mt-1 text-sm text-stone-700 italic">
                           {r.question.prompt}
                         </div>
-                        <div className="mt-2 font-mono text-[10px] uppercase tracking-widest text-stone-400">
-                          waiting {shortAgo(r.since)} · answer here soon
-                        </div>
+                        {/* M9 — the REAL answer affordance (PRD #3; charter §8 —
+                            the one sanctioned Today touch; M6 deviation 7 closed).
+                            Permission prompts answer with their own options
+                            (§2.9 ghost recipe — the M8 move-link precedent);
+                            free-form questions take the §2.13 underline input. */}
+                        {r.question.kind === "permission" && r.question.options?.length ? (
+                          <form
+                            action={answerRunAction}
+                            className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-2"
+                          >
+                            <input type="hidden" name="runId" value={r.id} />
+                            {r.question.options.map((option) => (
+                              <button
+                                key={option}
+                                type="submit"
+                                name="choice"
+                                value={option}
+                                className="font-mono text-[10px] uppercase tracking-widest text-stone-700 hover:text-amber-600 cursor-pointer transition"
+                              >
+                                {option} →
+                              </button>
+                            ))}
+                            <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
+                              waiting {shortAgo(r.since)}
+                            </span>
+                          </form>
+                        ) : (
+                          <form action={answerRunAction} className="mt-2 flex items-end gap-4">
+                            <input type="hidden" name="runId" value={r.id} />
+                            <div className="flex-1">
+                              <UnderlineInput
+                                name="text"
+                                placeholder="Answer the Engine…"
+                                aria-label={`Answer ${r.ref}`}
+                              />
+                            </div>
+                            <span className="py-2">
+                              <PillButton kind="ghost" type="submit">
+                                answer →
+                              </PillButton>
+                            </span>
+                          </form>
+                        )}
                       </li>
                     ))}
                   </>
@@ -192,7 +235,23 @@ export default async function TodayPage() {
                         </span>
                       </>
                     }
-                    right={shortAgo(r.since)}
+                    right={
+                      // M9 — the REAL cancel affordance (PRD #4; the one
+                      // sanctioned Today touch). §3.7 step-1: a quiet mono
+                      // ghost that only turns rose on hover.
+                      <span className="inline-flex items-baseline gap-4">
+                        <span>{shortAgo(r.since)}</span>
+                        <form action={cancelRunAction} className="inline">
+                          <input type="hidden" name="runId" value={r.id} />
+                          <button
+                            type="submit"
+                            className="font-mono text-[10px] uppercase tracking-widest text-stone-500 hover:text-rose-700 cursor-pointer transition"
+                          >
+                            cancel →
+                          </button>
+                        </form>
+                      </span>
+                    }
                   />
                 ))}
               </DividedList>

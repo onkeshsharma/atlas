@@ -15,6 +15,7 @@ import { redirect } from "next/navigation";
 import { heroCounts } from "@/src/domain/cockpit/queries";
 import { signOutAction } from "@/src/domain/auth/actions";
 import { requireUser } from "@/src/domain/auth/guard";
+import { bridgePresence } from "@/src/domain/bridge/status";
 import { unreadCount } from "@/src/domain/feed/queries";
 import { sidebarCollapsed } from "@/src/domain/preferences/sidebar";
 import { AppSidebar } from "@/src/components/shell/AppSidebar";
@@ -28,10 +29,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
   if (!user.role) redirect("/no-access");
 
-  const [unread, counts, collapsed] = await Promise.all([
+  // M9 — the sidebar BridgeStatus goes live from the heartbeat (the one
+  // sanctioned shell touch — charter §4).
+  const [unread, counts, collapsed, bridge] = await Promise.all([
     unreadCount(),
     heroCounts(),
     sidebarCollapsed(user.id),
+    bridgePresence(),
   ]);
 
   const items: SidebarItem[] = [
@@ -64,8 +68,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen">
       <AppSidebar
         items={items}
-        user={{ initial, email: user.email, machine: "no machine paired" }}
-        bridge="none"
+        user={{ initial, email: user.email, machine: bridge.machine }}
+        bridge={bridge.status}
         expanded={!collapsed}
         signOutSlot={
           <form action={signOutAction}>

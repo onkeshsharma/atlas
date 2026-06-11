@@ -8,6 +8,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireOwner } from "@/src/domain/auth/guard";
+import { beginDispatch } from "@/src/domain/dispatch/dispatch";
 import { isTicketState } from "@/src/domain/ticket/states";
 import { addTicketLink, applyTicketTransition } from "@/src/domain/ticket/mutations";
 
@@ -23,6 +24,26 @@ export async function moveTicketAction(formData: FormData): Promise<void> {
   // Illegal/raced moves lose cleanly inside the helper (conditional claim).
   await applyTicketTransition({ ticketId, from, to, actor: "you" });
   revalidatePath(`/tickets/${ref}`);
+  revalidatePath("/board");
+}
+
+/**
+ * M9 — the Dispatch CTA made real (charter §8). Two-step by design
+ * (src/domain/dispatch/dispatch.ts): first click drafts the Brief via a
+ * Helper Run; once it lands (the page is live), the second click
+ * finalizes it + creates the Owner Run + drives approved → in-progress.
+ */
+export async function dispatchTicketAction(formData: FormData): Promise<void> {
+  await requireOwner();
+
+  const ticketId = String(formData.get("ticketId") ?? "");
+  const ref = String(formData.get("ref") ?? "");
+  if (!ticketId) return;
+
+  // raced/illegal dispatches lose cleanly inside (conditional claims).
+  await beginDispatch({ ticketId, actor: "you" });
+  revalidatePath(`/tickets/${ref}`);
+  revalidatePath("/today");
   revalidatePath("/board");
 }
 

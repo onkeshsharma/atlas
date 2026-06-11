@@ -8,6 +8,7 @@
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/src/domain/auth/guard";
+import { enqueueHelperRun } from "@/src/domain/dispatch/mutations";
 import { fileTicket } from "@/src/domain/ticket/mutations";
 
 const KINDS = ["bug", "enhancement", "other"] as const;
@@ -39,6 +40,17 @@ export async function fileTicketAction(formData: FormData): Promise<void> {
 
   const result = await fileTicket({ projectId, title, body, kind, priority, reporter });
   if (!result.ok) redirect("/tickets/new?error=title");
+
+  // M9 — Helper Runs enrich new Tickets automatically (PRD #17). The
+  // helper lane always yields to Owner Runs; the run queues even with
+  // no Bridge connected (PRD #35) and the guard makes re-files no-ops.
+  await enqueueHelperRun({
+    projectId,
+    ticketId: result.id,
+    helperKind: "enrich-ticket",
+    title: `Enrich ${result.ref}`,
+    actor: "atlas",
+  });
 
   redirect(`/tickets/${result.ref}`);
 }
