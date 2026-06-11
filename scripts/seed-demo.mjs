@@ -51,6 +51,12 @@ async function main() {
   await sql`delete from briefs where seeded or ticket_id in (select id from tickets where seeded)`;
   await sql`delete from runs where seeded or project_id in (select id from projects where seeded)`;
   await sql`delete from tickets where seeded or project_id in (select id from projects where seeded)`;
+  // M11 — roster grants + project-scoped invites reference projects.
+  // Grants on seeded parents go with the parent (the M7 cascade idiom);
+  // invites are instance-level grants (M5 deviation 3), so a real invite
+  // outlives a wiped demo project — only its scope is cleared.
+  await sql`delete from project_members where project_id in (select id from projects where seeded)`;
+  await sql`update invites set project_id = null where project_id in (select id from projects where seeded)`;
   await sql`delete from projects where seeded`;
 
   // ── projects (E: acme-website pinned; two quiet others) ──

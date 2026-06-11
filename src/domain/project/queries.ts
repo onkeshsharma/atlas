@@ -27,6 +27,12 @@ export async function projectBySlug(slug: string): Promise<Project | null> {
   return row ?? null;
 }
 
+/** M11 — the invite-accept page resolves a scoped invite's project by id. */
+export async function projectById(id: string): Promise<Project | null> {
+  const [row] = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+  return row ?? null;
+}
+
 /** the parsed Engine summary, or null when absent/malformed (never trust jsonb). */
 export function projectIngestSummary(project: Project): IngestSummary | null {
   return project.ingestStatus === "ready" ? parseIngestSummary(project.ingestSummary) : null;
