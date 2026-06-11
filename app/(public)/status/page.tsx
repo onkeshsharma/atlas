@@ -144,7 +144,7 @@ export default async function StatusPage() {
               <EmptyState
                 shape="column"
                 note="Nothing here."
-                goodNews="No incidents recorded — this page's history starts with v2."
+                goodNews="No incidents recorded — this page’s history starts with v2."
               />
             </div>
           </section>

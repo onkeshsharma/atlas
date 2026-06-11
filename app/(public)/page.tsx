@@ -24,6 +24,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { PullQuote } from "@/src/components/kit";
 import { PublicTopNav, TopNavLink } from "@/src/components/public/PublicTopNav";
 import { getCurrentUser } from "@/src/domain/auth/current-user";
 
@@ -32,7 +33,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Atlas — a quiet place for the work your AI does",
   description:
-    "An engineer's orchestration cockpit: dispatch Runs, answer the Engine when it blocks, review and ship what it produces — with the code never leaving your machine.",
+    "An engineer’s orchestration cockpit: dispatch Runs, answer the Engine when it blocks, review and ship what it produces — with the code never leaving your machine.",
 };
 
 /** the landing's pill-link recipe (FF:45–49 minus the §2.9 strict-dot drift). */
@@ -199,30 +200,31 @@ export default async function LandingPage() {
           </ol>
         </section>
 
-        {/* PRIVACY PULL-QUOTE — rewritten to the ADR-0002 boundary */}
+        {/* PRIVACY PULL-QUOTE (FF:156–176, kit hero scale) — rewritten to
+            the ADR-0002 boundary */}
         <section className="mt-40 max-w-3xl mx-auto">
-          <div className="relative pl-8">
-            <span className="absolute -left-2 -top-4 font-bold text-7xl text-emerald-400/80 leading-none select-none">
-              &ldquo;
-            </span>
-            <p className="text-3xl italic text-stone-800 leading-tight tracking-tight">
-              Your repo never leaves your machine. The Engine runs locally,
-              through{" "}
-              <span className="not-italic font-semibold">your own Claude Code account</span>
-              . What reaches Atlas&rsquo;s cloud is the record — Briefs, run
-              states, stdout, each Run&rsquo;s diff for review. Never the
-              codebase. Never your credentials.
-            </p>
-            <div className="mt-5 font-mono text-[10px] uppercase tracking-widest text-stone-500">
-              The privacy stance · &nbsp;
-              <Link
-                href="/docs/architecture"
-                className="text-stone-700 hover:text-amber-600 cursor-pointer"
-              >
-                read the full architecture →
-              </Link>
-            </div>
-          </div>
+          <PullQuote
+            tone="emerald"
+            scale="hero"
+            attribution={
+              <>
+                The privacy stance · &nbsp;
+                <Link
+                  href="/docs/architecture"
+                  className="text-stone-700 hover:text-amber-600 cursor-pointer"
+                >
+                  read the full architecture →
+                </Link>
+              </>
+            }
+          >
+            Your repo never leaves your machine. The Engine runs locally,
+            through{" "}
+            <span className="not-italic font-semibold">your own Claude Code account</span>
+            . What reaches Atlas&rsquo;s cloud is the record — Briefs, run
+            states, stdout, each Run&rsquo;s diff for review. Never the
+            codebase. Never your credentials.
+          </PullQuote>
         </section>
 
         {/* FAQ */}
@@ -240,7 +242,7 @@ export default async function LandingPage() {
               worktree, and spawns Claude Code locally. Atlas&rsquo;s cloud
               never executes your code; it orchestrates and records.
             </FaqRow>
-            <FaqRow q="What lands on Atlas's servers?">
+            <FaqRow q="What lands on Atlas’s servers?">
               Tickets, Briefs, run state, streamed stdout, and each
               Run&rsquo;s diff so you can review from any browser. Not the
               repo. Not your git or GitHub credentials. Not your Claude Code

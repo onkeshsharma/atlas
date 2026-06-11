@@ -46,14 +46,14 @@ const DROPS: Drop[] = [
     title: "The Engine takes orders.",
     current: true,
     intro:
-      "The Bridge grew from an idea into the local orchestrator: a daemon on the Owner's machine that runs Engine sessions in parallel, each Run in its own git worktree, streaming every line back to the cockpit — and taking orders from it.",
+      "The Bridge grew from an idea into the local orchestrator: a daemon on the Owner’s machine that runs Engine sessions in parallel, each Run in its own git worktree, streaming every line back to the cockpit — and taking orders from it.",
     shipped: [
       "The Bridge daemon — concurrency cap, priority lanes (your Runs always beat Helper Runs), offline queueing",
       "Live Run pages — streaming terminal, gate track, and honest per-state framing for queued, running, failed, shipped",
-      "Needs Input, answered from the browser — the Engine's question becomes the amber strip; your answer resumes the Run",
+      "Needs Input, answered from the browser — the Engine’s question becomes the amber strip; your answer resumes the Run",
       "Cancel from the cockpit — runaway work stops without a terminal",
       "The diff viewer — review and ship are one motion; approve-and-ship lands a local merge or a squash-merged PR",
-      "The Brief composer — edit, preview, and diff your Brief against the Engine's draft before dispatch",
+      "The Brief composer — edit, preview, and diff your Brief against the Engine’s draft before dispatch",
       "One-click conflict send-back — a failed merge re-Briefs the Engine with the conflict context",
     ],
     fixed: [
@@ -98,7 +98,7 @@ const DROPS: Drop[] = [
     intro: "Auth and the six pre-auth surfaces — invite-only by design.",
     shipped: [
       "Sign-in and sign-up, gated by the Owner code — exactly one Owner per instance",
-      "Magic-link invites with a welcome note — the invite page says exactly what a Collaborator will and won't see",
+      "Magic-link invites with a welcome note — the invite page says exactly what a Collaborator will and won’t see",
       "Collaborator onboarding with a real profile step",
       "Session auth via Neon Auth, guarded at the edge and in every action",
     ],

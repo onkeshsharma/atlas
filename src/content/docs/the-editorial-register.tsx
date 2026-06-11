@@ -12,7 +12,7 @@ export const theEditorialRegister: DocArticle = {
   indexTitle: "The editorial register",
   section: "The register",
   sub: "Why Atlas looks like a magazine, not a dashboard",
-  lede: "Atlas's design language is called the editorial register — warm paper, dividers instead of cards, one amber accent. It isn't a theme; it's a discipline with a signed law behind it.",
+  lede: "Atlas’s design language is called the editorial register — warm paper, dividers instead of cards, one amber accent. It isn’t a theme; it’s a discipline with a signed law behind it.",
   readMin: 3,
   audience: "The curious",
   updated: "June 12, 2026",

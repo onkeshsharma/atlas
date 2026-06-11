@@ -12,7 +12,7 @@ export const theBridgeAndTheEngine: DocArticle = {
   indexTitle: "The Bridge & the Engine",
   section: "Concepts",
   sub: "The daemon on your machine, and what it spawns",
-  lede: "Atlas is cloud-hosted; your code is not. The Bridge is the daemon that makes both true at once — it runs on the Owner's machine and is the only thing that ever touches the repo.",
+  lede: "Atlas is cloud-hosted; your code is not. The Bridge is the daemon that makes both true at once — it runs on the Owner’s machine and is the only thing that ever touches the repo.",
   readMin: 4,
   audience: "Owners",
   updated: "June 12, 2026",

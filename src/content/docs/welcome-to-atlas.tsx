@@ -17,14 +17,14 @@ export const welcomeToAtlas: DocArticle = {
   title: "Welcome to Atlas.",
   indexTitle: "Welcome to Atlas",
   section: "Getting started",
-  sub: "What it is, what it isn't",
-  lede: "Atlas is an engineer's orchestration cockpit — a calm, editorial place to drive AI-engineered work across your projects. This page is three minutes of context before anything else.",
+  sub: "What it is, what it isn’t",
+  lede: "Atlas is an engineer’s orchestration cockpit — a calm, editorial place to drive AI-engineered work across your projects. This page is three minutes of context before anything else.",
   readMin: 3,
   audience: "Anyone",
   updated: "June 12, 2026",
   toc: [
     { id: "what-it-is", label: "What it is" },
-    { id: "what-it-isnt", label: "What it isn't" },
+    { id: "what-it-isnt", label: "What it isn’t" },
     { id: "the-two-people", label: "The two people" },
     { id: "where-the-engine-runs", label: "Where the Engine runs" },
   ],
@@ -49,7 +49,7 @@ export const welcomeToAtlas: DocArticle = {
         </p>
       </DocSection>
 
-      <DocSection id="what-it-isnt" label="What it isn't">
+      <DocSection id="what-it-isnt" label="What it isn’t">
         <p>
           Atlas isn&rsquo;t a no-code tool. The Engine writes real code, and a
           real engineer reviews every diff before it lands. Atlas removes the

@@ -126,7 +126,7 @@ export function composeStatus(dbProbe: DbProbe, feed: FeedProbe, now: Date): Sta
   const sentence = allGreen
     ? `Everything answered: this page rendered, the database replied in ${
         (dbProbe as { latencyMs: number }).latencyMs
-      } ms, and the live feed's newest event is ${
+      } ms, and the live feed’s newest event is ${
         feed.lastEventAt ? feedAge(feed.lastEventAt, now) : "still to come — no events yet"
       }.`
     : "This page rendered, but the database probe failed — live surfaces will be stale until it answers again.";

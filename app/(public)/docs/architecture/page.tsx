@@ -114,7 +114,7 @@ export default function ArchitecturePage() {
                     <Arrow />
                     <Lane label="Atlas" sub="cloud · cockpit + record" color="amber" active />
                     <Arrow />
-                    <Lane label="Bridge" sub="daemon on the Owner's machine" color="stone" />
+                    <Lane label="Bridge" sub="daemon on the Owner’s machine" color="stone" />
                     <Arrow />
                     <Lane label="Engine" sub="Claude Code, locally" color="stone" />
                     <Arrow />
@@ -162,25 +162,25 @@ export default function ArchitecturePage() {
                   ord="02"
                   name="Collaborator"
                   sub="a trusted circle · file in plain language"
-                  desc="Invited by magic link. They drive work through Atlas's UI in plain words; the code surfaces stay the Owner's."
+                  desc="Invited by magic link. They drive work through Atlas’s UI in plain words; the code surfaces stay the Owner’s."
                 />
                 <PlayerRow
                   ord="03"
                   name="Atlas"
-                  sub="cloud · the cockpit you're reading"
+                  sub="cloud · the cockpit you’re reading"
                   desc="The Next.js app on this domain. Hosts the record — Tickets, Briefs, Runs, the live feed — and serves the cockpit. Executes nothing."
                 />
                 <PlayerRow
                   ord="04"
                   name="Bridge"
-                  sub="daemon · the Owner's machine"
+                  sub="daemon · the Owner’s machine"
                   desc="The local orchestrator. Claims dispatched Runs, manages a git worktree per Run, runs N Engine sessions under a cap, streams everything back. The trust boundary between cloud and machine."
                 />
                 <PlayerRow
                   ord="05"
                   name="Engine"
                   sub="Claude Code · one session per Run"
-                  desc="The thing that actually writes code, authorized through the Owner's own Claude Code account. Lives and dies inside its Run."
+                  desc="The thing that actually writes code, authorized through the Owner’s own Claude Code account. Lives and dies inside its Run."
                 />
               </ol>
             </section>
@@ -198,12 +198,12 @@ export default function ArchitecturePage() {
                 <Step
                   n="01"
                   title="A Ticket is filed"
-                  body="Title and story land in Atlas's database. A Helper Run enriches it in the background — kind, priority, likely files."
+                  body="Title and story land in Atlas’s database. A Helper Run enriches it in the background — kind, priority, likely files."
                 />
                 <Step
                   n="02"
                   title="A Brief is drafted"
-                  body="A Helper Run drafts the Brief from the Ticket and the project's context; the Owner edits it in a composer with real edit / preview / diff tabs."
+                  body="A Helper Run drafts the Brief from the Ticket and the project’s context; the Owner edits it in a composer with real edit / preview / diff tabs."
                 />
                 <Step
                   n="03"
@@ -223,7 +223,7 @@ export default function ArchitecturePage() {
                 <Step
                   n="06"
                   title="The Run streams"
-                  body="stdout batches up to Atlas on its own cursor; the browser streams it live. A question from the Engine flips the Run to needs-input; the Owner's answer flows back down and the Run resumes."
+                  body="stdout batches up to Atlas on its own cursor; the browser streams it live. A question from the Engine flips the Run to needs-input; the Owner’s answer flows back down and the Run resumes."
                 />
                 <Step
                   n="07"
@@ -316,18 +316,18 @@ export default function ArchitecturePage() {
                 />
                 <FailureRow
                   kind="conflict"
-                  title="The merge can't land"
-                  body="The Run's branch diverged while it worked. The ship aborts cleanly with the conflicted file list, and the cockpit offers one-click send-back — the Engine gets a re-Brief with the conflict context."
+                  title="The merge can’t land"
+                  body="The Run’s branch diverged while it worked. The ship aborts cleanly with the conflicted file list, and the cockpit offers one-click send-back — the Engine gets a re-Brief with the conflict context."
                 />
                 <FailureRow
                   kind="not-mergeable"
-                  title="Your checkout isn't ready"
-                  body="A dirty tree or detached HEAD on the target repo. The Bridge refuses to merge into a state you'd lose work in, and says exactly why."
+                  title="Your checkout isn’t ready"
+                  body="A dirty tree or detached HEAD on the target repo. The Bridge refuses to merge into a state you’d lose work in, and says exactly why."
                 />
                 <FailureRow
                   kind="bridge-lost"
                   title="The daemon died mid-Run"
-                  body="On restart, the Bridge fails any Run it was supposed to be executing but isn't — honestly, with this named reason — instead of leaving it 'running' forever."
+                  body="On restart, the Bridge fails any Run it was supposed to be executing but isn’t — honestly, with this named reason — instead of leaving it 'running' forever."
                 />
               </ol>
             </section>
