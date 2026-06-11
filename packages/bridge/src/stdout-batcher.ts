@@ -18,12 +18,12 @@ export class StdoutBatcher {
   private flushing = false;
   private readonly flushMs: number;
   private readonly maxChars: number;
-  private readonly send: (chunks: StdoutChunk[]) => Promise<void>;
+  private readonly send: (chunks: StdoutChunk[]) => Promise<void> | void;
 
   constructor(opts: {
     flushMs: number;
     maxChars?: number;
-    send: (chunks: StdoutChunk[]) => Promise<void>;
+    send: (chunks: StdoutChunk[]) => Promise<void> | void;
   }) {
     this.flushMs = opts.flushMs;
     this.maxChars = opts.maxChars ?? 8_192;

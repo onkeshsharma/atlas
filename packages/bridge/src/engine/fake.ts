@@ -52,7 +52,9 @@ export function fakeEngineAdapter(): EngineAdapter {
 
       const supervised = superviseChild({
         command: process.execPath,
-        args: [SCRIPT_PATH],
+        // --no-warnings: keep Node's TS-stripping notices out of the
+        // run's stdout record.
+        args: ["--no-warnings", SCRIPT_PATH],
         cwd: args.worktree ?? args.sandbox,
         env: { ...process.env, ATLAS_FAKE_TASK: JSON.stringify(task) },
         timeoutMs: args.timeoutMs,
