@@ -1,0 +1,441 @@
+
+> atlas-v2@0.1.0 test:e2e C:\Users\onkes\Desktop\Atlas\atlas-v2-m10
+> playwright test
+
+
+Running 53 tests using 1 worker
+
+  ok  1 e2e\dev-kit.spec.ts:43:5 › dev-kit renders all 28 inventory sections (3.1s)
+  ok  2 e2e\dev-kit.spec.ts:56:5 › dev-kit golden capture at 1440 (2.2s)
+  ok  3 e2e\dev-kit.spec.ts:85:5 › fidelity — PillButton (kit all-6-kinds vs O ship card + JJ confirm + L CTAs) (5.5s)
+  ok  4 e2e\dev-kit.spec.ts:115:5 › fidelity — Sidebar (kit vs variant E rail) (2.4s)
+  ok  5 e2e\dev-kit.spec.ts:126:5 › fidelity — DividedList (kit vs variant E Recent feed) (2.2s)
+  ok  6 e2e\dev-kit.spec.ts:139:5 › fidelity — AmberPanel (kit incl. multi-Run form vs variant XX show-once panel) (2.3s)
+  ok  7 e2e\dev-kit.spec.ts:152:5 › fidelity — UnderlineInput (kit all validation states vs variant L form) (2.2s)
+  ok  8 e2e\dev-kit.spec.ts:165:5 › dev-kit 404s without the dev flag is covered by prod build (see M3); unknown route still 404s (299ms)
+  ok  9 e2e\dev-variants.spec.ts:15:5 › index lists every vendored variant (519ms)
+  ok 10 e2e\dev-variants.spec.ts:24:5 › every variant key renders (59.0s)
+  ok 11 e2e\dev-variants.spec.ts:35:5 › unknown key 404s (432ms)
+  ok 12 e2e\dev-variants.spec.ts:45:7 › spot capture — variant E at 1440 (1.0s)
+  ok 13 e2e\dev-variants.spec.ts:45:7 › spot capture — variant F at 1440 (941ms)
+  ok 14 e2e\dev-variants.spec.ts:45:7 › spot capture — variant G at 1440 (1.1s)
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+  ok 15 e2e\m10-bridge.spec.ts:117:7 › M10 — the daemon is governable from the browser › owner bootstrap (1.5s)
+
+  ok 16 e2e\m10-bridge.spec.ts:128:7 › M10 — the daemon is governable from the browser › pair from the UI → daemon connects → heartbeat/cap/doctor all live → revoke stops it (30.5s)
+  ok 17 e2e\m10-captures.spec.ts:138:7 › M10 — capture rig › owner bootstrap (1.3s)
+  ok 18 e2e\m10-captures.spec.ts:149:7 › M10 — capture rig › capture the six surfaces at 1920/1440/1280 (+ the live show-once panel) (23.3s)
+  ok 19 e2e\m10-settings.spec.ts:73:7 › M10 — the settings tier is real › owner bootstrap + the Settings nav item is live (3.2s)
+  ok 20 e2e\m10-settings.spec.ts:90:7 › M10 — the settings tier is real › preferences: pin a project for real; the pref saves as you go (2.2s)
+  ok 21 e2e\m10-settings.spec.ts:111:7 › M10 — the settings tier is real › tokens: show-once exactly once, prefix-only at rest, rotate + revoke (2.6s)
+  ok 22 e2e\m10-settings.spec.ts:162:7 › M10 — the settings tier is real › notifications: prefs persist across a reload; quiet hours validate (2.6s)
+  ok 23 e2e\m10-settings.spec.ts:194:7 › M10 — the settings tier is real › profile: §2.13 validation blocks, a clean save lands + updates the record (2.0s)
+  ok 24 e2e\m10-settings.spec.ts:223:7 › M10 — the settings tier is real › account: real session list + the danger zone REALLY deletes (type-to-confirm) (2.1s)
+  ok 25 e2e\m6-cockpit.spec.ts:124:7 › M6 — shell + Today + inbox over real rows › owner signs up and lands on a fully real Today. (2.0s)
+  ok 26 e2e\m6-cockpit.spec.ts:161:7 › M6 — shell + Today + inbox over real rows › LIVE PROOF — DB writes appear in the open browser without reload (6.7s)
+  ok 27 e2e\m6-cockpit.spec.ts:237:7 › M6 — shell + Today + inbox over real rows › inbox: real groups, working filters, mark-all-read (3.9s)
+[2m[WebServer] [22m[36m[browser][39m A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+[2m[WebServer] [22m
+[2m[WebServer] [22m- A server/client branch `if (typeof window !== 'undefined')`.
+[2m[WebServer] [22m- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+[2m[WebServer] [22m- Date formatting in a user's locale which doesn't match the server.
+[2m[WebServer] [22m- External changing data without sending a snapshot of it along with the HTML.
+[2m[WebServer] [22m- Invalid HTML tag nesting.
+[2m[WebServer] [22m
+[2m[WebServer] [22mIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+[2m[WebServer] [22m
+[2m[WebServer] [22mhttps://react.dev/link/hydration-mismatch
+[2m[WebServer] [22m
+[2m[WebServer] [22m  ...
+[2m[WebServer] [22m    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+[2m[WebServer] [22m      <RedirectBoundary>
+[2m[WebServer] [22m        <RedirectErrorBoundary router={{...}}>
+[2m[WebServer] [22m          <InnerLayoutRouter url="/today" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+[2m[WebServer] [22m            <SegmentViewNode type="page" pagePath="(app)/toda...">
+[2m[WebServer] [22m              <SegmentTrieNode>
+[2m[WebServer] [22m              <TodayPage>
+[2m[WebServer] [22m                <main className="flex-1 px-...">
+[2m[WebServer] [22m                  <LiveRefresh>
+[2m[WebServer] [22m                  <div className="grid grid-...">
+[2m[WebServer] [22m                    <div className="max-w-2xl">
+[2m[WebServer] [22m                      <div>
+[2m[WebServer] [22m                      <h1>
+[2m[WebServer] [22m                      <p>
+[2m[WebServer] [22m                      <div>
+[2m[WebServer] [22m                      <div className="mt-12">
+[2m[WebServer] [22m                        <AmberPanel>
+[2m[WebServer] [22m                          <section className="rounded-2x...">
+[2m[WebServer] [22m                            <div>
+[2m[WebServer] [22m                            <ul className="mt-4 divid...">
+[2m[WebServer] [22m                              <li className="py-4 first...">
+[2m[WebServer] [22m                                <div>
+[2m[WebServer] [22m                                <div>
+[2m[WebServer] [22m                                <form action={function answerRunAction} className="mt-2 flex ...">
+[2m[WebServer] [22m                                  <input
+[2m[WebServer] [22m                                    type="hidden"
+[2m[WebServer] [22m                                    name="runId"
+[2m[WebServer] [22m                                    value="a2a709f5-e67c-4a73-b0ba-06cb18053330"
+[2m[WebServer] [22m-                                   style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                  >
+[2m[WebServer] [22m                                  <div className="flex-1">
+[2m[WebServer] [22m                                    <UnderlineInput>
+[2m[WebServer] [22m                                      <div>
+[2m[WebServer] [22m                                        <input
+[2m[WebServer] [22m                                          name="text"
+[2m[WebServer] [22m                                          placeholder="Answer the Engine…"
+[2m[WebServer] [22m                                          aria-label="Answer R-15"
+[2m[WebServer] [22m                                          className="mt-2 w-full bg-transparent border-b py-2 text-base placeholder:te..."
+[2m[WebServer] [22m-                                         style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                        >
+[2m[WebServer] [22m                                  ...
+[2m[WebServer] [22m                              <li className="py-4 first...">
+[2m[WebServer] [22m                                <div>
+[2m[WebServer] [22m                                <div>
+[2m[WebServer] [22m                                <form action={function answerRunAction} className="mt-3 flex ...">
+[2m[WebServer] [22m                                  <input
+[2m[WebServer] [22m                                    type="hidden"
+[2m[WebServer] [22m                                    name="runId"
+[2m[WebServer] [22m                                    value="6419a209-45e6-4479-b89e-5aaa05ae8ba5"
+[2m[WebServer] [22m-                                   style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                  >
+[2m[WebServer] [22m                                  ...
+[2m[WebServer] [22m                      <section className="mt-16">
+[2m[WebServer] [22m                        <div>
+[2m[WebServer] [22m                        <DividedList>
+[2m[WebServer] [22m                          <ul className="divide-y d...">
+[2m[WebServer] [22m                            <ListRow>
+[2m[WebServer] [22m                              <li className="py-6 grid ...">
+[2m[WebServer] [22m                                <div>
+[2m[WebServer] [22m                                <span className="font-mono ...">
+[2m[WebServer] [22m                                  <span className="inline-fle...">
+[2m[WebServer] [22m                                    <span>
+[2m[WebServer] [22m                                    <form action={function cancelRunAction} className="inline">
+[2m[WebServer] [22m                                      <input
+[2m[WebServer] [22m                                        type="hidden"
+[2m[WebServer] [22m                                        name="runId"
+[2m[WebServer] [22m                                        value="6419a209-45e6-4479-b89e-5aaa05ae8ba5"
+[2m[WebServer] [22m-                                       style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                      >
+[2m[WebServer] [22m                                      ...
+[2m[WebServer] [22m                            <ListRow>
+[2m[WebServer] [22m                              <li className="py-6 grid ...">
+[2m[WebServer] [22m                                <div>
+[2m[WebServer] [22m                                <span className="font-mono ...">
+[2m[WebServer] [22m                                  <span className="inline-fle...">
+[2m[WebServer] [22m                                    <span>
+[2m[WebServer] [22m                                    <form action={function cancelRunAction} className="inline">
+[2m[WebServer] [22m                                      <input
+[2m[WebServer] [22m                                        type="hidden"
+[2m[WebServer] [22m                                        name="runId"
+[2m[WebServer] [22m                                        value="a2a709f5-e67c-4a73-b0ba-06cb18053330"
+[2m[WebServer] [22m-                                       style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                      >
+[2m[WebServer] [22m                                      ...
+[2m[WebServer] [22m                            <ListRow>
+[2m[WebServer] [22m                              <li className="py-6 grid ...">
+[2m[WebServer] [22m                                <div>
+[2m[WebServer] [22m                                <span className="font-mono ...">
+[2m[WebServer] [22m                                  <span className="inline-fle...">
+[2m[WebServer] [22m                                    <span>
+[2m[WebServer] [22m                                    <form action={function cancelRunAction} className="inline">
+[2m[WebServer] [22m                                      <input
+[2m[WebServer] [22m                                        type="hidden"
+[2m[WebServer] [22m                                        name="runId"
+[2m[WebServer] [22m                                        value="c1a83c1b-ea76-4469-a6bc-b552a2818304"
+[2m[WebServer] [22m-                                       style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                      >
+[2m[WebServer] [22m                                      ...
+[2m[WebServer] [22m                            <ListRow>
+[2m[WebServer] [22m                              <li className="py-6 grid ...">
+[2m[WebServer] [22m                                <div>
+[2m[WebServer] [22m                                <span className="font-mono ...">
+[2m[WebServer] [22m                                  <span className="inline-fle...">
+[2m[WebServer] [22m                                    <span>
+[2m[WebServer] [22m                                    <form action={function cancelRunAction} className="inline">
+[2m[WebServer] [22m                                      <input
+[2m[WebServer] [22m                                        type="hidden"
+[2m[WebServer] [22m                                        name="runId"
+[2m[WebServer] [22m                                        value="62f8a28e-b4a2-417b-83c0-bf98523b54f2"
+[2m[WebServer] [22m-                                       style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                      >
+[2m[WebServer] [22m                                      ...
+[2m[WebServer] [22m                            <ListRow>
+[2m[WebServer] [22m                              <li className="py-6 grid ...">
+[2m[WebServer] [22m                                <div>
+[2m[WebServer] [22m                                <span className="font-mono ...">
+[2m[WebServer] [22m                                  <span className="inline-fle...">
+[2m[WebServer] [22m                                    <span>
+[2m[WebServer] [22m                                    <form action={function cancelRunAction} className="inline">
+[2m[WebServer] [22m                                      <input
+[2m[WebServer] [22m                                        type="hidden"
+[2m[WebServer] [22m                                        name="runId"
+[2m[WebServer] [22m                                        value="90ecd118-f6f3-4b99-8dbc-1684ded69ab8"
+[2m[WebServer] [22m-                                       style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                      >
+[2m[WebServer] [22m                                      ...
+[2m[WebServer] [22m                      ...
+[2m[WebServer] [22m                    ...
+[2m[WebServer] [22m            ...
+[2m[WebServer] [22m          ...
+[2m[WebServer] [22m 
+
+  ok 28 e2e\m6-cockpit.spec.ts:264:7 › M6 — shell + Today + inbox over real rows › sidebar: expand persists via user_preferences; sign-out is real (3.7s)
+  ok 29 e2e\m7-projects.spec.ts:93:7 › M7 — Projects over real rows › owner bootstraps; /projects lists the seeded rows with honest ingest states (2.0s)
+  ok 30 e2e\m7-projects.spec.ts:125:7 › M7 — Projects over real rows › LIVE — a project created in the DB appears on the open index without reload (1.7s)
+  ok 31 e2e\m7-projects.spec.ts:144:7 › M7 — Projects over real rows › THE CHARTER FLOW — create → ingest(queued) → landing → pin → context (8.2s)
+  ok 32 e2e\m7-projects.spec.ts:210:7 › M7 — Projects over real rows › J ready — the Engine-written summary shape renders from seeded rows (4.6s)
+
+  ok 33 e2e\m7-projects.spec.ts:235:7 › M7 — Projects over real rows › P — context curation: add → joins Language; dismiss ✕ removes (3.2s)
+  ok 34 e2e\m8-work.spec.ts:112:7 › M8 — the work loop over real rows › owner bootstrap + file a Ticket (S) → real record + filed outbox (4.4s)
+  ok 35 e2e\m8-work.spec.ts:175:7 › M8 — the work loop over real rows › triage (I) — keyboard approve moves it to approved + moved outbox (4.1s)
+  ok 36 e2e\m8-work.spec.ts:223:7 › M8 — the work loop over real rows › board (G) — right Category, real hints cluster, LIVE PROOF (4.5s)
+[2m[WebServer] [22m[36m[browser][39m A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+[2m[WebServer] [22m
+[2m[WebServer] [22m- A server/client branch `if (typeof window !== 'undefined')`.
+[2m[WebServer] [22m- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+[2m[WebServer] [22m- Date formatting in a user's locale which doesn't match the server.
+[2m[WebServer] [22m- External changing data without sending a snapshot of it along with the HTML.
+[2m[WebServer] [22m- Invalid HTML tag nesting.
+[2m[WebServer] [22m
+[2m[WebServer] [22mIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+[2m[WebServer] [22m
+[2m[WebServer] [22mhttps://react.dev/link/hydration-mismatch
+[2m[WebServer] [22m
+[2m[WebServer] [22m  ...
+[2m[WebServer] [22m    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+[2m[WebServer] [22m      <LoadingBoundary name="T-437/" loading={null}>
+[2m[WebServer] [22m        <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+[2m[WebServer] [22m          <RedirectBoundary>
+[2m[WebServer] [22m            <RedirectErrorBoundary router={{...}}>
+[2m[WebServer] [22m              <InnerLayoutRouter url="/tickets/T..." tree={[...]} params={{ref:"T-437"}} cacheNode={{rsc:{...}, ...}} ...>
+[2m[WebServer] [22m                <SegmentViewNode type="page" pagePath="(app)/tick...">
+[2m[WebServer] [22m                  <SegmentTrieNode>
+[2m[WebServer] [22m                  <TicketDetailPage>
+[2m[WebServer] [22m                    <main className="flex-1 rel...">
+[2m[WebServer] [22m                      <LiveRefresh>
+[2m[WebServer] [22m                      <div className="px-16 pt-8...">
+[2m[WebServer] [22m                        <div>
+[2m[WebServer] [22m                        <aside className="space-y-14">
+[2m[WebServer] [22m                          <section>
+[2m[WebServer] [22m                            <div>
+[2m[WebServer] [22m                            <div>
+[2m[WebServer] [22m                            <div>
+[2m[WebServer] [22m                            <div>
+[2m[WebServer] [22m                            <div className="mt-3 flex ...">
+[2m[WebServer] [22m                              <form action={function moveTicketAction}>
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="ticketId"
+[2m[WebServer] [22m                                  value="28ca9411-ffb4-4202-815a-7d98d3438ceb"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="ref"
+[2m[WebServer] [22m                                  value="T-437"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="from"
+[2m[WebServer] [22m                                  value="backlog"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="to"
+[2m[WebServer] [22m                                  value="approved"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                ...
+[2m[WebServer] [22m                              <form action={function moveTicketAction}>
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="ticketId"
+[2m[WebServer] [22m                                  value="28ca9411-ffb4-4202-815a-7d98d3438ceb"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="ref"
+[2m[WebServer] [22m                                  value="T-437"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="from"
+[2m[WebServer] [22m                                  value="backlog"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="to"
+[2m[WebServer] [22m                                  value="declined"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                ...
+[2m[WebServer] [22m                          <FeaturedCard>
+[2m[WebServer] [22m                            <section className="rounded-2x...">
+[2m[WebServer] [22m                              <div>
+[2m[WebServer] [22m                              <div>
+[2m[WebServer] [22m                              <div>
+[2m[WebServer] [22m                              <div className="mt-5">
+[2m[WebServer] [22m                                <form action={function dispatchTicketAction}>
+[2m[WebServer] [22m                                  <input
+[2m[WebServer] [22m                                    type="hidden"
+[2m[WebServer] [22m                                    name="ticketId"
+[2m[WebServer] [22m                                    value="28ca9411-ffb4-4202-815a-7d98d3438ceb"
+[2m[WebServer] [22m-                                   style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                  >
+[2m[WebServer] [22m                                  <input
+[2m[WebServer] [22m                                    type="hidden"
+[2m[WebServer] [22m                                    name="ref"
+[2m[WebServer] [22m                                    value="T-437"
+[2m[WebServer] [22m-                                   style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                  >
+[2m[WebServer] [22m                                  ...
+[2m[WebServer] [22m                              ...
+[2m[WebServer] [22m                          ...
+[2m[WebServer] [22m                ...
+[2m[WebServer] [22m              ...
+[2m[WebServer] [22m 
+
+  ok 37 e2e\m8-work.spec.ts:287:7 › M8 — the work loop over real rows › detail (F) — owner move to Backlog + blocked-by edge declaration (4.3s)
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+  ok 38 e2e\m9-engine.spec.ts:183:7 › M9 — the cockpit is true › owner bootstrap — and the paired bridge is heartbeating (785ms)
+[diag] run R-664: queued
+[diag] run R-664: running
+[diag] run R-664: needs-input
+  ok 39 e2e\m9-engine.spec.ts:201:7 › M9 — the cockpit is true › THE LOOP: dispatch → Brief drafted by a Helper Run → stdout streams → needs-input answered from Today (no reload) → review-ready (18.8s)
+
+  ok 40 e2e\m9-engine.spec.ts:358:7 › M9 — the cockpit is true › CANCEL: a running Run stopped from Today; the Ticket goes back to approved (4.4s)
+  ok 41 e2e\m9b-captures.spec.ts:323:7 › M9 Session B — convergence captures › owner bootstrap (1.3s)
+  ok 42 e2e\m9b-captures.spec.ts:334:7 › M9 Session B — convergence captures › the five surfaces + their variants, three viewports each (14.1s)
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+  ok 43 e2e\m9b-ship.spec.ts:229:7 › M9 Session B — review and ship are one motion › owner bootstrap (1.3s)
+[diag] run R-666: queued
+[diag] run R-666: review-ready
+
+  ok 44 e2e\m9b-ship.spec.ts:240:7 › M9 Session B — review and ship are one motion › THE SHIP LOOP: dispatch → review-ready → KK real hunks → Approve & ship → V shipped page, live; ticket shipped; the merge is REAL (7.9s)
+[diag] run R-667: queued
+[diag] run R-667: running
+[diag] run R-667: review-ready
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+[diag] run R-668: queued
+[diag] run R-668: review-ready
+
+  ok 45 e2e\m9b-ship.spec.ts:305:7 › M9 Session B — review and ship are one motion › CONFLICT + SEND-BACK (PRD #22–23): the merge conflicts → K's rose page → one click re-runs → the recovery ships (12.7s)
+[diag] run R-669: running
+[diag] run R-669: review-ready
+
+  ok 46 e2e\m9b-ship.spec.ts:381:7 › M9 Session B — review and ship are one motion › W COMPOSER (PRD #19): edit the Helper-drafted Brief → diff tab shows the edit → dispatch runs the EDITED Brief (15.3s)
+  ok 47 e2e\pre-auth.spec.ts:62:7 › owner arc: sign-up → welcome → setup → sign-out → sign-in › guard: signed-out /welcome bounces to /sign-in (362ms)
+  ok 48 e2e\pre-auth.spec.ts:68:7 › owner arc: sign-up → welcome → setup → sign-out → sign-in › sign-up with a wrong owner code renders the §2.13 field error (484ms)
+  ok 49 e2e\pre-auth.spec.ts:80:7 › owner arc: sign-up → welcome → setup → sign-out → sign-in › owner walkthrough: sign-up → welcome → setup → sign-out → wrong password → sign-in (4.6s)
+[2m[WebServer] [22m[33m[1m⚠[22m[39m Server is approaching the used memory threshold, restarting...
+[2m[WebServer] [22m[36m[browser][39m A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+[2m[WebServer] [22m
+[2m[WebServer] [22m- A server/client branch `if (typeof window !== 'undefined')`.
+[2m[WebServer] [22m- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+[2m[WebServer] [22m- Date formatting in a user's locale which doesn't match the server.
+[2m[WebServer] [22m- External changing data without sending a snapshot of it along with the HTML.
+[2m[WebServer] [22m- Invalid HTML tag nesting.
+[2m[WebServer] [22m
+[2m[WebServer] [22mIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+[2m[WebServer] [22m
+[2m[WebServer] [22mhttps://react.dev/link/hydration-mismatch
+[2m[WebServer] [22m
+[2m[WebServer] [22m  ...
+[2m[WebServer] [22m    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+[2m[WebServer] [22m      <LoadingBoundary name="sign-up/" loading={null}>
+[2m[WebServer] [22m        <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+[2m[WebServer] [22m          <RedirectBoundary>
+[2m[WebServer] [22m            <RedirectErrorBoundary router={{...}}>
+[2m[WebServer] [22m              <InnerLayoutRouter url="/sign-up?i..." tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>
+[2m[WebServer] [22m                <SegmentViewNode type="page" pagePath="sign-up/pa...">
+[2m[WebServer] [22m                  <SegmentTrieNode>
+[2m[WebServer] [22m                  <SignUpPage>
+[2m[WebServer] [22m                    <div className="relative f...">
+[2m[WebServer] [22m                      <div>
+[2m[WebServer] [22m                      <div>
+[2m[WebServer] [22m                      <main className="min-h-scre...">
+[2m[WebServer] [22m                        <div className="w-full max...">
+[2m[WebServer] [22m                          <div>
+[2m[WebServer] [22m                          <h1>
+[2m[WebServer] [22m                          <p>
+[2m[WebServer] [22m                          <section className="mt-16">
+[2m[WebServer] [22m                            <div>
+[2m[WebServer] [22m                            <SignUpForm invite={{token:"inv...", ...}}>
+[2m[WebServer] [22m                              <form action={function bound dispatchActionState}>
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="invite"
+[2m[WebServer] [22m                                  value="inv_44xkE3lehO9QIGjdxuwqfNx53nt4awFg"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <div className="mt-7 space...">
+[2m[WebServer] [22m                                  <UnderlineInput name="name" type="text" label="Your name" placeholder="What Colla..." ...>
+[2m[WebServer] [22m                                    <div>
+[2m[WebServer] [22m                                      <FieldLabel>
+[2m[WebServer] [22m                                      <input
+[2m[WebServer] [22m                                        name="name"
+[2m[WebServer] [22m                                        type="text"
+[2m[WebServer] [22m                                        placeholder="What Collaborators will see"
+[2m[WebServer] [22m                                        defaultValue="ada"
+[2m[WebServer] [22m                                        disabled={undefined}
+[2m[WebServer] [22m                                        className="mt-2 w-full bg-transparent border-b py-2 text-base placeholder:text..."
+[2m[WebServer] [22m-                                       style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                      >
+[2m[WebServer] [22m                                      ...
+[2m[WebServer] [22m                                  <UnderlineInput type="email" label="Email" validation="disabled" ...>
+[2m[WebServer] [22m                                    <div>
+[2m[WebServer] [22m                                      <FieldLabel>
+[2m[WebServer] [22m                                      <input
+[2m[WebServer] [22m                                        type="email"
+[2m[WebServer] [22m                                        defaultValue="e2e-ada-1781208849970@example.com"
+[2m[WebServer] [22m                                        disabled={true}
+[2m[WebServer] [22m                                        className="mt-2 w-full bg-transparent border-b py-2 text-base placeholder:text..."
+[2m[WebServer] [22m-                                       style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                      >
+[2m[WebServer] [22m                                      ...
+[2m[WebServer] [22m                                  <UnderlineInput name="password" type="password" label="Set a pass..." ...>
+[2m[WebServer] [22m                                    <div>
+[2m[WebServer] [22m                                      <FieldLabel>
+[2m[WebServer] [22m                                      <input
+[2m[WebServer] [22m                                        name="password"
+[2m[WebServer] [22m                                        type="password"
+[2m[WebServer] [22m                                        placeholder="At least 12 characters"
+[2m[WebServer] [22m                                        disabled={undefined}
+[2m[WebServer] [22m                                        className="mt-2 w-full bg-transparent border-b py-2 text-base placeholder:text..."
+[2m[WebServer] [22m-                                       style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                      >
+[2m[WebServer] [22m                                      ...
+[2m[WebServer] [22m                                  <UnderlineInput type="text" label="Invite" mono={true} readOnly={true} ...>
+[2m[WebServer] [22m                                    <div>
+[2m[WebServer] [22m                                      <FieldLabel>
+[2m[WebServer] [22m                                      <input
+[2m[WebServer] [22m                                        type="text"
+[2m[WebServer] [22m                                        readOnly={true}
+[2m[WebServer] [22m                                        defaultValue="inv_44xkE3lehO9QIGjdxuwqfNx53nt4awFg"
+[2m[WebServer] [22m                                        disabled={undefined}
+[2m[WebServer] [22m                                        className="mt-2 w-full bg-transparent border-b py-2 text-base placeholder:text..."
+[2m[WebServer] [22m-                                       style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                      >
+[2m[WebServer] [22m                                      ...
+[2m[WebServer] [22m                                ...
+[2m[WebServer] [22m                              ...
+[2m[WebServer] [22m                          ...
+[2m[WebServer] [22m                      ...
+[2m[WebServer] [22m                ...
+[2m[WebServer] [22m              ...
+[2m[WebServer] [22m 
+  ok 50 e2e\pre-auth.spec.ts:130:7 › owner arc: sign-up → welcome → setup → sign-out → sign-in › invite accept: seeded magic link → account → onboarding (8.7s)
+  ok 51 e2e\pre-auth.spec.ts:173:7 › public surfaces — render + captures › sign-in at three viewports (620ms)
+  ok 52 e2e\pre-auth.spec.ts:179:7 › public surfaces — render + captures › sign-up (owner-code form) at three viewports (637ms)
+  ok 53 e2e\pre-auth.spec.ts:186:7 › public surfaces — render + captures › invalid invite token renders the §2.17 page empty state (457ms)
+
+  53 passed (5.3m)
+EXIT=0
