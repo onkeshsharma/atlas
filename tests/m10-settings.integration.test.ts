@@ -4,8 +4,6 @@
  * OUTBOX RULE) and the conditional-claim races. Self-cleaning: rows are
  * created here and deleted in afterAll (marker "IT-M10").
  */
-import { randomBytes } from "node:crypto";
-
 import { eq, inArray, like, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
