@@ -33,6 +33,16 @@ Repo-local facts (recorded nowhere else):
   (Next 16 per-distDir dev lock).
 - Husky pre-commit: `typecheck` + `lint` + tripwire on staged `.tsx`
   under `app/` + `src/`. Never `--no-verify` without Onkesh's say-so.
+- Auth + DB (M5): `requireUser/requireOwner/requireCollaborator` from
+  `src/domain/auth/guard.ts` guard every authed surface; `db` from
+  `src/db/client.ts` (neon-http — NO interactive transactions; write
+  multi-step mutations as conditional UPDATEs + idempotent INSERTs).
+  proxy.ts guards GET/HEAD only — @neondatabase/auth 0.4.2-beta's
+  middleware proxies get-session upstream with the original method, so
+  action POSTs would bounce; actions must call domain guards themselves.
+- Turbopack JSX drops the leading space of a multi-line text chunk that
+  follows an inline `{expression}` — use the variants' `{" "}` idiom
+  around inline names (diagnosed M5, 2026-06-11).
 - If a running dev server throws "Parsing CSS source code failed" on
   `globals.css` with `�` chars while files on disk are clean UTF-8:
   Tailwind's watcher scanned a file mid-write (happens when a module
