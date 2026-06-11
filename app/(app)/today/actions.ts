@@ -12,6 +12,8 @@ import { revalidatePath } from "next/cache";
 
 import { requireOwner } from "@/src/domain/auth/guard";
 import { executeLiveCommand } from "@/src/domain/live/executors";
+import { requestShipRun } from "@/src/domain/run/bridge-writers";
+import { reviewReadyRunsForTickets } from "@/src/domain/run/queries";
 
 export async function answerRunAction(formData: FormData): Promise<void> {
   await requireOwner();
@@ -45,5 +47,29 @@ export async function cancelRunAction(formData: FormData): Promise<void> {
   if (!runId) return;
 
   await executeLiveCommand({ type: "cancel-run", runId }, "you");
+  revalidatePath("/today");
+}
+
+/**
+ * M12 — the rail card's "Ship N now" made real (the HANDOFF-M9 parked
+ * ~20-line follow-up): one durable ship request per review-ready run in
+ * the review set — the SAME requestShipRun batch the board cluster uses
+ * (app/(app)/board/actions.ts). Raced/duplicate clicks lose cleanly on
+ * the IS NULL claims; tickets without a review-ready run simply have
+ * nothing to request (the seed's T-247 artifact — see HANDOFF-M12).
+ */
+export async function shipReadyAction(formData: FormData): Promise<void> {
+  await requireOwner();
+
+  const ticketIds = String(formData.get("ticketIds") ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  if (!ticketIds.length) return;
+
+  const runByTicket = await reviewReadyRunsForTickets(ticketIds);
+  for (const { runId } of runByTicket.values()) {
+    await requestShipRun({ runId, actor: "you" });
+  }
   revalidatePath("/today");
 }

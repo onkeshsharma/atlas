@@ -47,8 +47,16 @@ import {
   recentFeedEvents,
   type FeedRow,
 } from "@/src/domain/feed/queries";
+import { deriveHints } from "@/src/domain/hints/derive";
+import { fileSetsFromEnrichment, toHintTickets } from "@/src/domain/hints/inputs";
 import { latestCursor } from "@/src/domain/live/broker";
-import { activeRuns, needsInputRuns } from "@/src/domain/run/queries";
+import {
+  activeRuns,
+  latestRunFileSets,
+  needsInputRuns,
+  reviewReadyRunsForTickets,
+} from "@/src/domain/run/queries";
+import { allTicketLinks, boardTickets } from "@/src/domain/ticket/queries";
 import {
   TICKET_DOT_TONE,
   TICKET_WORD_CLASS,
@@ -56,7 +64,7 @@ import {
 } from "@/src/domain/ticket/states";
 import { dayStamp, shortAgo } from "@/src/lib/format";
 
-import { answerRunAction, cancelRunAction } from "./actions";
+import { answerRunAction, cancelRunAction, shipReadyAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +86,7 @@ export default async function TodayPage() {
   const dayStart = new Date();
   dayStart.setHours(0, 0, 0, 0);
 
-  const [counts, projects, sparklines, recent, runs, needsInput, stats, ship, feed, actors, cursor] =
+  const [counts, projects, sparklines, recent, runs, needsInput, stats, ship, feed, actors, cursor, allTickets, edges] =
     await Promise.all([
       heroCounts(),
       projectRows(),
@@ -91,6 +99,8 @@ export default async function TodayPage() {
       recentFeedEvents(4),
       actorsActiveToday(dayStart),
       latestCursor(),
+      boardTickets(),
+      allTicketLinks(),
     ]);
 
   const pinned = projects.filter((p) => p.pinned);
@@ -98,6 +108,27 @@ export default async function TodayPage() {
   const reviewTicket = ship[0];
   const failedTicket = recent.find((t) => t.state === "failed");
   const refreshedAt = feed[0]?.createdAt ?? new Date();
+
+  // M12 — the REAL parallel-safe derivation for the ship card + hero
+  // (HANDOFF-M8 Today-wiring items 1–2, HANDOFF-M9 parked): the same
+  // hints engine + M9 fileSets seam the board uses (real per-Run diffs
+  // beat enrichment guesses per ticket; the engine never bluffs).
+  const [runFileSets, shippableRuns] = await Promise.all([
+    latestRunFileSets(allTickets.map((t) => t.id)),
+    reviewReadyRunsForTickets(ship.map((t) => t.id)),
+  ]);
+  const { shipGroups } = deriveHints({
+    tickets: toHintTickets(allTickets),
+    edges,
+    fileSets: new Map([...fileSetsFromEnrichment(allTickets), ...runFileSets]),
+  });
+  const independent = shipGroups.find((g) => g.kind === "independent");
+  const parallelSafeCount = independent?.ticketIds.length ?? 0;
+  // E:362's claim renders ONLY when the independent group covers the
+  // whole review set (charter item 4b — claims render only when derived).
+  const independentIds = new Set(independent?.ticketIds ?? []);
+  const groupCoversReviewSet =
+    ship.length >= 2 && ship.every((t) => independentIds.has(t.id));
 
   return (
     <main className="flex-1 px-16 pt-12 pb-24">
@@ -114,7 +145,21 @@ export default async function TodayPage() {
             <span className="font-mono font-bold tracking-tighter text-amber-600">
               {counts.reviewReady}
             </span>{" "}
-            are ready to ship.
+            are ready to ship
+            {/* M12 — appended only when the hints engine derives it
+                (HANDOFF-M8 item 2; same derivation as the rail card). */}
+            {parallelSafeCount >= 2 ? (
+              <>
+                {" "}
+                —{" "}
+                <span className="font-mono font-bold tracking-tighter text-stone-900">
+                  {parallelSafeCount}
+                </span>{" "}
+                of them parallel-safe.
+              </>
+            ) : (
+              <>.</>
+            )}
             {counts.failed > 0 && (
               <>
                 {" "}
@@ -226,7 +271,15 @@ export default async function TodayPage() {
                     key={r.id}
                     state={r.state}
                     stateContext="live"
-                    title={r.title}
+                    // M12 — the run row finally points at /runs/[ref]
+                    // (HANDOFF-M9 parked; title-link form because the row's
+                    // right column carries the cancel form — no nested
+                    // interactive elements).
+                    title={
+                      <Link href={`/runs/${r.ref}`} className="hover:underline">
+                        {r.title}
+                      </Link>
+                    }
                     meta={
                       <>
                         {r.projectName} · {r.ticketRef ?? r.ref} ·{" "}
@@ -368,6 +421,9 @@ export default async function TodayPage() {
                 {recent.map((t, i) => (
                   <ListRow
                     key={t.id}
+                    // M12 — the M6 hover-arrow rows finally get hrefs
+                    // (charter item 4a; ticket detail is M8's /tickets/[ref]).
+                    href={`/tickets/${t.ref}`}
                     index={String(i + 1).padStart(2, "0")}
                     dotTone={TICKET_DOT_TONE[t.state]}
                     title={t.title}
@@ -446,7 +502,10 @@ export default async function TodayPage() {
             </div>
           </section>
 
-          {/* READY TO SHIP — featured card (E:354–377) */}
+          {/* READY TO SHIP — featured card (E:354–377). M12 restores
+              E:359–366's parallel-safe claim + "file-sets disjoint" refs
+              meta WHEN the hints engine derives it (charter item 4b —
+              M6 deviation 6 closed); otherwise the honest M6 copy stands. */}
           {ship.length > 0 && (
             <FeaturedCard>
               <MonoSectionLabel>Ready to ship</MonoSectionLabel>
@@ -454,24 +513,47 @@ export default async function TodayPage() {
                 <span className="font-mono text-stone-900">
                   {ship.length} ticket{ship.length === 1 ? "" : "s"}
                 </span>{" "}
-                {ship.length === 1 ? "is" : "are"} ready for your review.
+                {groupCoversReviewSet ? (
+                  <>are parallel-safe. A single Ship Group can land them together.</>
+                ) : (
+                  <>{ship.length === 1 ? "is" : "are"} ready for your review.</>
+                )}
               </div>
               <div className="mt-2 font-mono text-xs text-stone-500">
                 {ship.map((t) => t.ref).join(" · ")}
+                {groupCoversReviewSet && <> · file-sets disjoint</>}
               </div>
               <div className="mt-5">
                 {/* canon §3.4 / ledger E4: the ship CTA is emerald-600 —
-                    E:368's stone-900 fill is ruled drift. Ship flow lands
-                    with M8/M9. */}
-                <PillButton kind="ship" fullWidth>
-                  Ship {ship.length} now
-                </PillButton>
+                    E:368's stone-900 fill is ruled drift. M12 — wired to
+                    the board cluster's requestShipRun batch (./actions.ts);
+                    honest-disabled when no review-ready run exists to
+                    request (the M8 disabled-CTA precedent). */}
+                <form action={shipReadyAction}>
+                  <input
+                    type="hidden"
+                    name="ticketIds"
+                    value={ship.map((t) => t.id).join(",")}
+                  />
+                  <PillButton
+                    kind="ship"
+                    fullWidth
+                    type="submit"
+                    disabled={shippableRuns.size === 0}
+                  >
+                    Ship {ship.length} now
+                  </PillButton>
+                </form>
               </div>
               {/* canon §3.6: review happens inside Atlas — E:373's `↗` reads
-                  "leaves Atlas" and is overruled to `→`. */}
-              <a className="mt-3 block text-center font-mono text-[10px] uppercase tracking-widest text-stone-700 hover:underline cursor-pointer">
+                  "leaves Atlas" and is overruled to `→`. M12 — points at the
+                  board, where the review cluster lives. */}
+              <Link
+                href="/board"
+                className="mt-3 block text-center font-mono text-[10px] uppercase tracking-widest text-stone-700 hover:underline cursor-pointer"
+              >
                 Review first →
-              </a>
+              </Link>
             </FeaturedCard>
           )}
 

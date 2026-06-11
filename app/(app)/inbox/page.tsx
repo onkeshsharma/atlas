@@ -10,7 +10,15 @@
  * Z was drafted Collaborator-flavored; v2.0's inbox reader is the Owner,
  * so the rail's explanatory copy is adapted to the Owner persona
  * (deviation — see HANDOFF-M6; M13 re-derives the Collaborator inbox).
+ *
+ * M12 — the charter's inbox wiring: rows link to their Run
+ * (/runs/[ref]) or Ticket (/tickets/[ref]); the reply card's CTA opens
+ * the real ticket. `linked` rows keep the kind-map rendering (HANDOFF-M8
+ * item 4's richer composer judged not warranted — the sentence already
+ * reads "you linked T-279 — blocks T-280").
  */
+import Link from "next/link";
+
 import {
   DOT_TONE_CLASS,
   EmptyState,
@@ -167,11 +175,18 @@ export default async function InboxPage({
                       {groupEvents.map((e) => {
                         const isUnread = e.readAt === null;
                         const connector = KIND_CONNECTOR[e.kind];
-                        return (
-                          <li
-                            key={e.id}
-                            className="py-5 grid grid-cols-[12px_1fr_auto] items-baseline gap-4 group"
-                          >
+                        // M12 — Run rows open the Run, Ticket rows the
+                        // Ticket (charter item 4a); rows about neither
+                        // (joined…) stay plain.
+                        const target = e.runRef
+                          ? `/runs/${e.runRef}`
+                          : e.ticketRef
+                            ? `/tickets/${e.ticketRef}`
+                            : null;
+                        const rowClass =
+                          "py-5 grid grid-cols-[12px_1fr_auto] items-baseline gap-4 group";
+                        const row = (
+                          <>
                             {/* unread indicator OR spent dot (Z:219–230) */}
                             <span className="relative h-1.5 w-1.5 mt-2">
                               <span
@@ -218,6 +233,17 @@ export default async function InboxPage({
                             <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400 whitespace-nowrap text-right">
                               {shortAgo(e.createdAt)}
                             </span>
+                          </>
+                        );
+                        return (
+                          <li key={e.id}>
+                            {target ? (
+                              <Link href={target} className={`${rowClass} cursor-pointer`}>
+                                {row}
+                              </Link>
+                            ) : (
+                              <div className={rowClass}>{row}</div>
+                            )}
                           </li>
                         );
                       })}
@@ -292,10 +318,20 @@ export default async function InboxPage({
                   )}
                 </p>
                 <div className="mt-5">
-                  {/* Z:334 — w-full primary, no dot; ticket pages land with M8 */}
-                  <PillButton kind="primary" fullWidth dot="none">
-                    Open the reply
-                  </PillButton>
+                  {/* Z:334 — w-full primary, no dot. M12 — wired: a GET form
+                      navigates to the M8 ticket page (no nested interactive
+                      elements, no kit change). */}
+                  {latestReply.ticketRef ? (
+                    <form action={`/tickets/${latestReply.ticketRef}`} method="get">
+                      <PillButton kind="primary" fullWidth dot="none" type="submit">
+                        Open the reply
+                      </PillButton>
+                    </form>
+                  ) : (
+                    <PillButton kind="primary" fullWidth dot="none" disabled>
+                      Open the reply
+                    </PillButton>
+                  )}
                 </div>
               </section>
             )}
