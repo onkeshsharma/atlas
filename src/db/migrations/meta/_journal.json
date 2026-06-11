@@ -8,6 +8,13 @@
       "when": 1781138948338,
       "tag": "0000_right_rhino",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781142654645,
+      "tag": "0001_tired_dagger",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,71 @@
+/**
+ * M6 — feed_events: the append-only activity record AND the live outbox.
+ *
+ * One table serves three surfaces (inbox Z, Today's activity rail
+ * E:389–441, the presence/digest aggregates) and the Live-protocol seam:
+ * the bigserial id is a monotonic cursor the SSE broker polls
+ * (docs/adr/0001-live-transport.md). Run transitions append here in the
+ * SAME statement that flips the run row (transactional outbox —
+ * src/domain/run/transitions.ts), so a delivered cursor can never have
+ * missed an event.
+ *
+ * Kind vocabulary lives in src/domain/feed/kinds.ts with its verb map.
+ */
+import {
+  bigserial,
+  boolean,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+import { projects } from "./projects";
+import { runs } from "./runs";
+import { tickets } from "./tickets";
+
+export const feedEventKind = pgEnum("feed_event_kind", [
+  "filed", //        a Ticket was filed
+  "replied", //      someone replied on a Ticket
+  "moved", //        a Ticket moved state (triage → backlog etc.)
+  "joined", //       a Collaborator joined
+  "dispatched", //   a Run was created (queued)
+  "started", //      a Run began executing
+  "needs-input", //  a Run blocked on a question (§3.3 — outranks everything)
+  "answered", //     the Owner answered; Run resumed
+  "review-ready", // a Run finished and awaits review
+  "shipped", //      code landed
+  "failed", //       a Run failed
+  "cancelled", //    a Run was cancelled
+]);
+
+export const feedEvents = pgTable("feed_events", {
+  /** monotonic cursor for the live seam — never reuse, never reorder. */
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  kind: feedEventKind("kind").notNull(),
+  /** display actor — "Engine", "ada", "you". */
+  actor: text("actor").notNull(),
+  /** the post-verb phrase — "T-249 — Add JSON export endpoint". */
+  summary: text("summary").notNull(),
+  /** optional italic quote line (Z:264–269). */
+  preview: text("preview"),
+  projectId: uuid("project_id").references(() => projects.id),
+  ticketId: uuid("ticket_id").references(() => tickets.id),
+  runId: uuid("run_id").references(() => runs.id),
+  /** display ref — "T-249" (Z meta line) without a join. */
+  ticketRef: text("ticket_ref"),
+  /** structured event payload — run transitions store { from, to, question?, answer? }. */
+  payload: jsonb("payload"),
+  /**
+   * inbox read-marker. Instance-level (not per-user): exactly one Owner
+   * per Atlas; per-user read state is a Collaborator-inbox concern (M13).
+   */
+  readAt: timestamp("read_at", { withTimezone: true }),
+  seeded: boolean("seeded").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type FeedEvent = typeof feedEvents.$inferSelect;
+export type FeedEventKind = FeedEvent["kind"];

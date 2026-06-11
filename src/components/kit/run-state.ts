@@ -10,14 +10,11 @@
  * needs-input + review-ready own "needs you" (E10).
  */
 
-export type RunState =
-  | "queued"
-  | "running"
-  | "needs-input"
-  | "review-ready"
-  | "shipped"
-  | "failed"
-  | "cancelled";
+// M6 — the state vocabulary's source of truth moved to the pure domain
+// module (charter: the kit stays presentation-only and maps FROM it).
+// Type-identical re-export keeps every kit consumer unchanged.
+export type { RunState } from "@/src/domain/run/states";
+import type { RunState } from "@/src/domain/run/states";
 
 /**
  * Where a state indicator is rendered. §3.3:
