@@ -5,6 +5,11 @@ import { config } from "dotenv";
 // config module loads before any spec import, beating ESM hoisting.
 config({ path: ".env.local", quiet: true });
 
+// M7/M8 — parallel module worktrees run their suites on their own port
+// (ATLAS_E2E_PORT) so two Playwright webServers never collide; default
+// stays 3100 for the main worktree.
+const E2E_PORT = Number(process.env.ATLAS_E2E_PORT ?? 3100);
+
 // 1440 is the canonical design viewport (master plan §5).
 export default defineConfig({
   testDir: "e2e",
@@ -14,15 +19,15 @@ export default defineConfig({
   // E2E Owner and self-clean, so spec files must never interleave.
   workers: 1,
   use: {
-    baseURL: "http://localhost:3100",
+    baseURL: `http://localhost:${E2E_PORT}`,
     viewport: { width: 1440, height: 900 },
   },
   webServer: {
     // ATLAS_E2E_DISTDIR sandboxes the dev build output so this second
     // dev server doesn't trip Next 16's per-distDir lock when the
     // Owner's `pnpm dev` is already running on :3000 (see next.config.ts).
-    command: "pnpm dev --port 3100",
-    url: "http://localhost:3100",
+    command: `pnpm dev --port ${E2E_PORT}`,
+    url: `http://localhost:${E2E_PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
     env: { ATLAS_E2E_DISTDIR: ".next-e2e" },

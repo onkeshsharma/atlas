@@ -35,6 +35,8 @@ async function main() {
   // ── wipe previous seed (FK order) ──
   await sql`delete from feed_events where seeded`;
   await sql`delete from runs where seeded`;
+  // M8 work — edges reference tickets, so they go first
+  await sql`delete from ticket_links where seeded`;
   await sql`delete from tickets where seeded`;
   await sql`delete from projects where seeded`;
 
@@ -153,9 +155,98 @@ async function main() {
     `;
   }
 
+  // ════════════════════════════════════════════════════════════════════
+  // M8 work — board/triage/detail demo depth (ADDITIVE section; the wipe
+  // at the top already covers these rows via seeded=true).
+  //   - long-form bodies + kinds + enrichment on existing tickets (the
+  //     enrichment likelyFiles feed the Hints engine's file-set input,
+  //     so the Review column's Parallel-safe cluster derives for real);
+  //   - three new tickets so every board Category has rows (approved /
+  //     needs-info / declined);
+  //   - one declared blocks edge (T-279 blocks T-280 → blocked-by hint);
+  //   - their feed_events (filed/moved/linked) keep the outbox truthful.
+  // ════════════════════════════════════════════════════════════════════
+
+  const m8Tickets = [
+    // [ref, project, title, state, kind, reporter, createdAt, updatedAt]
+    ["T-279", "atlas-internal", "Bridge preflight v2 — token rotation", "approved", "enhancement", "you", daysAgo(14, 10), daysAgo(2, 12)],
+    ["T-312", "acme-website", "Checkout copy reads stiff in German", "needs-info", "other", "carmen@acme.io", daysAgo(1, 13), hoursAgo(5)],
+    ["T-265", "side-experiment", "Retire the legacy logo assets", "declined", "enhancement", "ada@acme.io", daysAgo(12, 11), daysAgo(5, 15)],
+  ];
+  for (const [ref, proj, title, state, kind, reporter, createdAt, updatedAt] of m8Tickets) {
+    const [row] = await sql`
+      insert into tickets (ref, project_id, title, state, kind, reporter, seeded, created_at, updated_at)
+      values (${ref}, ${project[proj]}, ${title}, ${state}, ${kind}, ${reporter}, true, ${createdAt}, ${updatedAt})
+      returning id
+    `;
+    ticket[ref] = row.id;
+  }
+
+  // long-form bodies (F:168–174 renders these as editorial prose) + kinds
+  const m8Bodies = {
+    "T-247": ["enhancement", `Owner needs to export the full ticket list from acme-website as a CSV for sharing with non-Atlas stakeholders during the upcoming launch review.\n\nThe export should include: ticket ID, title, current state, reporter, age, and the linked PR URL if shipped.\n\nEdge case: archived tickets (closed for more than 90 days) should be excluded by default but available via a checkbox.`],
+    "T-301": ["enhancement", `The onboarding flow's copy still reads like v1 — three screens mention "jobs" and the welcome note references a setup step that no longer exists.\n\nRewrite the five onboarding screens in the current voice. Keep each screen under 40 words.`],
+    "T-302": ["bug", `The screenshots on the onboarding page show the old dashboard — three versions stale. Anyone joining today sees a UI that no longer exists.\n\nCould we re-capture them against the current build? The hero screenshot matters most.`],
+    "T-310": ["bug", `When I load any page in dark-preferring browsers, the header flashes dark for a frame before settling light.\n\nLooks like the theme bootstrap runs after first paint. It's subtle but every page load shows it.`],
+    "T-280": ["enhancement", `Several surfaces still render bare "nothing here" text where the editorial empty states should be.\n\nSweep the app for empty collections and apply the one-sentence empty-state recipe everywhere.`],
+    "T-308": ["enhancement", `Dispatching a Ship Group currently runs its tickets one at a time. The whole point of the group is that the file sets are disjoint — dispatch them in parallel.`],
+    "T-149": ["bug", `Mermaid diagrams render blank on iOS Safari — the SVG comes back with zero height inside the docs page.\n\nReproduces on iPhone 14/iOS 18; fine on desktop Safari.`],
+    "T-279": ["enhancement", `Bridge preflight should verify the token can actually rotate before reporting healthy — today it only checks presence.\n\nAdd a dry-run rotation to the preflight checklist and surface the result.`],
+    "T-312": ["other", `The German checkout flow copy was flagged by a native speaker as overly formal ("Sie" forms mixed with marketing tone).\n\nNeed a pass over the five checkout strings.`],
+    "T-265": ["enhancement", `The legacy logo assets still live in /public — about 2 MB of unused SVGs.\n\nDeclined: the marketing site still hotlinks two of them; revisit after the relaunch.`],
+    "T-311": ["enhancement", `The weekly digest email reads robotic. Tighten the subject line and the intro sentence; keep the stats table.`],
+  };
+  for (const [ref, [kind, body]] of Object.entries(m8Bodies)) {
+    await sql`update tickets set kind = ${kind}, body = ${body} where id = ${ticket[ref]}`;
+  }
+
+  // enrichment (PRD #17 — Helper-Run output; M9 writes this for real).
+  // likelyFiles are the Hints engine's file-set knowledge: T-247 ⊥ T-301
+  // (disjoint → the Review column's "Parallel-safe · 2" cluster), and
+  // T-308 ⊥ T-279 (parallel-safe-with hints on the Active cards).
+  // T-310 stays NULL → triage + detail render the honest pending state.
+  const m8Enrichment = [
+    ["T-247", { kind: "enhancement", severity: "low", confidence: "high", similarTo: "T-249", likelyFiles: ["app/(app)/tickets/page.tsx", "src/lib/ticket-export.ts"], question: "Should export include archived (>90d closed) tickets?", enrichedAt: hoursAgo(20).toISOString() }],
+    ["T-301", { kind: "enhancement", severity: "low", confidence: "medium", likelyFiles: ["app/onboarding/page.tsx", "src/copy/onboarding.ts"], enrichedAt: daysAgo(1, 16).toISOString() }],
+    ["T-302", { kind: "bug", severity: "low", confidence: "high", similarTo: "T-301", likelyFiles: ["app/onboarding/page.tsx", "public/onboarding/hero.png"], question: "Re-capture at 1440 or match the original 1280 frames?", enrichedAt: hoursAgo(2).toISOString() }],
+    ["T-308", { kind: "enhancement", severity: "medium", confidence: "medium", likelyFiles: ["bridge/scheduler.ts", "bridge/worktrees.ts"], enrichedAt: daysAgo(1, 9).toISOString() }],
+    ["T-279", { kind: "enhancement", severity: "medium", confidence: "high", likelyFiles: ["bridge/preflight.ts"], question: "Rotate against the live token store or a sandbox?", enrichedAt: daysAgo(2, 9).toISOString() }],
+    ["T-280", { kind: "enhancement", severity: "low", confidence: "medium", likelyFiles: ["src/components/kit/EmptyState.tsx"], enrichedAt: daysAgo(1, 8).toISOString() }],
+  ];
+  for (const [ref, payload] of m8Enrichment) {
+    await sql`update tickets set enrichment = ${JSON.stringify(payload)}::jsonb where id = ${ticket[ref]}`;
+  }
+
+  // declared dependency edge (PRD #16): T-279 blocks T-280 → the board's
+  // 🔴 "blocked by #279" hint on the Backlog card (G:36's shape, real).
+  await sql`
+    insert into ticket_links (blocker_id, blocked_id, seeded, created_at)
+    values (${ticket["T-279"]}, ${ticket["T-280"]}, true, ${daysAgo(2, 11)})
+  `;
+
+  // the new rows' outbox events (filed / moved / linked)
+  const m8Feed = [
+    ["filed", "you", "T-279 — Bridge preflight v2 — token rotation", null, "atlas-internal", "T-279", null, true, daysAgo(14, 10)],
+    ["moved", "you", "T-279 — Bridge preflight v2 — token rotation", null, "atlas-internal", "T-279", { from: "triage", to: "approved" }, true, daysAgo(2, 12)],
+    ["linked", "you", "T-279 — blocks T-280", null, "atlas-internal", "T-279", { direction: "blocks", otherRef: "T-280" }, true, daysAgo(2, 11)],
+    ["filed", "carmen", "T-312 — Checkout copy reads stiff in German", null, "acme-website", "T-312", null, true, daysAgo(1, 13)],
+    ["moved", "you", "T-312 — Checkout copy reads stiff in German", "Which five strings exactly? Could you list the screens?", "acme-website", "T-312", { from: "triage", to: "needs-info", note: "Which five strings exactly? Could you list the screens?" }, true, hoursAgo(5)],
+    ["filed", "ada", "T-265 — Retire the legacy logo assets", null, "side-experiment", "T-265", null, true, daysAgo(12, 11)],
+    ["moved", "you", "T-265 — Retire the legacy logo assets", "Marketing still hotlinks two of these — revisit after the relaunch.", "side-experiment", "T-265", { from: "triage", to: "declined", note: "Marketing still hotlinks two of these — revisit after the relaunch." }, true, daysAgo(5, 15)],
+  ];
+  for (const [kind, actor, summary, preview, proj, tref, payload, read, at] of m8Feed) {
+    await sql`
+      insert into feed_events (kind, actor, summary, preview, project_id, ticket_id, ticket_ref, payload, read_at, seeded, created_at)
+      values (${kind}, ${actor}, ${summary}, ${preview}, ${project[proj]}, ${ticket[tref]}, ${tref},
+              ${payload ? JSON.stringify(payload) : null}::jsonb, ${read ? at : null}, true, ${at})
+    `;
+  }
+  // ════════════════════════════════════════ end M8 work ════════════════
+
   const [{ count: events }] = await sql`select count(*)::int as count from feed_events where seeded`;
+  const [{ count: allTickets }] = await sql`select count(*)::int as count from tickets where seeded`;
   console.log(
-    `seeded: ${projectRows.length} projects · ${ticketSeed.length} tickets · ${runSeed.length} runs · ${events} feed events (all marked seeded=true)`,
+    `seeded: ${projectRows.length} projects · ${allTickets} tickets · ${runSeed.length} runs · ${events} feed events (all marked seeded=true)`,
   );
 }
 
