@@ -33,7 +33,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Atlas — a quiet place for the work your AI does",
   description:
-    "An engineer’s orchestration cockpit: dispatch Runs, answer the Engine when it blocks, review and ship what it produces — with the code never leaving your machine.",
+    "An engineer’s orchestration cockpit: dispatch Runs, answer the Engine when it blocks, review and ship what it produces — with your repo never leaving your machine.",
 };
 
 /** the landing's pill-link recipe (FF:45–49 minus the §2.9 strict-dot drift). */
