@@ -8,6 +8,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireOwner } from "@/src/domain/auth/guard";
+import { beginDispatch } from "@/src/domain/dispatch/dispatch";
+import { enqueueHelperRun } from "@/src/domain/dispatch/mutations";
 import { isTicketState } from "@/src/domain/ticket/states";
 import { addTicketLink, applyTicketTransition } from "@/src/domain/ticket/mutations";
 
@@ -24,6 +26,49 @@ export async function moveTicketAction(formData: FormData): Promise<void> {
   await applyTicketTransition({ ticketId, from, to, actor: "you" });
   revalidatePath(`/tickets/${ref}`);
   revalidatePath("/board");
+}
+
+/**
+ * M9 — the Dispatch CTA made real (charter §8). Two-step by design
+ * (src/domain/dispatch/dispatch.ts): first click drafts the Brief via a
+ * Helper Run; once it lands (the page is live), the second click
+ * finalizes it + creates the Owner Run + drives approved → in-progress.
+ */
+export async function dispatchTicketAction(formData: FormData): Promise<void> {
+  await requireOwner();
+
+  const ticketId = String(formData.get("ticketId") ?? "");
+  const ref = String(formData.get("ref") ?? "");
+  if (!ticketId) return;
+
+  // raced/illegal dispatches lose cleanly inside (conditional claims).
+  await beginDispatch({ ticketId, actor: "you" });
+  revalidatePath(`/tickets/${ref}`);
+  revalidatePath("/today");
+  revalidatePath("/board");
+}
+
+/**
+ * M9 Session B — F:239 "regenerate ↻" made real: queues a fresh
+ * draft-brief Helper Run (the enqueue guard makes double-clicks no-ops;
+ * the page live-updates when the new draft lands).
+ */
+export async function regenerateBriefAction(formData: FormData): Promise<void> {
+  await requireOwner();
+
+  const ticketId = String(formData.get("ticketId") ?? "");
+  const projectId = String(formData.get("projectId") ?? "");
+  const ref = String(formData.get("ref") ?? "");
+  if (!ticketId || !projectId) return;
+
+  await enqueueHelperRun({
+    projectId,
+    ticketId,
+    helperKind: "draft-brief",
+    title: `Draft Brief for ${ref}`,
+    actor: "you",
+  });
+  revalidatePath(`/tickets/${ref}`);
 }
 
 export type AddLinkState = { error?: string };

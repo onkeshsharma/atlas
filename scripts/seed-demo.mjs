@@ -44,6 +44,11 @@ async function main() {
   // cascade idiom: real edges on seeded tickets go with their parent).
   await sql`delete from ticket_links where seeded or blocker_id in (select id from tickets where seeded) or blocked_id in (select id from tickets where seeded)`;
   await sql`delete from context_terms where seeded or project_id in (select id from projects where seeded)`;
+  // M9 — stdout chunks + briefs reference runs/tickets; honest rows born
+  // on seeded parents (a daemon exercising demo runs) go with the parent.
+  await sql`delete from run_stdout_chunks where run_id in (select id from runs where seeded or project_id in (select id from projects where seeded))`;
+  await sql`update runs set brief_id = null where seeded or project_id in (select id from projects where seeded)`;
+  await sql`delete from briefs where seeded or ticket_id in (select id from tickets where seeded)`;
   await sql`delete from runs where seeded or project_id in (select id from projects where seeded)`;
   await sql`delete from tickets where seeded or project_id in (select id from projects where seeded)`;
   await sql`delete from projects where seeded`;

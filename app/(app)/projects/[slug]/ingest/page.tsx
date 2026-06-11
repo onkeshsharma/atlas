@@ -50,8 +50,11 @@ import {
   projectIngestSummary,
   ticketStateCounts,
 } from "@/src/domain/project/queries";
-import type { Project } from "@/src/db/schema";
+import { activeProjectHelperRun } from "@/src/domain/dispatch/queries";
+import type { Project, Run } from "@/src/db/schema";
 import { shortAgo, timeAgo } from "@/src/lib/format";
+
+import { refreshIngestAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -91,8 +94,10 @@ function Prose({
   );
 }
 
-/** queued / none — the truthful pre-Engine states (§2.17 page shape). */
-function WaitingState({ project }: { project: Project }) {
+/** queued / none — the truthful pre-Engine states (§2.17 page shape).
+ * M9 Session B: the ingest is RUNNABLE now — the page offers the real
+ * Helper Run instead of the M7 "when a Bridge is paired" promise. */
+function WaitingState({ project, ingestRun }: { project: Project; ingestRun: Run | null }) {
   const queued = project.ingestStatus === "queued";
   return (
     <div className="max-w-2xl">
@@ -108,8 +113,8 @@ function WaitingState({ project }: { project: Project }) {
       <p className="mt-16 text-lg text-stone-700 leading-relaxed">
         {queued ? (
           <>
-            The Engine reads this repo when a Bridge is paired — stack,
-            architecture, smells, and baseline health land on this page.
+            The Engine reads this repo on its next Run — stack, architecture, smells,
+            and baseline health land on this page.
           </>
         ) : (
           <>
@@ -118,8 +123,37 @@ function WaitingState({ project }: { project: Project }) {
           </>
         )}
       </p>
+      {ingestRun ? (
+        <p className="mt-6 text-sm italic text-stone-500 leading-relaxed">
+          The Engine is on it —{" "}
+          <Link
+            href={`/runs/${ingestRun.ref}`}
+            className="not-italic font-mono text-xs text-stone-700 hover:text-amber-600"
+          >
+            {ingestRun.ref} →
+          </Link>{" "}
+          fills this page when it lands.
+        </p>
+      ) : (
+        <form action={refreshIngestAction} className="mt-6">
+          <input type="hidden" name="projectId" value={project.id} />
+          <input type="hidden" name="slug" value={project.slug} />
+          <input type="hidden" name="name" value={project.name} />
+          <button
+            type="submit"
+            className="font-mono text-xs uppercase tracking-widest text-stone-700 hover:text-amber-600 cursor-pointer"
+          >
+            Read it with the Engine →
+          </button>
+          {!project.localPath && (
+            <p className="mt-2 text-xs italic text-stone-500">
+              No local path is paired — the run will say so honestly.
+            </p>
+          )}
+        </form>
+      )}
       <p className="mt-4 text-sm italic text-stone-500 leading-relaxed">
-        Nothing is cloned and nothing runs until then. That&rsquo;s a good thing.
+        Nothing is cloned and nothing runs until you ask. That&rsquo;s a good thing.
       </p>
     </div>
   );
@@ -129,10 +163,12 @@ function ReadySummary({
   project,
   summary,
   openTickets,
+  ingestRun,
 }: {
   project: Project;
   summary: IngestSummary;
   openTickets: number;
+  ingestRun: Run | null;
 }) {
   const refreshed = project.ingestedAt ? timeAgo(project.ingestedAt) : "—";
   const healthy = summary.health.every((h) => h.ok);
@@ -461,12 +497,33 @@ function ReadySummary({
           <MonoSectionLabel>Ingest</MonoSectionLabel>
           <div className="mt-3 text-sm text-stone-700 leading-relaxed">
             The Engine last read this{" "}
-            <span className="font-mono text-stone-900">{refreshed}</span>. Refresh
-            arrives when a Bridge is paired.
+            <span className="font-mono text-stone-900">{refreshed}</span>. Refreshing
+            re-reads the repo and rewrites this page.
           </div>
-          <div className="mt-4 font-mono text-[10px] uppercase tracking-widest text-stone-400">
-            refresh from latest · soon
-          </div>
+          {/* M9 Session B — J:530 restored as a REAL Helper Run (HANDOFF-M7) */}
+          {ingestRun ? (
+            <div className="mt-4 font-mono text-[10px] uppercase tracking-widest text-stone-400">
+              refreshing —{" "}
+              <Link
+                href={`/runs/${ingestRun.ref}`}
+                className="text-stone-700 hover:text-amber-600"
+              >
+                {ingestRun.ref} →
+              </Link>
+            </div>
+          ) : (
+            <form action={refreshIngestAction} className="mt-4">
+              <input type="hidden" name="projectId" value={project.id} />
+              <input type="hidden" name="slug" value={project.slug} />
+              <input type="hidden" name="name" value={project.name} />
+              <button
+                type="submit"
+                className="font-mono text-[10px] uppercase tracking-widest text-stone-700 hover:text-amber-600 cursor-pointer"
+              >
+                Refresh from latest ↻
+              </button>
+            </form>
+          )}
           <Link
             href={`/projects/${project.slug}/context`}
             className="mt-3 block text-center font-mono text-[10px] uppercase tracking-widest text-stone-700 hover:underline cursor-pointer"
@@ -505,9 +562,12 @@ export default async function IngestSummaryPage({
   const project = await projectBySlug(slug);
   if (!project) notFound();
 
-  const [counts, cursor] = await Promise.all([
+  const [counts, cursor, ingestRun] = await Promise.all([
     ticketStateCounts(project.id),
     latestCursor(),
+    // M9 Session B — the refresh CTA's honesty: an ingest already in
+    // flight renders as its Run, not a second button.
+    activeProjectHelperRun(project.id, "ingest-project"),
   ]);
   const summary = projectIngestSummary(project);
 
@@ -528,9 +588,10 @@ export default async function IngestSummaryPage({
             project={project}
             summary={summary}
             openTickets={counts.open}
+            ingestRun={ingestRun}
           />
         ) : (
-          <WaitingState project={project} />
+          <WaitingState project={project} ingestRun={ingestRun} />
         )}
       </PageHeader>
     </main>

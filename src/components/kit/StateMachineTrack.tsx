@@ -7,7 +7,10 @@
  * Governing canon: §2.8 (+§2.10 tooltips, §2.7 track-node pulse form).
  */
 
-export type TrackTone = "amber" | "rose" | "emerald";
+// M9 axis: `stone` — a CANCELLED run's "you are here" is stone, not a
+// semantic color (§3.3: cancelled = stone-300/stone-400; §2.8's "current
+// = semantic color" reads through the §1.1 state-idle mapping).
+export type TrackTone = "amber" | "rose" | "emerald" | "stone";
 export type TrackStep = {
   key: string;
   label: string;
@@ -35,6 +38,12 @@ const TONE = {
     dot: "bg-emerald-500",
     ring: "border-emerald-500/50",
     axis: "text-emerald-600",
+  },
+  stone: {
+    halo: "bg-stone-400/40",
+    dot: "bg-stone-400",
+    ring: "border-stone-400/50",
+    axis: "text-stone-500",
   },
 } as const;
 

@@ -172,7 +172,9 @@ test.describe.serial("M7 — Projects over real rows", () => {
     });
     await expect(page.getByText("ingest queued")).toBeVisible();
     await expect(
-      page.getByText("The Engine reads this repo when a Bridge is paired", { exact: false }),
+      // M9 Session B made the ingest runnable — the waiting copy changed
+      // from "when a Bridge is paired" to the on-its-next-Run truth.
+      page.getByText("The Engine reads this repo on its next Run", { exact: false }),
     ).toBeVisible();
     await captureAcrossViewports(page, "ingest-queued");
 
@@ -225,9 +227,9 @@ test.describe.serial("M7 — Projects over real rows", () => {
     await expect(page.getByText("page.tsx is 1,247 lines long")).toBeVisible();
     await expect(page.getByText("73% coverage")).toBeVisible();
     await expect(page.getByText("Fig. 1 — System flow", { exact: false })).toBeVisible();
-    // honest pre-Engine refresh card — no fake button
-    await expect(page.getByText("refresh from latest · soon")).toBeVisible();
-    await expect(page.getByRole("button", { name: /refresh from latest/i })).toHaveCount(0);
+    // M9 Session B restored J:530 — the refresh CTA is a REAL Helper Run
+    // (the M7 "soon" honesty note retired with its executor).
+    await expect(page.getByRole("button", { name: /refresh from latest/i })).toBeVisible();
     await captureAcrossViewports(page, "ingest-ready");
   });
 

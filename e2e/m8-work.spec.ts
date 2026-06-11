@@ -17,9 +17,12 @@ import { eq, inArray, like, or } from "drizzle-orm";
 // .env.local is loaded by playwright.config.ts before specs import.
 import { db } from "../src/db/client";
 import {
+  briefs,
   feedEvents,
   memberships,
   projects,
+  runs,
+  runStdoutChunks,
   ticketLinks,
   tickets,
   userPreferences,
@@ -68,6 +71,19 @@ async function cleanupE2ERows() {
       .delete(ticketLinks)
       .where(or(inArray(ticketLinks.blockerId, ids), inArray(ticketLinks.blockedId, ids)));
     await db.delete(feedEvents).where(inArray(feedEvents.ticketId, ids));
+    // M9 — filing now auto-queues an enrich Helper Run (PRD #17); its
+    // children go before the tickets (FK order: chunks → runs → briefs).
+    const e2eRuns = await db
+      .select({ id: runs.id })
+      .from(runs)
+      .where(inArray(runs.ticketId, ids));
+    if (e2eRuns.length) {
+      await db
+        .delete(runStdoutChunks)
+        .where(inArray(runStdoutChunks.runId, e2eRuns.map((r) => r.id)));
+    }
+    await db.delete(runs).where(inArray(runs.ticketId, ids));
+    await db.delete(briefs).where(inArray(briefs.ticketId, ids));
     await db.delete(tickets).where(inArray(tickets.id, ids));
   }
   await db.delete(feedEvents).where(like(feedEvents.summary, "E2E %"));
@@ -169,10 +185,26 @@ test.describe.serial("M8 — the work loop over real rows", () => {
     await expect(page.getByText(/^1 of 4$/).first()).toBeVisible();
     await captureAcrossViewports(page, "triage");
 
-    // jump to OUR ticket (filed last → last index) and approve via keyboard
+    // jump to OUR ticket (filed last → last index) and approve via keyboard.
+    // The deck's keydown listener attaches on hydration (triage-deck.tsx
+    // useEffect) — a press that lands before hydration is silently lost
+    // under dev-server load, so re-press until the row flips. DB-gated:
+    // once the ticket leaves triage we stop pressing, otherwise a second
+    // press would approve the NEXT queue head (a seeded ticket).
     await page.goto("/triage?i=3");
     await expect(page.getByRole("heading", { name: FILED_TITLE })).toBeVisible();
-    await page.keyboard.press("a");
+    {
+      const deadline = Date.now() + 30_000;
+      for (;;) {
+        await page.keyboard.press("a");
+        await new Promise((r) => setTimeout(r, 1_000));
+        const [t] = await db
+          .select({ state: tickets.state })
+          .from(tickets)
+          .where(eq(tickets.title, FILED_TITLE));
+        if (t.state !== "triage" || Date.now() > deadline) break;
+      }
+    }
 
     // the queue advances (ours is gone — 3 seeded tickets remain)
     await expect(page.getByText(/^3 of 3$/).first()).toBeVisible({ timeout: 30_000 });

@@ -39,11 +39,20 @@ export const KIND_WORD: Record<FeedEventKind, string> = {
   "project-unpinned": "unpinned",
   "context-edited": "edited",
   linked: "linked", // M8 — a blocks/blocked-by edge was declared (PRD #16)
+  // M9 — Helper-Run deliverables ("Engine enriched T-302 — …",
+  // "Engine drafted Brief for T-247 — …", "Engine ingested acme-website — …").
+  enriched: "enriched",
+  "brief-drafted": "drafted",
+  ingested: "ingested",
+  // M9 Session B — the approve-and-ship click ("you approved R-501 — …";
+  // `shipped` is the emerald word and lands when the merge does).
+  "ship-requested": "approved",
 };
 
 export const KIND_CONNECTOR: Partial<Record<FeedEventKind, string>> = {
   replied: "on",
   "needs-input": "on",
+  "brief-drafted": "Brief for", // M9 — "Engine drafted Brief for T-247 — …"
 };
 
 /** §1.1 dot tone per kind (Z:90–96 adjusted to canon — sky-500 not sky-400). */
@@ -66,6 +75,13 @@ export const KIND_TONE: Record<FeedEventKind, DotTone> = {
   "project-unpinned": "stone",
   "context-edited": "stone",
   linked: "stone", // M8 — bookkeeping about ordering — neutral
+  // M9 — deliverable bookkeeping; no code moved, amber stays scarce (§1.1).
+  enriched: "stone",
+  "brief-drafted": "stone",
+  ingested: "stone",
+  // Session B — the click is bookkeeping; emerald is reserved for the
+  // landing itself (§1.1: did code move? emerald. did a record update? not).
+  "ship-requested": "stone",
 };
 
 /** colored kind word in inbox sentences (Z:407–413 shape, canon palette). */
@@ -88,6 +104,11 @@ export const KIND_WORD_CLASS: Record<FeedEventKind, string> = {
   "project-unpinned": "text-stone-700",
   "context-edited": "text-stone-700",
   linked: "text-stone-700", // M8
+  // M9 — neutral deliverable words.
+  enriched: "text-stone-700",
+  "brief-drafted": "text-stone-700",
+  ingested: "text-stone-700",
+  "ship-requested": "text-stone-700", // Session B
 };
 
 /** display text — dashes read as spaces. */

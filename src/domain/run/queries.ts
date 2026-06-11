@@ -3,11 +3,12 @@
  * §3.3 Needs Input panel). M7/M8/M9 reuse these; extend here, never
  * inline SQL in pages.
  */
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/src/db/client";
 import { projects, runs, tickets } from "@/src/db/schema";
 
+import { parseRunDiffStats } from "./diff-stats";
 import { parseNeedsInputQuestion, type NeedsInputQuestion } from "./needs-input";
 import { ACTIVE_STATES, type RunState } from "./states";
 
@@ -40,6 +41,72 @@ export async function activeRuns(): Promise<ActiveRunRow[]> {
     .where(inArray(runs.state, [...ACTIVE_STATES]))
     .orderBy(asc(runs.createdAt));
   return rows;
+}
+
+/**
+ * M9 Session B — the Hints engine's real file-overlap source
+ * (HANDOFF-M8 seam): each ticket's LATEST owner run that captured diff
+ * stats → its actual touched paths. Swapped in at the /board call site
+ * only; the engine and its tests see the same FileSets shape.
+ */
+export async function latestRunFileSets(
+  ticketIds: readonly string[],
+): Promise<Map<string, readonly string[]>> {
+  const map = new Map<string, readonly string[]>();
+  if (!ticketIds.length) return map;
+  const rows = await db
+    .select({
+      ticketId: runs.ticketId,
+      diffStats: runs.diffStats,
+      createdAt: runs.createdAt,
+    })
+    .from(runs)
+    .where(
+      and(
+        inArray(runs.ticketId, [...ticketIds]),
+        eq(runs.lane, "owner"),
+        sql`${runs.diffStats} is not null`,
+      ),
+    )
+    .orderBy(desc(runs.createdAt));
+  for (const row of rows) {
+    if (!row.ticketId || map.has(row.ticketId)) continue; // newest first
+    const stats = parseRunDiffStats(row.diffStats);
+    if (stats && stats.files.length > 0) {
+      map.set(
+        row.ticketId,
+        stats.files.map((f) => f.path),
+      );
+    }
+  }
+  return map;
+}
+
+/**
+ * Session B — the board cluster's "Ship N →": each ticket's
+ * review-ready owner run (the one the ship request targets).
+ */
+export async function reviewReadyRunsForTickets(
+  ticketIds: readonly string[],
+): Promise<Map<string, { runId: string; ref: string }>> {
+  const map = new Map<string, { runId: string; ref: string }>();
+  if (!ticketIds.length) return map;
+  const rows = await db
+    .select({ ticketId: runs.ticketId, id: runs.id, ref: runs.ref, createdAt: runs.createdAt })
+    .from(runs)
+    .where(
+      and(
+        inArray(runs.ticketId, [...ticketIds]),
+        eq(runs.lane, "owner"),
+        eq(runs.state, "review-ready"),
+      ),
+    )
+    .orderBy(desc(runs.createdAt));
+  for (const row of rows) {
+    if (!row.ticketId || map.has(row.ticketId)) continue;
+    map.set(row.ticketId, { runId: row.id, ref: row.ref });
+  }
+  return map;
 }
 
 export type NeedsInputRow = {

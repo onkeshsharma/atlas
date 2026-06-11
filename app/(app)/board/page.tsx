@@ -35,10 +35,12 @@ import { actorsActiveToday } from "@/src/domain/feed/queries";
 import { deriveHints, type DerivedHint } from "@/src/domain/hints/derive";
 import { fileSetsFromEnrichment, toHintTickets } from "@/src/domain/hints/inputs";
 import { latestCursor } from "@/src/domain/live/broker";
+import { latestRunFileSets } from "@/src/domain/run/queries";
 import { CATEGORY_COLUMNS, ticketCategory } from "@/src/domain/ticket/categories";
 import { allTicketLinks, boardTickets, stuckInsight, type WorkTicket } from "@/src/domain/ticket/queries";
 import { TICKET_DOT_TONE, TICKET_STATES } from "@/src/domain/ticket/states";
 
+import { shipClusterAction } from "./actions";
 import { BoardFilters, DensityControl, type BoardFilter, type Density } from "./board-controls";
 
 export const dynamic = "force-dynamic";
@@ -79,11 +81,16 @@ export default async function BoardPage({
     latestCursor(),
   ]);
 
-  // ── the REAL hints engine (file-overlap = enrichment until M9) ──────
+  // ── the REAL hints engine. M9 Session B closes the HANDOFF-M8 seam:
+  // file-overlap comes from each ticket's latest Run's ACTUAL diff
+  // (runs.diff_stats); enrichment's likelyFiles remain the pre-run
+  // guess for tickets the Engine hasn't executed yet (real beats
+  // guessed per ticket; the engine + its tests are untouched). ──────
+  const runFileSets = await latestRunFileSets(tickets.map((t) => t.id));
   const { hints, shipGroups } = deriveHints({
     tickets: toHintTickets(tickets),
     edges,
-    fileSets: fileSetsFromEnrichment(tickets),
+    fileSets: new Map([...fileSetsFromEnrichment(tickets), ...runFileSets]),
   });
 
   // ── filters (real ?params; chips cycle through these values) ────────
@@ -237,9 +244,15 @@ export default async function BoardPage({
                   </p>
                 )}
 
-                {/* Ship Group cluster (G:231–258, §4-M8) — ≥2 visible members */}
+                {/* Ship Group cluster (G:231–258, §4-M8) — ≥2 visible members.
+                    M9 Session B: the Ship pill is REAL (one durable ship
+                    request per review-ready run — ./actions.ts). */}
                 {col.key === "review" && inCluster.length >= 2 && (
-                  <ShipGroupCluster count={inCluster.length}>
+                  <ShipGroupCluster
+                    count={inCluster.length}
+                    shipAction={shipClusterAction}
+                    shipValue={clusterTickets.map((t) => t.id).join(",")}
+                  >
                     {inCluster.map(card)}
                   </ShipGroupCluster>
                 )}
