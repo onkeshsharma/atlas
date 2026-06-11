@@ -151,6 +151,28 @@ function asResult(rows: unknown[]): WriterResult {
 }
 
 /**
+ * The preflight inputs the daemon can't know on its own — shared by the
+ * request writer (rides the command row) and /api/bridge/sync (fresh
+ * recompute for a daemon that reconnects onto a pending request).
+ */
+export async function doctorRequestInputs(bridgeId: string): Promise<{
+  projects: Array<{ slug: string; localPath: string }>;
+  keepWorktreeRunIds: string[];
+}> {
+  const projects = (await db.execute(sql`
+    select slug, local_path from projects where local_path is not null
+  `)) as unknown as { rows: Array<{ slug: string; local_path: string }> };
+  const keeps = (await db.execute(sql`
+    select id::text as id from runs
+    where bridge_id = ${bridgeId} and state = 'review-ready'
+  `)) as unknown as { rows: Array<{ id: string }> };
+  return {
+    projects: projects.rows.map((p) => ({ slug: p.slug, localPath: p.local_path })),
+    keepWorktreeRunIds: keeps.rows.map((r) => r.id),
+  };
+}
+
+/**
  * The Owner's "run doctor" click. Gathers the preflight inputs, then ONE
  * conditional statement: claim the pending marker (re-requests allowed
  * only once a pending one staled — double-clicks lose) + the outbox row
@@ -160,19 +182,11 @@ export async function requestBridgeDoctor(input: {
   bridgeId: string;
   actor?: string;
 }): Promise<WriterResult> {
-  // preflight inputs the daemon can't know (reads; the write below is atomic)
-  const projects = (await db.execute(sql`
-    select slug, local_path from projects where local_path is not null
-  `)) as unknown as { rows: Array<{ slug: string; local_path: string }> };
-  const keeps = (await db.execute(sql`
-    select id::text as id from runs
-    where bridge_id = ${input.bridgeId} and state = 'review-ready'
-  `)) as unknown as { rows: Array<{ id: string }> };
-
+  const inputs = await doctorRequestInputs(input.bridgeId);
   const payload: DoctorRequestPayload = {
     bridgeId: input.bridgeId,
-    projects: projects.rows.map((p) => ({ slug: p.slug, localPath: p.local_path })),
-    keepWorktreeRunIds: keeps.rows.map((r) => r.id),
+    projects: inputs.projects,
+    keepWorktreeRunIds: inputs.keepWorktreeRunIds,
   };
 
   const retryAfter = new Date(Date.now() - DOCTOR_RETRY_AFTER_MS).toISOString();

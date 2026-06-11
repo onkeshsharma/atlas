@@ -7,6 +7,7 @@
  * cap, and the outbox cursor to subscribe from. State beats event replay.
  */
 import { bridgeFromRequest } from "@/src/domain/bridge/auth";
+import { doctorRequestInputs } from "@/src/domain/bridge/doctor";
 import type { BridgeSyncResponse } from "@/src/domain/bridge/protocol";
 import {
   activeRunsForBridge,
@@ -43,6 +44,10 @@ export async function GET(req: Request) {
     })),
     active: active.map((a) => ({ runId: a.runId, state: a.state })),
     shipRequested,
+    // M10 — a pending doctor request survives a daemon restart (the
+    // catch-up-is-DB-state move), inputs recomputed fresh.
+    doctorRequest:
+      bridge.doctorRequestedAt !== null ? await doctorRequestInputs(bridge.id) : null,
   };
   return Response.json(body);
 }

@@ -9,9 +9,32 @@
 import type { FeedEvent } from "@/src/db/schema";
 
 import { parseNeedsInputAnswer } from "../run/needs-input";
+import { parseDoctorRequestPayload } from "./doctor";
 import type { BridgeEvent } from "./protocol";
 
-export function rowToBridgeEvents(row: FeedEvent): BridgeEvent[] {
+/**
+ * @param forBridgeId M10 — the consuming daemon's bridge id. Doctor
+ * requests are ADDRESSED commands (one machine's preflight, not a
+ * broadcast); rows for other bridges map to nothing. Run commands stay
+ * broadcast — M9's single-bridge semantics unchanged.
+ */
+export function rowToBridgeEvents(row: FeedEvent, forBridgeId?: string): BridgeEvent[] {
+  // M10 — the doctor command row has no runId; handle it first.
+  if (row.kind === "doctor-requested") {
+    const payload = parseDoctorRequestPayload(row.payload);
+    if (!payload) return [];
+    if (forBridgeId !== undefined && payload.bridgeId !== forBridgeId) return [];
+    return [
+      {
+        type: "bridge-doctor",
+        cursor: row.id,
+        bridgeId: payload.bridgeId,
+        projects: payload.projects,
+        keepWorktreeRunIds: payload.keepWorktreeRunIds,
+      },
+    ];
+  }
+
   if (!row.runId) return [];
   const payload =
     typeof row.payload === "object" && row.payload !== null && !Array.isArray(row.payload)

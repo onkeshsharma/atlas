@@ -14,6 +14,7 @@
 import type { AtlasClient } from "./atlas-client.ts";
 import { TokenRejectedError } from "./atlas-client.ts";
 import { BRIDGE_VERSION } from "./config.ts";
+import { runDoctor } from "./doctor.ts";
 import type { EngineAdapter } from "./engine/types.ts";
 import { parseBridgeEvent, type RunLane } from "./protocol.ts";
 import { executeRun, type RunExecution } from "./runner.ts";
@@ -38,6 +39,8 @@ export type DaemonOptions = {
   tickMs: number;
   heartbeatMs: number;
   engineTimeoutMs: number;
+  /** M10 — reported in doctor verdicts (single-instance sanity surface). */
+  lockPort?: number;
   log?: (line: string) => void;
   fetchFn?: typeof fetch;
 };
@@ -55,6 +58,8 @@ export class Daemon {
    * sessions: they never consume cap slots (the worktree already
    * holds the work; shipping is seconds, runs are minutes). */
   private shipping = new Set<string>();
+  /** M10 — one doctor at a time; duplicate commands collapse. */
+  private doctoring = false;
   private stopped = false;
   private aborter: AbortController | null = null;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
@@ -129,6 +134,8 @@ export class Daemon {
         await this.orphanSweep(sync.active);
         // Session B — ships requested while we were away (PRD #35's sibling).
         for (const runId of sync.shipRequested) this.startShip(runId);
+        // M10 — a doctor requested while we were away still runs.
+        if (sync.doctorRequest) this.startDoctor(sync.doctorRequest);
         this.tick();
 
         attempt = 0;
@@ -173,10 +180,22 @@ export class Daemon {
 
   private handleEvent(event: {
     type: string;
-    runId: string;
+    runId?: string;
     lane?: RunLane;
     answer?: { text?: string; choice?: string; answeredBy: string; answeredAt: string };
+    // M10 — bridge-doctor command fields.
+    projects?: Array<{ slug: string; localPath: string }>;
+    keepWorktreeRunIds?: string[];
   }): void {
+    // M10 — the doctor command addresses the bridge, not a run.
+    if (event.type === "bridge-doctor") {
+      this.startDoctor({
+        projects: event.projects ?? [],
+        keepWorktreeRunIds: event.keepWorktreeRunIds ?? [],
+      });
+      return;
+    }
+    if (typeof event.runId !== "string") return;
     switch (event.type) {
       case "run-available":
         if (!this.running.has(event.runId) && !this.queued.has(event.runId)) {
@@ -267,6 +286,55 @@ export class Daemon {
         this.log(`ship ${runId}: executor error — ${String(err)}`);
       } finally {
         this.shipping.delete(runId);
+      }
+    })();
+  }
+
+  /**
+   * M10 — run preflight and post the verdict (PRD #34). Honest and
+   * non-blocking: checks run beside the scheduler; duplicate requests
+   * collapse onto the run in flight; a stale post (bridge revoked
+   * mid-doctor) loses the conditional claim and drops quietly.
+   */
+  private startDoctor(request: {
+    projects: Array<{ slug: string; localPath: string }>;
+    keepWorktreeRunIds: string[];
+  }): void {
+    if (this.stopped || this.doctoring) return;
+    this.doctoring = true;
+    void (async () => {
+      try {
+        this.log(
+          `doctor: running (${request.projects.length} repos · ${request.keepWorktreeRunIds.length} kept worktrees on record)`,
+        );
+        const result = await runDoctor({
+          projects: request.projects,
+          keepWorktreeRunIds: request.keepWorktreeRunIds,
+          version: BRIDGE_VERSION,
+          engine: this.opts.engine.flavor,
+          lockPort: this.opts.lockPort ?? 0,
+          dataDir: this.opts.dataDir,
+          runningRunIds: [...this.running.keys()],
+          syncProbe: async () => {
+            const sync = await this.opts.client.sync();
+            return { cap: sync.cap, queued: sync.queued.length };
+          },
+        });
+        const applied = await this.opts.client.postDoctor(result);
+        const failed = result.checks.filter((c) => c.status === "fail").length;
+        this.log(
+          applied
+            ? `doctor: posted — ${result.checks.length} checks · ${failed} failed`
+            : "doctor: post lost the claim (bridge revoked?)",
+        );
+      } catch (err) {
+        if (err instanceof TokenRejectedError) {
+          this.fatal?.(err);
+          return;
+        }
+        this.log(`doctor: error — ${String(err)}`);
+      } finally {
+        this.doctoring = false;
       }
     })();
   }
@@ -383,6 +451,9 @@ export class Daemon {
         version: BRIDGE_VERSION,
         engine: this.opts.engine.flavor,
         busyRunIds: [...this.running.keys()],
+        // M10 — echo the cap we HOLD so the Bridges page can show a cap
+        // edit actually reached this machine ("daemon confirmed cap N").
+        cap: this.cap,
         capabilities: { node: process.version, platform: process.platform },
       });
       if (cap !== null) this.cap = cap;

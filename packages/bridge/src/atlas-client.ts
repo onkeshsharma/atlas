@@ -5,6 +5,7 @@
  * retry forever — v1 rule).
  */
 import type {
+  BridgeDoctorResult,
   HeartbeatBody,
   HelperResultBody,
   StdoutChunk,
@@ -105,6 +106,14 @@ export class AtlasClient {
     if (status === 200) return true;
     if (status === 409 || status === 422) return false;
     throw new Error(`helper-result returned ${status}`);
+  }
+
+  /** M10 — the doctor verdict post; false = not claimed (revoked mid-run). */
+  async postDoctor(result: BridgeDoctorResult): Promise<boolean> {
+    const { status } = await this.request("POST", "/api/bridge/doctor", result);
+    if (status === 200) return true;
+    if (status === 409) return false;
+    throw new Error(`doctor returned ${status}`);
   }
 
   /** returns the instance run cap from the response. */

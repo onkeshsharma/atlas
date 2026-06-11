@@ -25,6 +25,11 @@ export async function POST(req: Request) {
   const capabilities = JSON.stringify({
     version: body.version,
     engine: body.engine,
+    // M10 — busy run ids + the daemon's echoed cap land in the stored
+    // capabilities so N renders "what the daemon can actually do" and
+    // "daemon confirmed cap N" from real reports, never inference.
+    busyRunIds: body.busyRunIds,
+    ...(body.cap !== undefined ? { cap: body.cap } : {}),
     ...(body.capabilities ?? {}),
   });
   await db.execute(sql`

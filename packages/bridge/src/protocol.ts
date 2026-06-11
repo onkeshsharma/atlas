@@ -98,11 +98,33 @@ export type BridgeEvent =
   | { type: "run-answered"; cursor: number; runId: string; answer: NeedsInputAnswer }
   // Session B — approve-and-ship: commit/merge from the run's kept
   // review-ready worktree (ship.ts), then post shipped / failed back.
-  | { type: "run-ship"; cursor: number; runId: string };
+  | { type: "run-ship"; cursor: number; runId: string }
+  // M10 — run preflight (doctor.ts) and post the verdict back. Addressed
+  // to ONE bridge; the inputs ride the command (mirrors DoctorRequestPayload).
+  | {
+      type: "bridge-doctor";
+      cursor: number;
+      bridgeId: string;
+      projects: Array<{ slug: string; localPath: string }>;
+      keepWorktreeRunIds: string[];
+    };
 
 export function parseBridgeEvent(value: unknown): BridgeEvent | null {
   if (!isRecord(value)) return null;
-  if (typeof value.cursor !== "number" || typeof value.runId !== "string") return null;
+  if (typeof value.cursor !== "number") return null;
+  // M10 — the doctor command addresses a bridge, not a run.
+  if (value.type === "bridge-doctor") {
+    if (typeof value.bridgeId !== "string" || value.bridgeId.length === 0) return null;
+    if (!Array.isArray(value.projects) || !Array.isArray(value.keepWorktreeRunIds)) return null;
+    for (const p of value.projects) {
+      if (!isRecord(p) || typeof p.slug !== "string" || typeof p.localPath !== "string") {
+        return null;
+      }
+    }
+    if (value.keepWorktreeRunIds.some((id) => typeof id !== "string")) return null;
+    return value as BridgeEvent;
+  }
+  if (typeof value.runId !== "string") return null;
   switch (value.type) {
     case "run-available":
       if (value.lane !== "owner" && value.lane !== "helper") return null;
@@ -151,7 +173,28 @@ export type HeartbeatBody = {
   version: string;
   engine: "real" | "fake";
   busyRunIds: string[];
+  /** M10 — the cap this daemon currently holds, echoed for the N page. */
+  cap?: number;
   capabilities?: Record<string, unknown>;
+};
+
+// ── M10 doctor (mirrors src/domain/bridge/doctor.ts) ──
+
+export type DoctorCheckStatus = "pass" | "warn" | "fail";
+
+export type DoctorCheck = {
+  key: string;
+  label: string;
+  status: DoctorCheckStatus;
+  detail: string | null;
+};
+
+export type BridgeDoctorResult = {
+  ranAt: string;
+  version: string;
+  engine: "real" | "fake";
+  lockPort: number;
+  checks: DoctorCheck[];
 };
 
 // ── Atlas → Bridge responses ──
@@ -170,6 +213,11 @@ export type SyncResponse = {
   /** Session B — pending approve-and-ship requests on this bridge's
    * kept worktrees; executed on (re)connect like queued runs. */
   shipRequested: string[];
+  /** M10 — a pending doctor request with fresh inputs (null/absent = none). */
+  doctorRequest?: {
+    projects: Array<{ slug: string; localPath: string }>;
+    keepWorktreeRunIds: string[];
+  } | null;
 };
 
 export function parseSyncResponse(value: unknown): SyncResponse | null {
@@ -177,6 +225,18 @@ export function parseSyncResponse(value: unknown): SyncResponse | null {
   if (typeof value.cursor !== "number" || typeof value.cap !== "number") return null;
   if (!Array.isArray(value.queued) || !Array.isArray(value.active)) return null;
   if (!Array.isArray(value.shipRequested)) return null;
+  if (value.doctorRequest !== undefined && value.doctorRequest !== null) {
+    const d = value.doctorRequest;
+    if (!isRecord(d) || !Array.isArray(d.projects) || !Array.isArray(d.keepWorktreeRunIds)) {
+      return null;
+    }
+    for (const p of d.projects) {
+      if (!isRecord(p) || typeof p.slug !== "string" || typeof p.localPath !== "string") {
+        return null;
+      }
+    }
+    if (d.keepWorktreeRunIds.some((id) => typeof id !== "string")) return null;
+  }
   for (const q of value.queued) {
     if (!isRecord(q) || typeof q.runId !== "string" || typeof q.ref !== "string") return null;
     if (q.lane !== "owner" && q.lane !== "helper") return null;
