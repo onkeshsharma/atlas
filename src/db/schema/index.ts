@@ -10,3 +10,8 @@ export * from "./preferences";
 // M7 — Projects vertical (context terms · ticket pins)
 export * from "./context-terms";
 export * from "./ticket-pins";
+// M9 — Engine & Runs backbone (bridges · briefs · stdout · instance cap)
+export * from "./bridges";
+export * from "./briefs";
+export * from "./run-stdout";
+export * from "./instance-settings";

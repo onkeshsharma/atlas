@@ -48,6 +48,11 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   "context-edited", //   a Context term was added/dismissed (PRD #31)
   // M8 — appended after M7's values (integration order: 0002 then 0003).
   "linked", //       M8: a blocks/blocked-by edge was declared (PRD #16)
+  // M9 — Helper-Run deliverables (appended in 0004). Each lands in the
+  // SAME single statement as its durable write (THE OUTBOX RULE):
+  "enriched", //      tickets.enrichment written (PRD #17)
+  "brief-drafted", // a Brief row landed for a Ticket (PRD #19)
+  "ingested", //      projects.ingest_summary written, status → ready (PRD #29)
 ]);
 
 export const feedEvents = pgTable("feed_events", {
