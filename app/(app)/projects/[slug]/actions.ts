@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireOwner } from "@/src/domain/auth/guard";
+import { enqueueHelperRun } from "@/src/domain/dispatch/mutations";
 import {
   confirmSuggestedTerm,
   dismissSuggestedTerm,
@@ -48,4 +49,27 @@ export async function dismissTermAction(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");
   await dismissSuggestedTerm({ termId, actor: "you" });
   revalidateProject(slug);
+}
+
+/**
+ * M9 Session B — J:530 "Refresh from latest" restored (HANDOFF-M7's
+ * held-back CTA): queues a REAL ingest Helper Run. The Engine re-reads
+ * the repo and rewrites projects.ingest_summary through the validated
+ * writer; the page is live, so "queued → ready" lands without a reload.
+ * Double-clicks are clean no-ops (the enqueue guard); a project with no
+ * local path fails honest `no-repo` — the truth, not a fake affordance.
+ */
+export async function refreshIngestAction(formData: FormData): Promise<void> {
+  await requireOwner();
+  const projectId = String(formData.get("projectId") ?? "");
+  const slug = String(formData.get("slug") ?? "");
+  const name = String(formData.get("name") ?? "the project");
+  if (!projectId) return;
+  await enqueueHelperRun({
+    projectId,
+    helperKind: "ingest-project",
+    title: `Ingest ${name}`,
+    actor: "you",
+  });
+  revalidatePath(`/projects/${slug}/ingest`);
 }

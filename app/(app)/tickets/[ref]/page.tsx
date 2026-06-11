@@ -61,8 +61,10 @@ import { OWNER_MOVES } from "@/src/domain/ticket/transitions";
 import { shortAgo, timeAgo } from "@/src/lib/format";
 import type { TicketState } from "@/src/db/schema";
 
+import { BriefProse } from "@/src/components/run/BriefProse";
+
 import { AddLinkForm } from "./add-link-form";
-import { dispatchTicketAction, moveTicketAction } from "./actions";
+import { dispatchTicketAction, moveTicketAction, regenerateBriefAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -243,9 +245,8 @@ export default async function TicketDetailPage({
             )}
           </section>
 
-          {/* Brief — real rows now exist (M9 pipeline). Minimal honest
-              render only: the full F:201–243 port (FeaturedCard chrome,
-              edit/regenerate links) is Session B's, with W. */}
+          {/* Brief — the F:201–243 port, real rows (M9 Session B): card
+              chrome, rendered markdown, REAL edit/regenerate affordances. */}
           <section className="mt-20">
             <div className="flex items-baseline justify-between border-b border-stone-200 pb-3">
               <h2 className="text-xs font-mono uppercase tracking-[0.25em] text-stone-500">
@@ -253,14 +254,62 @@ export default async function TicketDetailPage({
               </h2>
               {brief && (
                 <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
-                  {brief.status} · {brief.source === "helper-run" ? "drafted by the Engine" : "edited by you"}
+                  {brief.status === "final" ? "Final" : "Draft"}
                 </span>
               )}
             </div>
             {brief ? (
-              <div className="pt-5 font-mono text-xs leading-relaxed text-stone-700 whitespace-pre-wrap">
-                {brief.body}
-              </div>
+              <>
+                {/* F:212 — the one sanctioned inline featured panel */}
+                <div className="mt-5 rounded-2xl bg-white/70 border border-stone-200/80 p-6">
+                  <BriefProse markdown={brief.body} />
+                </div>
+                {/* F:236–242 — edit / regenerate / provenance (real) */}
+                <div className="mt-4 flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-stone-500">
+                  {brief.status === "draft" ? (
+                    <>
+                      {/* canon §3.6: the composer stays in Atlas — F:237's ↗ reads → */}
+                      <Link
+                        href={`/tickets/${ticket.ref}/brief`}
+                        className="hover:text-amber-600 cursor-pointer"
+                      >
+                        edit →
+                      </Link>
+                      <span>·</span>
+                      {draftingRun ? (
+                        <span className="text-stone-400">regenerating — {draftingRun.ref}</span>
+                      ) : (
+                        <form action={regenerateBriefAction} className="inline">
+                          <input type="hidden" name="ticketId" value={ticket.id} />
+                          <input type="hidden" name="projectId" value={ticket.projectId} />
+                          <input type="hidden" name="ref" value={ticket.ref} />
+                          <button
+                            type="submit"
+                            className="font-mono text-[10px] uppercase tracking-widest hover:text-amber-600 cursor-pointer"
+                          >
+                            regenerate ↻
+                          </button>
+                        </form>
+                      )}
+                      <span>·</span>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href={`/tickets/${ticket.ref}/brief`}
+                        className="hover:text-amber-600 cursor-pointer"
+                      >
+                        view →
+                      </Link>
+                      <span>·</span>
+                    </>
+                  )}
+                  <span className="text-stone-400">
+                    {brief.source === "helper-run" ? "drafted by Engine" : "edited by you"}{" "}
+                    {shortAgo(brief.updatedAt)}
+                  </span>
+                </div>
+              </>
             ) : draftingRun ? (
               <div className="pt-5">
                 <EmptyState shape="strip">
@@ -299,6 +348,19 @@ export default async function TicketDetailPage({
             <div className="mt-5 text-sm text-stone-500 leading-relaxed">
               {STATE_SENTENCE[ticket.state]}
             </div>
+
+            {/* M9 Session B — review-and-ship is one motion (PRD #25):
+                the review-ready state's quiet ghost goes straight to KK. */}
+            {ticket.state === "review-ready" && ownerRun?.state === "review-ready" && (
+              <div className="mt-3">
+                <Link
+                  href={`/runs/${ownerRun.ref}/diff`}
+                  className="font-mono text-[10px] uppercase tracking-widest text-stone-500 hover:text-amber-600 cursor-pointer transition"
+                >
+                  review the diff →
+                </Link>
+              </div>
+            )}
 
             {/* OWNER_MOVES ghost links (PRD #14; §2.9 ghost, §3.7 danger step-1) */}
             {moves.length > 0 && (
@@ -514,7 +576,13 @@ export default async function TicketDetailPage({
               )}
               {ownerRun && (
                 <div className="mt-2 font-mono text-[10px] uppercase tracking-widest text-stone-400">
-                  last run {ownerRun.ref} ·{" "}
+                  {/* M9 Session B — the run record has a page now */}
+                  <Link
+                    href={`/runs/${ownerRun.ref}`}
+                    className="text-stone-500 hover:text-amber-600 cursor-pointer"
+                  >
+                    last run {ownerRun.ref} →
+                  </Link>{" "}
                   <span className={runStateLabelClass(ownerRun.state)}>
                     {runStateLabelText(ownerRun.state)}
                   </span>

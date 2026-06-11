@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireOwner } from "@/src/domain/auth/guard";
 import { beginDispatch } from "@/src/domain/dispatch/dispatch";
+import { enqueueHelperRun } from "@/src/domain/dispatch/mutations";
 import { isTicketState } from "@/src/domain/ticket/states";
 import { addTicketLink, applyTicketTransition } from "@/src/domain/ticket/mutations";
 
@@ -45,6 +46,29 @@ export async function dispatchTicketAction(formData: FormData): Promise<void> {
   revalidatePath(`/tickets/${ref}`);
   revalidatePath("/today");
   revalidatePath("/board");
+}
+
+/**
+ * M9 Session B — F:239 "regenerate ↻" made real: queues a fresh
+ * draft-brief Helper Run (the enqueue guard makes double-clicks no-ops;
+ * the page live-updates when the new draft lands).
+ */
+export async function regenerateBriefAction(formData: FormData): Promise<void> {
+  await requireOwner();
+
+  const ticketId = String(formData.get("ticketId") ?? "");
+  const projectId = String(formData.get("projectId") ?? "");
+  const ref = String(formData.get("ref") ?? "");
+  if (!ticketId || !projectId) return;
+
+  await enqueueHelperRun({
+    projectId,
+    ticketId,
+    helperKind: "draft-brief",
+    title: `Draft Brief for ${ref}`,
+    actor: "you",
+  });
+  revalidatePath(`/tickets/${ref}`);
 }
 
 export type AddLinkState = { error?: string };

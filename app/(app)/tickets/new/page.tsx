@@ -211,16 +211,21 @@ export default async function FileTicketPage({
                 <span className="font-mono text-xs text-stone-400">→</span>
                 <span>You approve, park, or decline it there.</span>
               </li>
+              {/* M9 Session B — steps 3–4 made true (the charter's seam
+                  closure): the Engine WORKS on your Bridge, you review the
+                  diff and ship from Atlas; reporter emails are M13's. */}
               <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
                 <span className="font-mono text-xs text-stone-400">→</span>
                 <span>
-                  Atlas drafts a <em>Brief</em>; the Engine ships a fix on your Bridge.
+                  Atlas drafts a <em>Brief</em> you can edit; dispatch sends the Engine to
+                  work on your Bridge.
                 </span>
               </li>
               <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
                 <span className="font-mono text-xs text-stone-400">→</span>
                 <span>
-                  The reporter gets a note with <em>how to verify</em> what changed.
+                  You review the diff and <em>approve &amp; ship</em> — review and ship are
+                  one motion.
                 </span>
               </li>
             </ol>

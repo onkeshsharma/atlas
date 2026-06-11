@@ -49,6 +49,28 @@ export async function activeHelperRun(
   return rows[0] ?? null;
 }
 
+/** Session B — is a PROJECT-scoped Helper (ingest) already queued/working?
+ * (J's refresh-CTA honesty — ticketless helpers; the ticket variant above
+ * covers enrich/draft-brief.) */
+export async function activeProjectHelperRun(
+  projectId: string,
+  helperKind: RunHelperKind,
+): Promise<Run | null> {
+  const rows = await db
+    .select()
+    .from(runs)
+    .where(
+      and(
+        eq(runs.projectId, projectId),
+        eq(runs.helperKind, helperKind),
+        sql`${runs.ticketId} is null`,
+        inArray(runs.state, ["queued", "running", "needs-input"]),
+      ),
+    )
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 /** the ticket's most recent Run, any lane — the detail rail's honest hint. */
 export async function latestRunForTicket(ticketId: string): Promise<Run | null> {
   const rows = await db

@@ -135,10 +135,19 @@ export function KanbanCard({
 export function ShipGroupCluster({
   count,
   onShip,
+  shipAction,
+  shipValue,
   children,
 }: {
   count: number;
   onShip?: () => void;
+  /**
+   * M9 axis: server-action form for the ship pill (the board is a
+   * server component — G:249's CTA submits the parallel-safe group's
+   * ticket ids as `ticketIds`). Wins over onClick when both given.
+   */
+  shipAction?: (formData: FormData) => void | Promise<void>;
+  shipValue?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -151,9 +160,18 @@ export function ShipGroupCluster({
           </span>
         </div>
         {/* §3.4 — the inline emerald ship pill */}
-        <PillButton kind="ship" size="xs" onClick={onShip} arrow={false}>
-          Ship {count} →
-        </PillButton>
+        {shipAction ? (
+          <form action={shipAction}>
+            <input type="hidden" name="ticketIds" value={shipValue ?? ""} />
+            <PillButton kind="ship" size="xs" type="submit" arrow={false}>
+              Ship {count} →
+            </PillButton>
+          </form>
+        ) : (
+          <PillButton kind="ship" size="xs" onClick={onShip} arrow={false}>
+            Ship {count} →
+          </PillButton>
+        )}
       </div>
       {children}
     </div>
