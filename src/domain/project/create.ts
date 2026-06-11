@@ -22,12 +22,11 @@ export type CreateProjectResult =
   | { ok: false; reason: "slug-taken"; error: string };
 
 function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: string }).code === "23505"
-  );
+  if (typeof err !== "object" || err === null) return false;
+  if ((err as { code?: string }).code === "23505") return true;
+  // drizzle-orm ≥0.45 wraps NeonDbError in DrizzleQueryError — the pg
+  // error code lives on `cause` (found by the M7 integration suite).
+  return isUniqueViolation((err as { cause?: unknown }).cause);
 }
 
 export async function createProject(input: {

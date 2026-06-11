@@ -51,7 +51,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       soon: true,
       badge: counts.triage > 0 ? counts.triage : undefined,
     },
-    { key: "projects", label: "Projects", initial: "P", soon: true },
+    // M7 — Projects is real (charter §4: this line only; M8 claims Board).
+    { key: "projects", label: "Projects", initial: "P", href: "/projects" },
     { key: "settings", label: "Settings", initial: "S", soon: true },
   ];
 
