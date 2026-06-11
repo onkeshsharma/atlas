@@ -39,6 +39,7 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   "shipped", //      code landed
   "failed", //       a Run failed
   "cancelled", //    a Run was cancelled
+  "linked", //       M8: a blocks/blocked-by edge was declared (PRD #16)
 ]);
 
 export const feedEvents = pgTable("feed_events", {
