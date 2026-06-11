@@ -12,6 +12,7 @@ import { and, count, desc, eq, ilike, inArray, notInArray, or } from "drizzle-or
 import { db } from "@/src/db/client";
 import { contextTerms, projects, runs, tickets } from "@/src/db/schema";
 import { ticketStateLabel } from "@/src/domain/ticket/states";
+import { shortAgo } from "@/src/lib/format";
 
 import { compareRanked, escapeLike, matchTier, snippetAround, type MatchTier } from "./rank";
 import {
@@ -79,7 +80,9 @@ async function ticketHits(q: string, like: string): Promise<RankedResult[]> {
           type: "ticket" as const,
           title: t.title,
           href: `/tickets/${t.ref}`,
-          meta: `${t.ref} · ${projectName} · ${ticketStateLabel(t.state)}`,
+          // LL:30/36 carry the row's age ("shipped 2h ago") — ·-separated
+          // per §3.8's meta-row law.
+          meta: `${t.ref} · ${projectName} · ${ticketStateLabel(t.state)} · ${shortAgo(t.updatedAt)}`,
           glyph: "#",
           state: t.state,
           snippet: snippetAround(t.body, q),
@@ -114,7 +117,7 @@ async function runHits(q: string, like: string): Promise<RankedResult[]> {
           type: "run" as const,
           title: r.title,
           href: `/runs/${r.ref}`,
-          meta: `${r.ref} · ${projectName}${ticketRef ? ` · ${ticketRef}` : ""} · ${r.state.replace(/-/g, " ")}`,
+          meta: `${r.ref} · ${projectName}${ticketRef ? ` · ${ticketRef}` : ""} · ${r.state.replace(/-/g, " ")} · ${shortAgo(r.updatedAt)}`,
           glyph: "▶",
           state: r.state,
         },

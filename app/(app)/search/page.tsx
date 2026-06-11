@@ -179,12 +179,14 @@ export default async function SearchPage({
                               {highlight(r.title, q)}
                             </span>
                           </span>
+                          {/* LL:155–159 — snippet + meta indent ml-4 on every
+                              row kind, dot or not (round-2 convergence fix). */}
                           {r.snippet && (
-                            <span className={`mt-2 block text-sm text-stone-600 leading-relaxed italic${dot ? " ml-4" : ""}`}>
+                            <span className="mt-2 ml-4 block text-sm text-stone-600 leading-relaxed italic">
                               {highlight(r.snippet, q)}
                             </span>
                           )}
-                          <span className={`mt-2 block font-mono text-[10px] uppercase tracking-widest text-stone-400${dot ? " ml-4" : ""}`}>
+                          <span className="mt-2 ml-4 block font-mono text-[10px] uppercase tracking-widest text-stone-400">
                             {r.meta}
                           </span>
                         </span>

@@ -97,10 +97,19 @@ test.describe.serial("M12 — capture rig", () => {
       fullPage: true,
     });
 
-    // palette — default sections (viewport-sized: the §2.11 overlay)
+    // palette — default sections (viewport-sized: the §2.11 overlay).
+    // ⌘K before hydration is a silent no-op — retry the gesture (the
+    // m12-search openPalette idiom).
     await page.goto("/today", { waitUntil: "domcontentloaded" });
-    await page.keyboard.press("Control+k");
-    await expect(page.getByLabel("Command palette")).toBeVisible();
+    for (let attempt = 0; ; attempt++) {
+      await page.keyboard.press("Control+k");
+      try {
+        await expect(page.getByLabel("Command palette")).toBeVisible({ timeout: 3_000 });
+        break;
+      } catch (err) {
+        if (attempt >= 3) throw err;
+      }
+    }
     await expect(page.getByTestId("command-palette").getByText("Pages")).toBeVisible({
       timeout: 15_000,
     });
