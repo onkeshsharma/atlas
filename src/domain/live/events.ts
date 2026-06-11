@@ -88,6 +88,18 @@ export function sseKeepalive(): string {
   return `: keepalive\n\n`;
 }
 
+/**
+ * Browser-visible liveness beat. WHATWG EventSource cannot observe
+ * comment keepalives, so browser-facing SSE routes (/api/live, per-run
+ * stdout) send a real `ping` event the client's half-dead-stream
+ * watchdog can hear without triggering a refresh (M9A decision 11 —
+ * Next dev under load can hold a stream open while delivering nothing,
+ * and EventSource only auto-reconnects when a stream ENDS).
+ */
+export function ssePing(): string {
+  return `event: ping\ndata: {}\n\n`;
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }

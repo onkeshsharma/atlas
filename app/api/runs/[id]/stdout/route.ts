@@ -11,7 +11,7 @@ import { and, asc, eq, gt } from "drizzle-orm";
 import { db } from "@/src/db/client";
 import { runStdoutChunks } from "@/src/db/schema";
 import { getCurrentUser } from "@/src/domain/auth/current-user";
-import { sseKeepalive } from "@/src/domain/live/events";
+import { ssePing } from "@/src/domain/live/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,7 +50,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
         }
       };
 
-      send(sseKeepalive());
+      // hello ping — a real event so EventSource clients can hear
+      // liveness (comment keepalives are invisible to the browser API).
+      send(ssePing());
 
       const poll = async () => {
         if (closed || polling) return;
@@ -75,7 +77,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 
       void poll();
       pollTimer = setInterval(() => void poll(), POLL_INTERVAL_MS);
-      keepaliveTimer = setInterval(() => send(sseKeepalive()), KEEPALIVE_INTERVAL_MS);
+      keepaliveTimer = setInterval(() => send(ssePing()), KEEPALIVE_INTERVAL_MS);
 
       const cleanup = () => {
         if (closed) return;

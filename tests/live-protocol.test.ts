@@ -10,6 +10,7 @@ import {
   parseLiveEvent,
   sseFrame,
   sseKeepalive,
+  ssePing,
   type LiveEvent,
 } from "@/src/domain/live/events";
 
@@ -61,6 +62,12 @@ describe("SSE frames", () => {
 
   it("keepalive is a comment frame", () => {
     expect(sseKeepalive()).toBe(`: keepalive\n\n`);
+  });
+
+  it("ping is a REAL event (browsers can't observe comment keepalives) with no id (must not disturb Last-Event-ID)", () => {
+    const ping = ssePing();
+    expect(ping).toBe(`event: ping\ndata: {}\n\n`);
+    expect(ping).not.toContain("id:");
   });
 });
 

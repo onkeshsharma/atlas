@@ -13,7 +13,7 @@ import type { NextRequest } from "next/server";
 
 import { getCurrentUser } from "@/src/domain/auth/current-user";
 import { latestCursor, pollLiveEvents } from "@/src/domain/live/broker";
-import { sseFrame, sseKeepalive } from "@/src/domain/live/events";
+import { sseFrame, ssePing } from "@/src/domain/live/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,8 +51,9 @@ export async function GET(req: NextRequest) {
         }
       };
 
-      // hello comment so consumers see liveness before any real event.
-      send(sseKeepalive());
+      // hello ping so consumers see liveness before any real event —
+      // a real event (not a comment) so EventSource clients can hear it.
+      send(ssePing());
 
       const poll = async () => {
         if (closed || polling) return;
@@ -71,7 +72,7 @@ export async function GET(req: NextRequest) {
 
       void poll();
       pollTimer = setInterval(() => void poll(), POLL_INTERVAL_MS);
-      keepaliveTimer = setInterval(() => send(sseKeepalive()), KEEPALIVE_INTERVAL_MS);
+      keepaliveTimer = setInterval(() => send(ssePing()), KEEPALIVE_INTERVAL_MS);
 
       const cleanup = () => {
         if (closed) return;
