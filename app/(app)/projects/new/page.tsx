@@ -27,7 +27,7 @@ import { LiveRefresh } from "@/src/components/live/LiveRefresh";
 import { requireOwner } from "@/src/domain/auth/guard";
 import { projectRows } from "@/src/domain/cockpit/queries";
 import { latestCursor } from "@/src/domain/live/broker";
-import { timeAgo } from "@/src/lib/format";
+import { shortAgo } from "@/src/lib/format";
 
 import { IngestForm } from "./ingest-form";
 
@@ -190,8 +190,9 @@ export default async function NewProjectPage() {
                         <span className="font-mono text-sm text-stone-700 group-hover:text-stone-900">
                           {p.name}
                         </span>
+                        {/* R:235 — "2 weeks ago" scale; shortAgo speaks weeks */}
                         <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
-                          {timeAgo(p.createdAt)}
+                          {shortAgo(p.createdAt)}
                         </span>
                       </Link>
                     </li>

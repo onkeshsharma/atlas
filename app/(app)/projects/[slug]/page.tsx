@@ -539,9 +539,10 @@ export default async function ProjectLandingPage({
             {terms.confirmed.length > 0 && (
               <section className="pt-4 border-t border-stone-200/80">
                 <p className="text-sm italic text-stone-500 leading-relaxed">
+                  {/* Turbopack JSX gotcha — keep the {" "} after the inline expr */}
                   {terms.confirmed.length} term
-                  {terms.confirmed.length === 1 ? "" : "s"} in this project&rsquo;s
-                  language
+                  {terms.confirmed.length === 1 ? "" : "s"}
+                  {" "}in this project&rsquo;s language
                   {terms.suggested.length > 0 && (
                     <>
                       {" "}

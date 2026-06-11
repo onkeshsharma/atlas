@@ -121,7 +121,8 @@ export async function contextTermsFor(projectId: string): Promise<ContextTermsVi
     .select()
     .from(contextTerms)
     .where(eq(contextTerms.projectId, projectId))
-    .orderBy(asc(contextTerms.createdAt));
+    // deterministic render order (seed rows share created_at timestamps)
+    .orderBy(asc(contextTerms.createdAt), asc(contextTerms.term));
   const confirmed = rows.filter((t) => t.status === "confirmed");
   const suggested = rows.filter((t) => t.status === "suggested");
   const updatedAt = rows.length
