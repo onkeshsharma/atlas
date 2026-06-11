@@ -27,5 +27,6 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/welcome", "/setup", "/onboarding"],
+  // M6 — the authed app group joins the edge guard.
+  matcher: ["/welcome", "/setup", "/onboarding", "/today", "/inbox"],
 };

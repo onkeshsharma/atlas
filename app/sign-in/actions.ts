@@ -14,10 +14,12 @@ export type SignInState = {
   formError?: string;
 };
 
-/** post-sign-in landing by role (Today arrives with M6). */
+/** post-sign-in landing by role (M6: the Owner lands on the cockpit;
+ * Collaborators land on the inbox — their durable "what happened" surface
+ * until M13 builds the Collaborator set). */
 function landingFor(role: "owner" | "collaborator" | null): string {
-  if (role === "collaborator") return "/onboarding";
-  if (role === "owner") return "/welcome";
+  if (role === "collaborator") return "/inbox";
+  if (role === "owner") return "/today";
   return "/no-access";
 }
 

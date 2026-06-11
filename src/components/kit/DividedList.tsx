@@ -7,8 +7,8 @@
  * on list rows — ever), §3.3 (state vocabulary), §3.5 (capped live region:
  * Today's Recent feed only at list scale).
  */
-import { RunStateDot } from "./StateDot";
-import type { RunState, StateContext } from "./run-state";
+import { RunStateDot, StateDot } from "./StateDot";
+import type { DotTone, RunState, StateContext } from "./run-state";
 
 export function DividedList({
   children,
@@ -35,6 +35,7 @@ export function ListRow({
   index,
   state,
   stateContext = "list",
+  dotTone,
   title,
   meta,
   right,
@@ -46,6 +47,13 @@ export function ListRow({
   /** leading §3.3 state dot on the title line (E:265–271). */
   state?: RunState;
   stateContext?: StateContext;
+  /**
+   * non-Run rows (M6 — ticket feed rows): a plain §2.6 dot by tone,
+   * never pulsing. §2.3's dot law is generic — "state appears as a
+   * leading h-1.5 w-1.5 dot plus a colored mono state word" (E:256–284);
+   * the Run-typed `state` prop stays the path for Run rows.
+   */
+  dotTone?: DotTone;
   title: React.ReactNode;
   /** secondary line — text-sm text-stone-500, `·`-separated (E:273). */
   meta?: React.ReactNode;
@@ -61,15 +69,21 @@ export function ListRow({
       {index && <span className="font-mono text-xs text-stone-400">{index}</span>}
       <div>
         <div className="flex items-baseline gap-2.5 text-lg tracking-tight">
-          {state && (
+          {state ? (
             <span className="mt-2 shrink-0 inline-flex">
               <RunStateDot state={state} context={stateContext} />
             </span>
-          )}
+          ) : dotTone ? (
+            <span className="mt-2 shrink-0 inline-flex">
+              <StateDot tone={dotTone} />
+            </span>
+          ) : null}
           <span>{title}</span>
         </div>
         {meta && (
-          <div className={`mt-1 ${state ? "ml-4 " : ""}text-sm text-stone-500`}>{meta}</div>
+          <div className={`mt-1 ${state || dotTone ? "ml-4 " : ""}text-sm text-stone-500`}>
+            {meta}
+          </div>
         )}
       </div>
       {arrow ? (
