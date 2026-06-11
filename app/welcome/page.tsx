@@ -122,12 +122,14 @@ export default async function WelcomePage() {
                 Begin · install Bridge
               </PillButton>
             </form>
-            <a
+            {/* M14: /docs became a real internal page — <a>→<Link> (lint
+                no-html-link-for-pages) and ↗→→ per §3.6 (↗ = leaves Atlas) */}
+            <Link
               href="/docs"
               className="font-mono text-xs uppercase tracking-widest text-stone-700 hover:text-amber-600 cursor-pointer"
             >
-              or read the docs first ↗
-            </a>
+              or read the docs first →
+            </Link>
           </div>
 
           {/* Skip line (GG:161; "dashboard"/"Job" → Today/Run per CONTEXT.md) */}
@@ -143,9 +145,10 @@ export default async function WelcomePage() {
 
       {/* Corner meta (GG:175) — sign out is a REAL action */}
       <div className="absolute bottom-8 right-8 flex items-baseline font-mono text-[10px] uppercase tracking-widest text-stone-400">
-        <a href="/docs" className="hover:text-stone-700 cursor-pointer">
+        {/* M14: <a>→<Link> — /docs is a real page now (lint) */}
+        <Link href="/docs" className="hover:text-stone-700 cursor-pointer">
           need help?
-        </a>
+        </Link>
         <span className="mx-2 text-stone-300">·</span>
         <form action={signOutAction}>
           <button

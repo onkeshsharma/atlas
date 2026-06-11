@@ -75,6 +75,8 @@ export type DateGutterEntry = {
   date: string;
   /** emerald "current" pulse under the anchor (NN:145–153). */
   current?: boolean;
+  /** M14 axis — html anchor id, so NN:229–231's "permalink" affordance is real. */
+  id?: string;
   children: React.ReactNode;
 };
 
@@ -83,7 +85,11 @@ export function DateGutterTimeline({ entries }: { entries: DateGutterEntry[] }) 
   return (
     <div className="space-y-20">
       {entries.map((e) => (
-        <article key={e.anchor} className="grid grid-cols-[120px_1fr] gap-10 items-baseline">
+        <article
+          key={e.anchor}
+          id={e.id}
+          className="grid grid-cols-[120px_1fr] gap-10 items-baseline"
+        >
           <div>
             <div className="font-mono text-sm font-medium text-stone-900">{e.anchor}</div>
             <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-stone-400">
