@@ -47,6 +47,12 @@ export const KIND_WORD: Record<FeedEventKind, string> = {
   // M9 Session B — the approve-and-ship click ("you approved R-501 — …";
   // `shipped` is the emerald word and lands when the merge does).
   "ship-requested": "approved",
+  // M10 — Bridge governance ("you paired onkesh-desktop", "you asked
+  // doctor on onkesh-desktop", "Bridge reported doctor on … — 6 passed").
+  "bridge-paired": "paired",
+  "bridge-revoked": "revoked",
+  "doctor-requested": "asked",
+  "doctor-completed": "reported",
 };
 
 export const KIND_CONNECTOR: Partial<Record<FeedEventKind, string>> = {
@@ -82,6 +88,11 @@ export const KIND_TONE: Record<FeedEventKind, DotTone> = {
   // Session B — the click is bookkeeping; emerald is reserved for the
   // landing itself (§1.1: did code move? emerald. did a record update? not).
   "ship-requested": "stone",
+  // M10 — governance bookkeeping; amber stays scarce, emerald is code's.
+  "bridge-paired": "stone",
+  "bridge-revoked": "stone",
+  "doctor-requested": "stone",
+  "doctor-completed": "stone",
 };
 
 /** colored kind word in inbox sentences (Z:407–413 shape, canon palette). */
@@ -109,6 +120,11 @@ export const KIND_WORD_CLASS: Record<FeedEventKind, string> = {
   "brief-drafted": "text-stone-700",
   ingested: "text-stone-700",
   "ship-requested": "text-stone-700", // Session B
+  // M10 — neutral governance words.
+  "bridge-paired": "text-stone-700",
+  "bridge-revoked": "text-stone-700",
+  "doctor-requested": "text-stone-700",
+  "doctor-completed": "text-stone-700",
 };
 
 /** display text — dashes read as spaces. */

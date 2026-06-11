@@ -43,6 +43,13 @@
       "when": 1781192962160,
       "tag": "0005_adorable_doctor_octopus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781201721214,
+      "tag": "0006_large_the_fury",
+      "breakpoints": true
     }
   ]
 }

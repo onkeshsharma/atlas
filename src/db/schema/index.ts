@@ -15,3 +15,6 @@ export * from "./bridges";
 export * from "./briefs";
 export * from "./run-stdout";
 export * from "./instance-settings";
+// M10 — Bridge & settings (API tokens · notification prefs)
+export * from "./api-tokens";
+export * from "./notification-preferences";
