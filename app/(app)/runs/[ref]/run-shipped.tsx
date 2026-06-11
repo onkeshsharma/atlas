@@ -42,6 +42,8 @@ export function RunShipped({
 }) {
   const { run, ticket, bridge } = detail;
   const shippedAt = milestoneAt(detail.milestones, "shipped") ?? run.updatedAt;
+  // "Started" is when the Engine started, not when the run queued (V:13)
+  const startedAt = milestoneAt(detail.milestones, "started") ?? run.createdAt;
   const diff = parseRunDiffStats(run.diffStats);
   const { steps, tone } = runTrackSteps(detail, shortAgo);
   const duration = runDuration(detail);
@@ -70,10 +72,11 @@ export function RunShipped({
             <span>
               {run.prUrl ? `PR #${prNumber} merged` : "merged into the base branch"}
             </span>
-            {bridge && (
+            {/* V:104 — the third kicker segment is the reporter */}
+            {ticket?.reporter && (
               <>
                 <span className="mx-2 text-stone-300">·</span>
-                <span>ran on {bridge.name}</span>
+                <span>filed by {ticket.reporter}</span>
               </>
             )}
           </div>
@@ -296,7 +299,7 @@ export function RunShipped({
               Run info
             </div>
             <div className="mt-5 space-y-2 text-sm">
-              <Meta strong label="Started" value={timeAgo(run.createdAt)} />
+              <Meta strong label="Started" value={timeAgo(startedAt)} />
               <Meta strong label="Shipped" value={timeAgo(shippedAt)} />
               {duration && <Meta strong label="Duration" value={duration} />}
               {bridge && <Meta strong label="Ran on" value={bridge.name} />}

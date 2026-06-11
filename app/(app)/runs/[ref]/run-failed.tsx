@@ -60,6 +60,8 @@ export function RunFailed({
   const conflict = kind === "conflict";
   const guidance = kind ? FAILURE_GUIDANCE[kind] : "The run failed.";
   const failedAt = milestoneAt(detail.milestones, "failed") ?? run.updatedAt;
+  // "Started" is when the Engine started, not when the run queued (K:11)
+  const startedAt = milestoneAt(detail.milestones, "started") ?? run.createdAt;
   const diff = parseRunDiffStats(run.diffStats);
   const { steps, tone } = runTrackSteps(detail, shortAgo);
   const duration = runDuration(detail);
@@ -290,7 +292,7 @@ export function RunFailed({
               Run info
             </div>
             <div className="mt-5 space-y-2 text-sm">
-              <Meta strong label="Started" value={timeAgo(run.createdAt)} />
+              <Meta strong label="Started" value={timeAgo(startedAt)} />
               <Meta strong label="Failed" value={timeAgo(failedAt)} />
               {duration && <Meta strong label="Duration" value={duration} />}
               {bridge && <Meta strong label="Ran on" value={bridge.name} />}

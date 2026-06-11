@@ -29,7 +29,7 @@ export type RunMilestone = {
 export type RunDetail = {
   run: Run;
   project: { id: string; name: string; slug: string };
-  ticket: { id: string; ref: string; title: string; state: string } | null;
+  ticket: { id: string; ref: string; title: string; state: string; reporter: string } | null;
   bridge: { name: string; engine: string | null } | null;
   milestones: RunMilestone[];
 };
@@ -58,6 +58,7 @@ export async function runDetailByRef(ref: string): Promise<RunDetail | null> {
       ticketRef: tickets.ref,
       ticketTitle: tickets.title,
       ticketState: tickets.state,
+      ticketReporter: tickets.reporter,
       bridgeName: bridges.name,
       bridgeCapabilities: bridges.capabilities,
     })
@@ -98,6 +99,7 @@ export async function runDetailByRef(ref: string): Promise<RunDetail | null> {
             ref: row.ticketRef,
             title: row.ticketTitle ?? "",
             state: String(row.ticketState ?? ""),
+            reporter: row.ticketReporter ?? "",
           }
         : null,
     bridge: row.bridgeName
