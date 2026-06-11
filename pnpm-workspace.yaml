@@ -1,0 +1,4 @@
+# M9 — the monorepo seam (charter §1): the app stays the workspace root;
+# the Bridge daemon lives in packages/bridge with its own vitest config.
+packages:
+  - "packages/*"
