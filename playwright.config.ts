@@ -9,6 +9,10 @@ config({ path: ".env.local", quiet: true });
 export default defineConfig({
   testDir: "e2e",
   timeout: 120_000,
+  // M6 — specs share ONE real Neon DB and the one-Owner invariant
+  // (memberships_one_owner): pre-auth + m6-cockpit both bootstrap an
+  // E2E Owner and self-clean, so spec files must never interleave.
+  workers: 1,
   use: {
     baseURL: "http://localhost:3100",
     viewport: { width: 1440, height: 900 },

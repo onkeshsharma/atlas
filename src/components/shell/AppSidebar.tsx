@@ -16,13 +16,17 @@ export function AppSidebar({
   bridge,
   expanded,
   signOutSlot,
+  expandedSignOutSlot,
   popoverExtra,
 }: {
   items: SidebarItem[];
   user: { initial: string; email: string; machine: string };
   bridge: BridgeStatus;
   expanded: boolean;
+  /** popover form — mono "Sign out →" (E:102). */
   signOutSlot?: React.ReactNode;
+  /** expanded-rail form — plain-sans "sign out" hover:underline (C:37). */
+  expandedSignOutSlot?: React.ReactNode;
   popoverExtra?: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -55,7 +59,7 @@ export function AppSidebar({
           bridge={bridge}
           expanded
           brandHref="/today"
-          signOutSlot={signOutSlot}
+          signOutSlot={expandedSignOutSlot ?? signOutSlot}
           popoverExtra={popoverExtra}
         />
       </div>

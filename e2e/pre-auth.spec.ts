@@ -118,13 +118,13 @@ test.describe.serial("owner arc: sign-up → welcome → setup → sign-out → 
       fullPage: true,
     });
 
-    // ── right password → back to Welcome ──
+    // ── right password → the cockpit (M6: the Owner lands on Today.) ──
     // (React 19 resets uncontrolled fields after the failed action — refill both)
     await page.getByPlaceholder("you@example.com").fill(OWNER_EMAIL);
     await page.getByPlaceholder("••••••••").fill(COLLAB_PASSWORD);
     await page.getByRole("button", { name: /^sign in/i }).click();
-    await expect(page).toHaveURL(/\/welcome/, { timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: /Welcome, E2E\./ })).toBeVisible();
+    await expect(page).toHaveURL(/\/today/, { timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Today." })).toBeVisible();
   });
 
   test("invite accept: seeded magic link → account → onboarding", async ({ page }) => {

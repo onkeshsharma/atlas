@@ -286,6 +286,10 @@ export default async function InboxPage({
                     </>
                   )}
                   {shortAgo(latestReply.createdAt)}.
+                  {/* Z:332 carries the reply's content — ours quotes it verbatim */}
+                  {latestReply.preview && (
+                    <span className="italic"> &ldquo;{latestReply.preview}&rdquo;</span>
+                  )}
                 </p>
                 <div className="mt-5">
                   {/* Z:334 — w-full primary, no dot; ticket pages land with M8 */}

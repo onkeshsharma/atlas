@@ -76,6 +76,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </button>
           </form>
         }
+        expandedSignOutSlot={
+          // C:37 — the expanded rail's sign-out is plain sans, hover underline
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              className="inline-block text-stone-700 hover:underline cursor-pointer"
+            >
+              sign out
+            </button>
+          </form>
+        }
         popoverExtra={
           <form action={toggleSidebarAction}>
             <button
