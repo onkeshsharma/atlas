@@ -17,7 +17,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { TerminalBlock, type StreamLine } from "@/src/components/kit";
-import { classifyStdoutLine } from "@/src/domain/run/stdout";
+// the PURE classifier module — a client bundle must never pull the db
+// (src/domain/run/stdout.ts is the server half).
+import { classifyStdoutLine } from "@/src/domain/run/stdout-lines";
 
 const WATCHDOG_TICK_MS = 5_000;
 const WATCHDOG_SILENT_MS = 40_000;

@@ -12,15 +12,11 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/src/db/client";
 import { runStdoutChunks } from "@/src/db/schema";
 
-export type StdoutLine = {
-  /** chunk arrival stamp — "09:42:01" (RR's 55px gutter). */
-  t: string;
-  text: string;
-};
+// the pure line vocabulary lives in ./stdout-lines.ts (client-safe —
+// the streaming TerminalBlock imports it; THIS module pulls the db).
+import { stampOf, type StdoutLine } from "./stdout-lines";
 
-export function stampOf(date: Date): string {
-  return date.toTimeString().slice(0, 8);
-}
+export { classifyStdoutLine, stampOf, type StdoutLine, type StreamKindName } from "./stdout-lines";
 
 /**
  * Split persisted chunks into display lines. A line is stamped with the
@@ -78,22 +74,3 @@ export async function stdoutTail(
   return { lines: lines.slice(-maxLines), total: lines.length };
 }
 
-/**
- * Real-content classifier for RR's kind-colored prefixes (§2.20). The
- * fake Engine speaks plain lines; the heuristics map the vocabulary the
- * adapters actually emit. Unknown lines read as quiet info — never loud.
- */
-export type StreamKindName = "info" | "claude" | "tool" | "ok" | "active";
-
-export function classifyStdoutLine(text: string): StreamKindName {
-  const trimmed = text.trim();
-  if (trimmed.startsWith("✓") || /^answered:/.test(trimmed)) return "ok";
-  if (trimmed.startsWith("›") || trimmed.startsWith("$") || /^wrote /.test(trimmed)) {
-    return "tool";
-  }
-  if (trimmed.startsWith("◆")) return "claude";
-  if (trimmed.startsWith("⨯") || /^error/i.test(trimmed)) return "active";
-  if (/^(engine|helper) session start/.test(trimmed)) return "info";
-  if (/[.…]$/.test(trimmed)) return "info";
-  return "tool";
-}
