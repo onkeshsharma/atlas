@@ -10,6 +10,8 @@ import { execSync } from "node:child_process";
 import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
+
+import { signInAsOwner } from "./support/sign-in";
 import { eq, inArray, like, or } from "drizzle-orm";
 
 // .env.local is loaded by playwright.config.ts before specs import.
@@ -58,11 +60,8 @@ async function captureAcrossViewports(page: Page, slug: string) {
 /** sign in as the owner test 1 created — and prove the M6 landing: the
  * Owner now lands on /today (app/sign-in/actions.ts landingFor). */
 async function signIn(page: Page) {
-  await page.goto("/sign-in");
-  await page.getByPlaceholder("you@example.com").fill(OWNER_EMAIL);
-  await page.getByPlaceholder("••••••••").fill(PASSWORD);
-  await page.getByRole("button", { name: /^sign in/i }).click();
-  await expect(page).toHaveURL(/\/today/, { timeout: 30_000 });
+  // M10 — retry discipline lives in the shared helper (e2e/support/sign-in.ts)
+  await signInAsOwner(page, OWNER_EMAIL, PASSWORD);
   await expect(page.getByRole("heading", { name: "Today." })).toBeVisible();
 }
 

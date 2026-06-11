@@ -7,6 +7,8 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
+
+import { signInAsOwner } from "./support/sign-in";
 import { inArray, like } from "drizzle-orm";
 
 import { db } from "../src/db/client";
@@ -331,11 +333,8 @@ test.describe.serial("M9 Session B — convergence captures", () => {
 
   test("the five surfaces + their variants, three viewports each", async ({ page }) => {
     test.setTimeout(300_000);
-    await page.goto("/sign-in");
-    await page.getByPlaceholder("you@example.com").fill(OWNER_EMAIL);
-    await page.getByPlaceholder("••••••••").fill(PASSWORD);
-    await page.getByRole("button", { name: /^sign in/i }).click();
-    await expect(page).toHaveURL(/\/today/, { timeout: 30_000 });
+    // M10 — retry discipline lives in the shared helper (e2e/support/sign-in.ts)
+    await signInAsOwner(page, OWNER_EMAIL, PASSWORD);
 
     // RR — live
     await page.goto(`/runs/${REFS.live}`);

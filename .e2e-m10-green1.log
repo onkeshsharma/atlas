@@ -1,0 +1,231 @@
+
+> atlas-v2@0.1.0 test:e2e C:\Users\onkes\Desktop\Atlas\atlas-v2-m10
+> playwright test
+
+
+Running 53 tests using 1 worker
+
+  ok  1 e2e\dev-kit.spec.ts:43:5 › dev-kit renders all 28 inventory sections (6.2s)
+  ok  2 e2e\dev-kit.spec.ts:56:5 › dev-kit golden capture at 1440 (2.5s)
+  ok  3 e2e\dev-kit.spec.ts:85:5 › fidelity — PillButton (kit all-6-kinds vs O ship card + JJ confirm + L CTAs) (7.5s)
+  ok  4 e2e\dev-kit.spec.ts:115:5 › fidelity — Sidebar (kit vs variant E rail) (3.9s)
+  ok  5 e2e\dev-kit.spec.ts:126:5 › fidelity — DividedList (kit vs variant E Recent feed) (3.5s)
+  ok  6 e2e\dev-kit.spec.ts:139:5 › fidelity — AmberPanel (kit incl. multi-Run form vs variant XX show-once panel) (3.5s)
+  ok  7 e2e\dev-kit.spec.ts:152:5 › fidelity — UnderlineInput (kit all validation states vs variant L form) (3.1s)
+  ok  8 e2e\dev-kit.spec.ts:165:5 › dev-kit 404s without the dev flag is covered by prod build (see M3); unknown route still 404s (506ms)
+  ok  9 e2e\dev-variants.spec.ts:15:5 › index lists every vendored variant (764ms)
+  ok 10 e2e\dev-variants.spec.ts:24:5 › every variant key renders (1.4m)
+  ok 11 e2e\dev-variants.spec.ts:35:5 › unknown key 404s (509ms)
+  ok 12 e2e\dev-variants.spec.ts:45:7 › spot capture — variant E at 1440 (1.2s)
+  ok 13 e2e\dev-variants.spec.ts:45:7 › spot capture — variant F at 1440 (1.4s)
+  ok 14 e2e\dev-variants.spec.ts:45:7 › spot capture — variant G at 1440 (1.0s)
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+  ok 15 e2e\m10-bridge.spec.ts:118:7 › M10 — the daemon is governable from the browser › owner bootstrap (2.1s)
+
+  ok 16 e2e\m10-bridge.spec.ts:129:7 › M10 — the daemon is governable from the browser › pair from the UI → daemon connects → heartbeat/cap/doctor all live → revoke stops it (31.2s)
+  ok 17 e2e\m10-captures.spec.ts:136:7 › M10 — capture rig › owner bootstrap (1.4s)
+  ok 18 e2e\m10-captures.spec.ts:147:7 › M10 — capture rig › capture the six surfaces at 1920/1440/1280 (+ the live show-once panel) (24.0s)
+  ok 19 e2e\m10-settings.spec.ts:74:7 › M10 — the settings tier is real › owner bootstrap + the Settings nav item is live (3.3s)
+  ok 20 e2e\m10-settings.spec.ts:91:7 › M10 — the settings tier is real › preferences: pin a project for real; the pref saves as you go (2.2s)
+  ok 21 e2e\m10-settings.spec.ts:112:7 › M10 — the settings tier is real › tokens: show-once exactly once, prefix-only at rest, rotate + revoke (2.7s)
+  ok 22 e2e\m10-settings.spec.ts:163:7 › M10 — the settings tier is real › notifications: prefs persist across a reload; quiet hours validate (2.8s)
+  ok 23 e2e\m10-settings.spec.ts:195:7 › M10 — the settings tier is real › profile: §2.13 validation blocks, a clean save lands + updates the record (2.1s)
+  ok 24 e2e\m10-settings.spec.ts:224:7 › M10 — the settings tier is real › account: real session list + the danger zone REALLY deletes (type-to-confirm) (2.0s)
+  ok 25 e2e\m6-cockpit.spec.ts:125:7 › M6 — shell + Today + inbox over real rows › owner signs up and lands on a fully real Today. (1.8s)
+  ok 26 e2e\m6-cockpit.spec.ts:162:7 › M6 — shell + Today + inbox over real rows › LIVE PROOF — DB writes appear in the open browser without reload (6.7s)
+  ok 27 e2e\m6-cockpit.spec.ts:238:7 › M6 — shell + Today + inbox over real rows › inbox: real groups, working filters, mark-all-read (4.2s)
+
+  x  28 e2e\m6-cockpit.spec.ts:265:7 › M6 — shell + Today + inbox over real rows › sidebar: expand persists via user_preferences; sign-out is real (30.5s)
+  ok 29 e2e\m7-projects.spec.ts:94:7 › M7 — Projects over real rows › owner bootstraps; /projects lists the seeded rows with honest ingest states (2.8s)
+  ok 30 e2e\m7-projects.spec.ts:126:7 › M7 — Projects over real rows › LIVE — a project created in the DB appears on the open index without reload (1.8s)
+  ok 31 e2e\m7-projects.spec.ts:145:7 › M7 — Projects over real rows › THE CHARTER FLOW — create → ingest(queued) → landing → pin → context (10.1s)
+  ok 32 e2e\m7-projects.spec.ts:211:7 › M7 — Projects over real rows › J ready — the Engine-written summary shape renders from seeded rows (5.4s)
+
+  ok 33 e2e\m7-projects.spec.ts:236:7 › M7 — Projects over real rows › P — context curation: add → joins Language; dismiss ✕ removes (3.0s)
+  ok 34 e2e\m8-work.spec.ts:113:7 › M8 — the work loop over real rows › owner bootstrap + file a Ticket (S) → real record + filed outbox (5.0s)
+  ok 35 e2e\m8-work.spec.ts:176:7 › M8 — the work loop over real rows › triage (I) — keyboard approve moves it to approved + moved outbox (3.6s)
+  ok 36 e2e\m8-work.spec.ts:224:7 › M8 — the work loop over real rows › board (G) — right Category, real hints cluster, LIVE PROOF (4.7s)
+[2m[WebServer] [22m[36m[browser][39m A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+[2m[WebServer] [22m
+[2m[WebServer] [22m- A server/client branch `if (typeof window !== 'undefined')`.
+[2m[WebServer] [22m- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+[2m[WebServer] [22m- Date formatting in a user's locale which doesn't match the server.
+[2m[WebServer] [22m- External changing data without sending a snapshot of it along with the HTML.
+[2m[WebServer] [22m- Invalid HTML tag nesting.
+[2m[WebServer] [22m
+[2m[WebServer] [22mIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+[2m[WebServer] [22m
+[2m[WebServer] [22mhttps://react.dev/link/hydration-mismatch
+[2m[WebServer] [22m
+[2m[WebServer] [22m  ...
+[2m[WebServer] [22m    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+[2m[WebServer] [22m      <LoadingBoundary name="T-435/" loading={null}>
+[2m[WebServer] [22m        <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+[2m[WebServer] [22m          <RedirectBoundary>
+[2m[WebServer] [22m            <RedirectErrorBoundary router={{...}}>
+[2m[WebServer] [22m              <InnerLayoutRouter url="/tickets/T..." tree={[...]} params={{ref:"T-435"}} cacheNode={{rsc:{...}, ...}} ...>
+[2m[WebServer] [22m                <SegmentViewNode type="page" pagePath="(app)/tick...">
+[2m[WebServer] [22m                  <SegmentTrieNode>
+[2m[WebServer] [22m                  <TicketDetailPage>
+[2m[WebServer] [22m                    <main className="flex-1 rel...">
+[2m[WebServer] [22m                      <LiveRefresh>
+[2m[WebServer] [22m                      <div className="px-16 pt-8...">
+[2m[WebServer] [22m                        <div>
+[2m[WebServer] [22m                        <aside className="space-y-14">
+[2m[WebServer] [22m                          <section>
+[2m[WebServer] [22m                            <div>
+[2m[WebServer] [22m                            <div>
+[2m[WebServer] [22m                            <div>
+[2m[WebServer] [22m                            <div>
+[2m[WebServer] [22m                            <div className="mt-3 flex ...">
+[2m[WebServer] [22m                              <form action={function moveTicketAction}>
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="ticketId"
+[2m[WebServer] [22m                                  value="d30bc5b4-d75c-4253-b8bd-65e89c1f8fe2"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="ref"
+[2m[WebServer] [22m                                  value="T-435"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="from"
+[2m[WebServer] [22m                                  value="backlog"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="to"
+[2m[WebServer] [22m                                  value="approved"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                ...
+[2m[WebServer] [22m                              <form action={function moveTicketAction}>
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="ticketId"
+[2m[WebServer] [22m                                  value="d30bc5b4-d75c-4253-b8bd-65e89c1f8fe2"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="ref"
+[2m[WebServer] [22m                                  value="T-435"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="from"
+[2m[WebServer] [22m                                  value="backlog"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                <input
+[2m[WebServer] [22m                                  type="hidden"
+[2m[WebServer] [22m                                  name="to"
+[2m[WebServer] [22m                                  value="declined"
+[2m[WebServer] [22m-                                 style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                >
+[2m[WebServer] [22m                                ...
+[2m[WebServer] [22m                          <FeaturedCard>
+[2m[WebServer] [22m                            <section className="rounded-2x...">
+[2m[WebServer] [22m                              <div>
+[2m[WebServer] [22m                              <div>
+[2m[WebServer] [22m                              <div>
+[2m[WebServer] [22m                              <div className="mt-5">
+[2m[WebServer] [22m                                <form action={function dispatchTicketAction}>
+[2m[WebServer] [22m                                  <input
+[2m[WebServer] [22m                                    type="hidden"
+[2m[WebServer] [22m                                    name="ticketId"
+[2m[WebServer] [22m                                    value="d30bc5b4-d75c-4253-b8bd-65e89c1f8fe2"
+[2m[WebServer] [22m-                                   style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                  >
+[2m[WebServer] [22m                                  <input
+[2m[WebServer] [22m                                    type="hidden"
+[2m[WebServer] [22m                                    name="ref"
+[2m[WebServer] [22m                                    value="T-435"
+[2m[WebServer] [22m-                                   style={{caret-color:"transparent"}}
+[2m[WebServer] [22m                                  >
+[2m[WebServer] [22m                                  ...
+[2m[WebServer] [22m                              ...
+[2m[WebServer] [22m                          ...
+[2m[WebServer] [22m                ...
+[2m[WebServer] [22m              ...
+[2m[WebServer] [22m 
+
+  ok 37 e2e\m8-work.spec.ts:288:7 › M8 — the work loop over real rows › detail (F) — owner move to Backlog + blocked-by edge declaration (5.3s)
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+  ok 38 e2e\m9-engine.spec.ts:184:7 › M9 — the cockpit is true › owner bootstrap — and the paired bridge is heartbeating (1.3s)
+[diag] run R-648: queued
+[diag] run R-648: running
+[diag] run R-648: needs-input
+  ok 39 e2e\m9-engine.spec.ts:202:7 › M9 — the cockpit is true › THE LOOP: dispatch → Brief drafted by a Helper Run → stdout streams → needs-input answered from Today (no reload) → review-ready (14.8s)
+
+  ok 40 e2e\m9-engine.spec.ts:359:7 › M9 — the cockpit is true › CANCEL: a running Run stopped from Today; the Ticket goes back to approved (4.3s)
+  ok 41 e2e\m9b-captures.spec.ts:321:7 › M9 Session B — convergence captures › owner bootstrap (1.3s)
+  ok 42 e2e\m9b-captures.spec.ts:332:7 › M9 Session B — convergence captures › the five surfaces + their variants, three viewports each (18.7s)
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+
+  ok 43 e2e\m9b-ship.spec.ts:230:7 › M9 Session B — review and ship are one motion › owner bootstrap (1.6s)
+[diag] run R-650: queued
+[diag] run R-650: running
+[diag] run R-650: review-ready
+
+  ok 44 e2e\m9b-ship.spec.ts:241:7 › M9 Session B — review and ship are one motion › THE SHIP LOOP: dispatch → review-ready → KK real hunks → Approve & ship → V shipped page, live; ticket shipped; the merge is REAL (14.4s)
+[diag] run R-651: queued
+[diag] run R-651: review-ready
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+[diag] run R-652: queued
+[diag] run R-652: review-ready
+
+  ok 45 e2e\m9b-ship.spec.ts:306:7 › M9 Session B — review and ship are one motion › CONFLICT + SEND-BACK (PRD #22–23): the merge conflicts → K's rose page → one click re-runs → the recovery ships (16.9s)
+[diag] run R-653: running
+[diag] run R-653: review-ready
+
+  ok 46 e2e\m9b-ship.spec.ts:382:7 › M9 Session B — review and ship are one motion › W COMPOSER (PRD #19): edit the Helper-drafted Brief → diff tab shows the edit → dispatch runs the EDITED Brief (14.5s)
+  ok 47 e2e\pre-auth.spec.ts:62:7 › owner arc: sign-up → welcome → setup → sign-out → sign-in › guard: signed-out /welcome bounces to /sign-in (499ms)
+  ok 48 e2e\pre-auth.spec.ts:68:7 › owner arc: sign-up → welcome → setup → sign-out → sign-in › sign-up with a wrong owner code renders the §2.13 field error (554ms)
+  ok 49 e2e\pre-auth.spec.ts:80:7 › owner arc: sign-up → welcome → setup → sign-out → sign-in › owner walkthrough: sign-up → welcome → setup → sign-out → wrong password → sign-in (4.7s)
+  ok 50 e2e\pre-auth.spec.ts:130:7 › owner arc: sign-up → welcome → setup → sign-out → sign-in › invite accept: seeded magic link → account → onboarding (4.8s)
+  ok 51 e2e\pre-auth.spec.ts:173:7 › public surfaces — render + captures › sign-in at three viewports (815ms)
+  ok 52 e2e\pre-auth.spec.ts:179:7 › public surfaces — render + captures › sign-up (owner-code form) at three viewports (855ms)
+  ok 53 e2e\pre-auth.spec.ts:186:7 › public surfaces — render + captures › invalid invite token renders the §2.17 page empty state (635ms)
+
+
+  1) e2e\m6-cockpit.spec.ts:265:7 › M6 — shell + Today + inbox over real rows › sidebar: expand persists via user_preferences; sign-out is real 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: [32m/\/today/[39m
+    Received string:  [31m"http://localhost:3400/sign-in"[39m
+    Timeout: 30000ms
+
+    Call log:
+    [2m  - Expect "toHaveURL" with timeout 30000ms[22m
+    [2m    63 × unexpected value "http://localhost:3400/sign-in"[22m
+
+
+      63 |   await page.getByPlaceholder("••••••••").fill(PASSWORD);
+      64 |   await page.getByRole("button", { name: /^sign in/i }).click();
+    > 65 |   await expect(page).toHaveURL(/\/today/, { timeout: 30_000 });
+         |                      ^
+      66 |   await expect(page.getByRole("heading", { name: "Today." })).toBeVisible();
+      67 | }
+      68 |
+        at signIn (C:\Users\onkes\Desktop\Atlas\atlas-v2-m10\e2e\m6-cockpit.spec.ts:65:22)
+        at C:\Users\onkes\Desktop\Atlas\atlas-v2-m10\e2e\m6-cockpit.spec.ts:267:5
+
+    Error Context: test-results\m6-cockpit-M6-—-shell-Toda-c8f49-references-sign-out-is-real\error-context.md
+
+    Error Context: test-results\m6-cockpit-M6-—-shell-Toda-c8f49-references-sign-out-is-real\error-context.md
+
+  1 failed
+    e2e\m6-cockpit.spec.ts:265:7 › M6 — shell + Today + inbox over real rows › sidebar: expand persists via user_preferences; sign-out is real 
+  52 passed (6.7m)
+ ELIFECYCLE  Command failed with exit code 1.
+EXIT=1
