@@ -33,5 +33,11 @@ Repo-local facts (recorded nowhere else):
   (Next 16 per-distDir dev lock).
 - Husky pre-commit: `typecheck` + `lint` + tripwire on staged `.tsx`
   under `app/` + `src/`. Never `--no-verify` without Onkesh's say-so.
+- If a running dev server throws "Parsing CSS source code failed" on
+  `globals.css` with `�` chars while files on disk are clean UTF-8:
+  Tailwind's watcher scanned a file mid-write (happens when a module
+  agent writes while the Owner's server is hot) and cached the truncated
+  candidate. Cure: stop the server, delete `.next`, restart.
+  (Diagnosed 2026-06-11 post-M4.)
 - Evidence + handoffs live OUTSIDE the repo in `../notes/` (M-doc
   convention: `M<N>-manual-test.md`, `HANDOFF-M<N>.md`).
