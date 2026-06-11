@@ -1,4 +1,12 @@
+# Source files check out LF everywhere — with a global core.autocrlf=true,
+# fresh checkouts smudged `.mjs` to CRLF and vite-node chokes on a
+# shebang followed by CRLF (scripts/fidelity-tripwire.mjs broke inside
+# vitest in BOTH the M7 and M8 worktrees). `text=auto` still auto-detects
+# binaries, so images/fonts stay untouched.
+* text=auto eol=lf
+
 # Vendored variant prototypes must stay BYTE-IDENTICAL to
 # atlas-design-gallery/src/_prototype — the design canon cites them by
-# file:line. No EOL normalization, ever.
+# file:line. No EOL normalization, ever. (Last match wins — this rule
+# must stay below the `*` rule.)
 design/variants/** -text
