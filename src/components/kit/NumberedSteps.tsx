@@ -7,7 +7,8 @@
  */
 
 export type NumberedStep = {
-  title: React.ReactNode;
+  /** §2.16 — omit for body-only checklist rows (Q:131–160 has no bold titles). */
+  title?: React.ReactNode;
   body?: React.ReactNode;
 };
 
@@ -33,8 +34,16 @@ export function NumberedSteps({
             {String(start + i).padStart(2, "0")}
           </span>
           <div>
-            <div className="text-base font-semibold text-stone-900">{s.title}</div>
-            {s.body && <p className="mt-1.5 text-sm text-stone-600 leading-relaxed">{s.body}</p>}
+            {s.title !== undefined && (
+              <div className="text-base font-semibold text-stone-900">{s.title}</div>
+            )}
+            {s.body !== undefined &&
+              (s.title !== undefined ? (
+                <p className="mt-1.5 text-sm text-stone-600 leading-relaxed">{s.body}</p>
+              ) : (
+                // body-only checklist row — inherits the ol's base prose (Q:132–139)
+                <div>{s.body}</div>
+              ))}
           </div>
         </li>
       ))}

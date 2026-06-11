@@ -22,6 +22,8 @@ type FieldDecor = {
   label?: React.ReactNode;
   /** quiet suffix on the label — e.g. "· optional" (M:222). */
   labelMeta?: React.ReactNode;
+  /** right-aligned ghost affordance on the label row — "forgot? →" (L:63–69). (M5 kit axis.) */
+  labelAction?: React.ReactNode;
   /** §2.13 validation states; omit for the default ink underline. */
   validation?: ValidationState;
   /** one quiet message per field, mono-micro, sentence case, no `!`. */
@@ -53,13 +55,25 @@ function borderClasses(validation: ValidationState | undefined, focusTone: "ink"
   }
 }
 
-function FieldLabel({ label, labelMeta }: Pick<FieldDecor, "label" | "labelMeta">) {
+function FieldLabel({
+  label,
+  labelMeta,
+  labelAction,
+}: Pick<FieldDecor, "label" | "labelMeta" | "labelAction">) {
   if (!label) return null;
-  return (
+  const labelNode = (
     <label className="block font-mono text-[10px] uppercase tracking-widest text-stone-500">
       {label}
       {labelMeta && <span className="text-stone-400"> {labelMeta}</span>}
     </label>
+  );
+  if (!labelAction) return labelNode;
+  // L:63–69 — label row with right-aligned ghost link.
+  return (
+    <div className="flex items-baseline justify-between">
+      {labelNode}
+      {labelAction}
+    </div>
   );
 }
 
@@ -97,6 +111,7 @@ type InputProps = FieldDecor & Omit<InputHTMLAttributes<HTMLInputElement>, "clas
 export function UnderlineInput({
   label,
   labelMeta,
+  labelAction,
   validation,
   message,
   hint,
@@ -106,7 +121,7 @@ export function UnderlineInput({
 }: InputProps) {
   return (
     <div>
-      <FieldLabel label={label} labelMeta={labelMeta} />
+      <FieldLabel label={label} labelMeta={labelMeta} labelAction={labelAction} />
       <input
         {...rest}
         disabled={validation === "disabled" || rest.disabled}
@@ -122,6 +137,7 @@ type TextareaProps = FieldDecor & Omit<TextareaHTMLAttributes<HTMLTextAreaElemen
 export function UnderlineTextarea({
   label,
   labelMeta,
+  labelAction,
   validation,
   message,
   hint,
@@ -131,7 +147,7 @@ export function UnderlineTextarea({
 }: TextareaProps) {
   return (
     <div>
-      <FieldLabel label={label} labelMeta={labelMeta} />
+      <FieldLabel label={label} labelMeta={labelMeta} labelAction={labelAction} />
       <textarea
         {...rest}
         disabled={validation === "disabled" || rest.disabled}
@@ -151,6 +167,7 @@ type SelectProps = FieldDecor & Omit<SelectHTMLAttributes<HTMLSelectElement>, "c
 export function UnderlineSelect({
   label,
   labelMeta,
+  labelAction,
   validation,
   message,
   hint,
@@ -161,7 +178,7 @@ export function UnderlineSelect({
 }: SelectProps) {
   return (
     <div>
-      <FieldLabel label={label} labelMeta={labelMeta} />
+      <FieldLabel label={label} labelMeta={labelMeta} labelAction={labelAction} />
       <select
         {...rest}
         disabled={validation === "disabled" || rest.disabled}

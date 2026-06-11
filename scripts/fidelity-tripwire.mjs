@@ -167,9 +167,13 @@ export const RULES = [
     canon: "§1.1",
     check: (tokens) => {
       const re = new RegExp(`^(?:${COLOR_UTILITY_PREFIXES})-([a-z]+)-\\d`);
+      // side/axis segments of width utilities (border-t-2, border-x-4)
+      // are not color families — skip them (M5 false-positive fix).
+      const SIDE_SEGMENTS = new Set(["t", "r", "b", "l", "x", "y", "s", "e"]);
       const hits = [];
       for (const t of tokens) {
         const m = re.exec(t);
+        if (m && SIDE_SEGMENTS.has(m[1])) continue;
         if (m && !LOCKED_COLOR_FAMILIES.has(m[1])) {
           hits.push(
             `\`${t}\` — palette is locked to stone/amber/emerald/rose/violet/sky (canon §1.1)`,

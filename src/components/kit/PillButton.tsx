@@ -62,8 +62,12 @@ export function PillButton({
   size?: "inline" | "page" | "sm" | "xs";
   /** w-full form: px-4 py-3 + shadow-sm + leading dot + trailing `→` (§2.9). */
   fullWidth?: boolean;
-  /** the leading dot's semantic color on w-full PRIMARY pills (§2.9). */
-  dot?: "amber" | "emerald";
+  /**
+   * the leading dot's semantic color on w-full PRIMARY pills (§2.9).
+   * "none" — the §2.9 dot rule names PRIMARIES; w-full secondaries
+   * (L:93 "Continue with Google") carry no dot. (M5 kit axis.)
+   */
+  dot?: "amber" | "emerald" | "none";
   /** trailing glyph — defaults to `→` on w-full pills, none inline. */
   arrow?: boolean;
   /** ghost kind only — danger links turn rose on hover (§2.9, XX:187). */
@@ -94,8 +98,13 @@ export function PillButton({
 
   const showArrow = arrow ?? fullWidth;
   // §2.9 — ship's w-full dot is emerald-300 with the arrow in emerald-100 (O:358–360).
-  const dotClass = kind === "ship" ? "bg-emerald-300" : FULL_DOT[dot];
+  const dotClass = kind === "ship" ? "bg-emerald-300" : dot === "none" ? null : FULL_DOT[dot];
   const arrowClass = kind === "ship" ? "text-emerald-100" : kind === "danger-confirm" ? "text-rose-200" : "text-stone-400";
+  // §2.9 dot rule names PRIMARIES (ship's dot is its own recipe); §1.3
+  // pins shadow-sm to the L:80-shape primary CTA — secondary w-full
+  // (L:93) is flat and dotless. (M5)
+  const showDot = fullWidth && (kind === "primary" || kind === "ship") && dotClass !== null;
+  const fullShadow = kind === "primary" || kind === "danger-confirm" ? " shadow-sm" : "";
 
   return (
     <button
@@ -104,13 +113,11 @@ export function PillButton({
       disabled={disabled}
       className={`${mono} rounded-full ${KIND[kind]} ${
         fullWidth
-          ? `w-full text-xs px-4 py-3 inline-flex items-center justify-center gap-2${
-              kind === "ship" ? "" : " shadow-sm"
-            }`
+          ? `w-full text-xs px-4 py-3 inline-flex items-center justify-center gap-2${fullShadow}`
           : `${SIZE[size]}${showArrow ? " inline-flex items-center gap-2" : ""}`
       }`}
     >
-      {fullWidth && <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotClass}`} />}
+      {showDot && <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotClass}`} />}
       {children}
       {showArrow && <span className={arrowClass}>→</span>}
     </button>
