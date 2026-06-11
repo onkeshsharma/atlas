@@ -60,19 +60,23 @@ export function WeekBars({
         const negativePct = total > 0 ? ((b.negative ?? 0) / total) * 100 : 0;
         return (
           <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-            <div
-              className="w-full relative rounded-t-sm overflow-hidden"
-              style={{ height: `${Math.max((total / top) * 100, 4)}%` }}
-            >
+            {/* canon §2.19/E12: definite-height bar track — the variants'
+                %-in-auto-flex collapses bars to 0 (prototype CSS bug) */}
+            <div className="w-full h-9 flex items-end">
+              <div
+                className="w-full relative rounded-t-sm overflow-hidden"
+                style={{ height: `${Math.max((total / top) * 100, 4)}%` }}
+              >
               <div
                 className={`absolute inset-0 ${isCurrent ? "bg-amber-500" : "bg-amber-400/60"}`}
               />
-              {(b.negative ?? 0) > 0 && (
-                <div
-                  className="absolute bottom-0 left-0 right-0 bg-rose-400/80"
-                  style={{ height: `${negativePct}%` }}
-                />
-              )}
+                {(b.negative ?? 0) > 0 && (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 bg-rose-400/80"
+                    style={{ height: `${negativePct}%` }}
+                  />
+                )}
+              </div>
             </div>
             <span
               className={`font-mono text-[9px] uppercase tracking-widest ${

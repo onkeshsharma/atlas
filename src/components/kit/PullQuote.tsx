@@ -14,10 +14,13 @@ const ORNAMENT: Record<"amber" | "emerald", string> = {
 
 export function PullQuote({
   tone = "amber",
+  scale = "sm",
   attribution,
   children,
 }: {
   tone?: "amber" | "emerald";
+  /** canon §2.15/E13: "sm" rail/annotation quotes; "lg" narrative centerpiece (U:56). */
+  scale?: "sm" | "lg";
   /** mono-micro attribution below — "AI asks", "Collaborator summary". */
   attribution: string;
   children: React.ReactNode;
@@ -29,7 +32,11 @@ export function PullQuote({
       >
         &ldquo;
       </span>
-      <p className="text-sm italic text-stone-800 leading-relaxed">{children}</p>
+      <p
+        className={`${scale === "lg" ? "text-lg" : "text-sm"} italic text-stone-800 leading-relaxed`}
+      >
+        {children}
+      </p>
       <div className="mt-2 font-mono text-[10px] uppercase tracking-widest text-stone-400">
         {attribution}
       </div>

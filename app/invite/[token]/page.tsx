@@ -123,12 +123,13 @@ export default async function InvitePage({
             to their Atlas.
           </p>
 
-          {/* Welcome note — optional pull-quote (U:55; canon §2.15 scale
-              overrules U:56–59's text-5xl/text-lg — kit PullQuote is law) */}
+          {/* Welcome note — narrative pull-quote at U:56's scale
+              (canon §2.15/E13, 2026-06-11 ledger pass) */}
           {invite.welcomeNote && (
             <div className="mt-12">
               <PullQuote
                 tone="amber"
+                scale="lg"
                 attribution={`— ${inviterName}${inviter?.email ? ` · ${inviter.email}` : ""}`}
               >
                 {invite.welcomeNote}

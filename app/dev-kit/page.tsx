@@ -847,6 +847,16 @@ export default function DevKitPage() {
               JSON. You should get a file with every visible ticket.
             </PullQuote>
           </div>
+          <div className="mt-10 max-w-xl">
+            <PullQuote
+              tone="amber"
+              scale="lg"
+              attribution="— Onkesh · welcome note · narrative scale (§2.15/E13)"
+            >
+              Hey — this is the tracker we&rsquo;ll run the website rebuild
+              through. File anything you notice.
+            </PullQuote>
+          </div>
         </KitSection>
 
         {/* 19 — NumberedSteps */}
