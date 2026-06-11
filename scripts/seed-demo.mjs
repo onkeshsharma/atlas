@@ -33,11 +33,15 @@ const daysAgo = (d, hour = 14) => {
 
 async function main() {
   // ── wipe previous seed (FK order; M7 added context_terms + ticket_pins) ──
-  await sql`delete from feed_events where seeded`;
-  await sql`delete from ticket_pins where seeded`;
-  await sql`delete from context_terms where seeded`;
-  await sql`delete from runs where seeded`;
-  await sql`delete from tickets where seeded`;
+  // M7: honest rows BORN ON seeded parents (e.g. a real context-edited
+  // feed event on the demo project) must go with their parent, or the
+  // seeded-project delete below trips the FK. Wiping a demo project
+  // legitimately takes its history with it.
+  await sql`delete from feed_events where seeded or project_id in (select id from projects where seeded)`;
+  await sql`delete from ticket_pins where seeded or ticket_id in (select id from tickets where seeded)`;
+  await sql`delete from context_terms where seeded or project_id in (select id from projects where seeded)`;
+  await sql`delete from runs where seeded or project_id in (select id from projects where seeded)`;
+  await sql`delete from tickets where seeded or project_id in (select id from projects where seeded)`;
   await sql`delete from projects where seeded`;
 
   // ── projects (E: acme-website pinned; two quiet others) ──
