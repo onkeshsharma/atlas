@@ -137,7 +137,7 @@ export function PaletteMount() {
   }
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50" data-testid="command-palette">
       <ModalShell size="palette" onClose={close}>
         <CommandPalette
           groups={groups}
