@@ -43,12 +43,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       href: "/inbox",
       badge: unread > 0 ? unread : undefined,
     },
-    // M8 builds the board + triage; M7 projects; M10 settings — honest "soon".
+    // M7 projects; M10 settings — honest "soon". Board is real (M8).
     {
       key: "board",
       label: "Board",
       initial: "B",
-      soon: true,
+      href: "/board",
       badge: counts.triage > 0 ? counts.triage : undefined,
     },
     { key: "projects", label: "Projects", initial: "P", soon: true },
