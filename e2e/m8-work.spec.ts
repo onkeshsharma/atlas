@@ -17,9 +17,12 @@ import { eq, inArray, like, or } from "drizzle-orm";
 // .env.local is loaded by playwright.config.ts before specs import.
 import { db } from "../src/db/client";
 import {
+  briefs,
   feedEvents,
   memberships,
   projects,
+  runs,
+  runStdoutChunks,
   ticketLinks,
   tickets,
   userPreferences,
@@ -68,6 +71,19 @@ async function cleanupE2ERows() {
       .delete(ticketLinks)
       .where(or(inArray(ticketLinks.blockerId, ids), inArray(ticketLinks.blockedId, ids)));
     await db.delete(feedEvents).where(inArray(feedEvents.ticketId, ids));
+    // M9 — filing now auto-queues an enrich Helper Run (PRD #17); its
+    // children go before the tickets (FK order: chunks → runs → briefs).
+    const e2eRuns = await db
+      .select({ id: runs.id })
+      .from(runs)
+      .where(inArray(runs.ticketId, ids));
+    if (e2eRuns.length) {
+      await db
+        .delete(runStdoutChunks)
+        .where(inArray(runStdoutChunks.runId, e2eRuns.map((r) => r.id)));
+    }
+    await db.delete(runs).where(inArray(runs.ticketId, ids));
+    await db.delete(briefs).where(inArray(briefs.ticketId, ids));
     await db.delete(tickets).where(inArray(tickets.id, ids));
   }
   await db.delete(feedEvents).where(like(feedEvents.summary, "E2E %"));
