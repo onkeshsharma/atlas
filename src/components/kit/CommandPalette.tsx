@@ -8,10 +8,14 @@
  * palette is one of exactly two sanctioned capped live regions).
  * Mount inside ModalShell size="palette" (the §2.11 shell provides scrim
  * + panel chrome).
+ *
+ * M12 axes (cited per kit law): keyboard ↑↓/⏎ drives the UU:130–138
+ * active row for real (Y:186–199's footer hints stop being decoration);
+ * `onRecentSelect` wires the UU:101–113 chips.
  */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "./EmptyState";
 import { Kbd } from "./Kbd";
@@ -38,6 +42,7 @@ export type PaletteGroup = {
 export function CommandPalette({
   groups,
   recents = [],
+  onRecentSelect,
   placeholder = "Jump to anything — type a project, a Ticket #, or just say what you want…",
   query: controlledQuery,
   onQueryChange,
@@ -46,6 +51,8 @@ export function CommandPalette({
 }: {
   groups: PaletteGroup[];
   recents?: string[];
+  /** M12 — chip click recall (UU:101–113 made real). */
+  onRecentSelect?: (label: string) => void;
   placeholder?: string;
   query?: string;
   onQueryChange?: (q: string) => void;
@@ -59,6 +66,34 @@ export function CommandPalette({
     () => groups.reduce((n, g) => n + g.items.length, 0),
     [groups],
   );
+
+  // M12 — keyboard-first nav over the flattened rows (↑↓ move, ⏎ opens).
+  const [activeIdx, setActiveIdx] = useState(0);
+  const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
+  // new results reset the cursor — the during-render adjustment pattern
+  // (react.dev "you might not need an effect"; lint react-hooks law).
+  const [prevGroups, setPrevGroups] = useState(groups);
+  if (prevGroups !== groups) {
+    setPrevGroups(groups);
+    setActiveIdx(0);
+  }
+  const activeRef = useRef<HTMLLIElement | null>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [activeIdx, groups]);
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.min(i + 1, Math.max(flat.length - 1, 0)));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      flat[activeIdx]?.onSelect?.();
+    }
+  };
 
   return (
     <div>
@@ -82,6 +117,8 @@ export function CommandPalette({
               setInternalQuery(e.target.value);
               onQueryChange?.(e.target.value);
             }}
+            onKeyDown={onKeyDown}
+            aria-label="Command palette"
             className="flex-1 bg-transparent text-2xl tracking-tight text-stone-900 placeholder:text-stone-300 focus:outline-none"
           />
           <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
@@ -96,7 +133,9 @@ export function CommandPalette({
               recent
             </span>
             {recents.map((r) => (
-              <RecentChip key={r}>{r}</RecentChip>
+              <RecentChip key={r} onClick={onRecentSelect ? () => onRecentSelect(r) : undefined}>
+                {r}
+              </RecentChip>
             ))}
           </div>
         )}
@@ -118,68 +157,73 @@ export function CommandPalette({
             />
           </div>
         ) : (
-          groups.map((group, gi) => (
-            <section key={group.label} className="py-3">
-              <div className="px-6 py-2 font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 flex items-baseline justify-between">
-                <span>{group.label}</span>
-                <span className="text-stone-300">{group.items.length}</span>
-              </div>
-              <ul>
-                {group.items.map((item, ii) => {
-                  const active = gi === 0 && ii === 0;
-                  return (
-                    <li key={`${item.label}-${ii}`}>
-                      <button
-                        type="button"
-                        onClick={item.onSelect}
-                        className={`w-full text-left px-6 py-2.5 grid grid-cols-[24px_1fr_auto] items-baseline gap-4 cursor-pointer transition ${
-                          active
-                            ? "bg-amber-50 border-l-2 border-amber-500"
-                            : "hover:bg-stone-50 border-l-2 border-transparent"
-                        }`}
-                      >
-                        <span
-                          className={`font-mono text-base ${
-                            active ? "text-amber-700" : "text-stone-400"
+          (() => {
+            let globalIdx = -1;
+            return groups.map((group) => (
+              <section key={group.label} className="py-3">
+                <div className="px-6 py-2 font-mono text-[10px] uppercase tracking-[0.25em] text-stone-500 flex items-baseline justify-between">
+                  <span>{group.label}</span>
+                  <span className="text-stone-300">{group.items.length}</span>
+                </div>
+                <ul>
+                  {group.items.map((item, ii) => {
+                    globalIdx += 1;
+                    const active = globalIdx === activeIdx;
+                    return (
+                      <li key={`${item.label}-${ii}`} ref={active ? activeRef : undefined}>
+                        <button
+                          type="button"
+                          onClick={item.onSelect}
+                          data-palette-active={active || undefined}
+                          className={`w-full text-left px-6 py-2.5 grid grid-cols-[24px_1fr_auto] items-baseline gap-4 cursor-pointer transition ${
+                            active
+                              ? "bg-amber-50 border-l-2 border-amber-500"
+                              : "hover:bg-stone-50 border-l-2 border-transparent"
                           }`}
                         >
-                          {item.glyph}
-                        </span>
-                        <span>
-                          <span className="flex items-baseline gap-2">
-                            <span
-                              className={`text-base text-stone-900${active ? " font-medium" : ""}`}
-                            >
-                              {item.label}
+                          <span
+                            className={`font-mono text-base ${
+                              active ? "text-amber-700" : "text-stone-400"
+                            }`}
+                          >
+                            {item.glyph}
+                          </span>
+                          <span>
+                            <span className="flex items-baseline gap-2">
+                              <span
+                                className={`text-base text-stone-900${active ? " font-medium" : ""}`}
+                              >
+                                {item.label}
+                              </span>
+                              {item.recent && (
+                                <span className="font-mono text-[9px] uppercase tracking-widest text-amber-700">
+                                  recent
+                                </span>
+                              )}
                             </span>
-                            {item.recent && (
-                              <span className="font-mono text-[9px] uppercase tracking-widest text-amber-700">
-                                recent
+                            {item.hint && (
+                              <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-widest text-stone-400">
+                                {item.hint}
                               </span>
                             )}
                           </span>
-                          {item.hint && (
-                            <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-widest text-stone-400">
-                              {item.hint}
-                            </span>
-                          )}
-                        </span>
-                        <span>
-                          {item.kbd ? (
-                            <Kbd>{item.kbd}</Kbd>
-                          ) : active ? (
-                            <span className="font-mono text-[10px] uppercase tracking-widest text-amber-700">
-                              ↵ to open
-                            </span>
-                          ) : null}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))
+                          <span>
+                            {item.kbd ? (
+                              <Kbd>{item.kbd}</Kbd>
+                            ) : active ? (
+                              <span className="font-mono text-[10px] uppercase tracking-widest text-amber-700">
+                                ↵ to open
+                              </span>
+                            ) : null}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ));
+          })()
         )}
       </div>
 
