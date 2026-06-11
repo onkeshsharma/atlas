@@ -7,7 +7,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
-import { eq, inArray, like } from "drizzle-orm";
+import { inArray, like } from "drizzle-orm";
 
 import { db } from "../src/db/client";
 import {
