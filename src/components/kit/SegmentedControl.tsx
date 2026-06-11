@@ -11,7 +11,10 @@
 
 import { useState } from "react";
 
-export type Segment = { value: string; label: string };
+// M9 axis: `dot` — W's composer tabs carry a leading amber dot inside the
+// Edit segment (W:124–127); the §2.9 dot grammar (semantic action color)
+// reaching the segment form. Renders only on segments that declare it.
+export type Segment = { value: string; label: string; dot?: "amber" };
 
 const SIZE: Record<"base" | "compact" | "micro", { text: string; pad: string }> = {
   base: { text: "text-xs", pad: "px-4 py-2.5" },
@@ -48,12 +51,13 @@ export function SegmentedControl({
             setInternal(o.value);
             onChange?.(o.value);
           }}
-          className={`${s.pad} ${
+          className={`${s.pad} ${o.dot ? "inline-flex items-center gap-2 " : ""}${
             o.value === active
               ? "bg-stone-900 text-stone-50"
               : "text-stone-500 hover:bg-stone-100"
           }`}
         >
+          {o.dot && <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />}
           {o.label}
         </button>
       ))}
