@@ -6,12 +6,12 @@
  * offline  = a Bridge is paired but its heartbeat went stale
  * none     = no Bridge has ever paired (M6's honest default)
  */
-import { desc } from "drizzle-orm";
+import { desc, isNull } from "drizzle-orm";
 
 import { db } from "@/src/db/client";
 import { bridges } from "@/src/db/schema";
 
-const STALE_AFTER_MS = 90_000;
+export const STALE_AFTER_MS = 90_000;
 
 export type BridgePresence = {
   status: "none" | "healthy" | "offline";
@@ -23,6 +23,8 @@ export async function bridgePresence(now: Date = new Date()): Promise<BridgePres
   const rows = await db
     .select({ name: bridges.name, lastHeartbeatAt: bridges.lastHeartbeatAt })
     .from(bridges)
+    // M10 — a revoked bridge is no longer "paired"; it can't heartbeat.
+    .where(isNull(bridges.revokedAt))
     .orderBy(desc(bridges.lastHeartbeatAt))
     .limit(1);
   const bridge = rows[0];

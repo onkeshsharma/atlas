@@ -27,7 +27,18 @@ export type BridgeEvent =
   | { type: "run-answered"; cursor: number; runId: string; answer: NeedsInputAnswer }
   // Session B — approve-and-ship (PRD #25): commit/merge from the run's
   // KEPT review-ready worktree; outcome posts back as shipped / failed.
-  | { type: "run-ship"; cursor: number; runId: string };
+  | { type: "run-ship"; cursor: number; runId: string }
+  // M10 — the doctor request (PRD #34): the `doctor-requested` outbox
+  // row, delivered ONLY to the addressed daemon (events route filters by
+  // payload.bridgeId). Carries the preflight inputs the daemon can't
+  // know (src/domain/bridge/doctor.ts DoctorRequestPayload).
+  | {
+      type: "bridge-doctor";
+      cursor: number;
+      bridgeId: string;
+      projects: Array<{ slug: string; localPath: string }>;
+      keepWorktreeRunIds: string[];
+    };
 
 export type BridgeEventType = BridgeEvent["type"];
 
@@ -36,6 +47,7 @@ export const BRIDGE_EVENT_TYPES = [
   "run-cancelled",
   "run-answered",
   "run-ship",
+  "bridge-doctor",
 ] as const satisfies readonly BridgeEventType[];
 
 /** one SSE frame — id: carries the outbox cursor for Last-Event-ID resume. */
@@ -50,7 +62,20 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 /** parse an incoming frame payload; null when malformed. */
 export function parseBridgeEvent(value: unknown): BridgeEvent | null {
   if (!isRecord(value)) return null;
-  if (typeof value.cursor !== "number" || typeof value.runId !== "string") return null;
+  if (typeof value.cursor !== "number") return null;
+  // M10 — bridge-doctor addresses a BRIDGE, not a run.
+  if (value.type === "bridge-doctor") {
+    if (typeof value.bridgeId !== "string" || value.bridgeId.length === 0) return null;
+    if (!Array.isArray(value.projects) || !Array.isArray(value.keepWorktreeRunIds)) return null;
+    for (const p of value.projects) {
+      if (!isRecord(p) || typeof p.slug !== "string" || typeof p.localPath !== "string") {
+        return null;
+      }
+    }
+    if (value.keepWorktreeRunIds.some((id) => typeof id !== "string")) return null;
+    return value as BridgeEvent;
+  }
+  if (typeof value.runId !== "string") return null;
   switch (value.type) {
     case "run-available":
       if (value.lane !== "owner" && value.lane !== "helper") return null;
@@ -210,6 +235,13 @@ export type BridgeHeartbeatBody = {
   version: string;
   engine: "real" | "fake";
   busyRunIds: string[];
+  /**
+   * M10 — the cap the daemon currently HOLDS, echoed back so the
+   * Bridges page can show honestly that a cap edit reached the machine
+   * ("daemon confirmed cap 3 · 12s ago"). Optional — M9 daemons without
+   * it still parse.
+   */
+  cap?: number;
   capabilities?: Record<string, unknown>;
 };
 
@@ -220,11 +252,15 @@ export function parseBridgeHeartbeat(value: unknown): BridgeHeartbeatBody | null
   if (!Array.isArray(value.busyRunIds) || value.busyRunIds.some((id) => typeof id !== "string")) {
     return null;
   }
+  if (value.cap !== undefined && (typeof value.cap !== "number" || !Number.isInteger(value.cap))) {
+    return null;
+  }
   if (value.capabilities !== undefined && !isRecord(value.capabilities)) return null;
   return {
     version: value.version,
     engine: value.engine,
     busyRunIds: value.busyRunIds as string[],
+    cap: value.cap as number | undefined,
     capabilities: value.capabilities as Record<string, unknown> | undefined,
   };
 }
@@ -245,6 +281,17 @@ export type BridgeSyncResponse = {
    * (review-ready + ship_requested_at set): a ship clicked while the
    * daemon was offline executes on reconnect (PRD #35's sibling). */
   shipRequested: string[];
+  /**
+   * M10 — a pending doctor request for THIS bridge, inputs included
+   * (the same catch-up-is-DB-state move: a doctor clicked while the
+   * daemon was away still runs on reconnect, with FRESH inputs computed
+   * at sync time). Optional/null on the wire — M9 servers/daemons
+   * without it interoperate.
+   */
+  doctorRequest?: {
+    projects: Array<{ slug: string; localPath: string }>;
+    keepWorktreeRunIds: string[];
+  } | null;
 };
 
 export function parseBridgeSync(value: unknown): BridgeSyncResponse | null {
@@ -252,6 +299,18 @@ export function parseBridgeSync(value: unknown): BridgeSyncResponse | null {
   if (typeof value.cursor !== "number" || typeof value.cap !== "number") return null;
   if (!Array.isArray(value.queued) || !Array.isArray(value.active)) return null;
   if (!Array.isArray(value.shipRequested)) return null;
+  if (value.doctorRequest !== undefined && value.doctorRequest !== null) {
+    const d = value.doctorRequest;
+    if (!isRecord(d) || !Array.isArray(d.projects) || !Array.isArray(d.keepWorktreeRunIds)) {
+      return null;
+    }
+    for (const p of d.projects) {
+      if (!isRecord(p) || typeof p.slug !== "string" || typeof p.localPath !== "string") {
+        return null;
+      }
+    }
+    if (d.keepWorktreeRunIds.some((id) => typeof id !== "string")) return null;
+  }
   for (const q of value.queued) {
     if (!isRecord(q)) return null;
     if (typeof q.runId !== "string" || typeof q.ref !== "string") return null;

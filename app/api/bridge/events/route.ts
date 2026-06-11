@@ -62,7 +62,9 @@ export async function GET(req: NextRequest) {
             .orderBy(asc(feedEvents.id))
             .limit(100);
           for (const row of rows) {
-            for (const event of rowToBridgeEvents(row)) send(bridgeSseFrame(event));
+            // M10 — pass the caller so addressed commands (bridge-doctor)
+            // reach only their machine.
+            for (const event of rowToBridgeEvents(row, bridge.id)) send(bridgeSseFrame(event));
           }
           if (rows.length) cursor = rows[rows.length - 1].id;
         } catch {

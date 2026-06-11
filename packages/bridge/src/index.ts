@@ -30,6 +30,7 @@ async function main(): Promise<void> {
     tickMs: config.tickMs,
     heartbeatMs: config.heartbeatMs,
     engineTimeoutMs: config.engineTimeoutMs,
+    lockPort: lock.port, // M10 — doctor reports the held lock
   });
 
   console.log(

@@ -57,6 +57,16 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   // (KK's emerald CTA, PRD #25). The row IS the daemon's `run-ship`
   // command (ADR-0002 §2); `shipped`/`failed` land when the merge does.
   "ship-requested",
+  // M10 — appended in 0006. Bridge governance (PRD #33–#34). Heartbeats
+  // stay OUT of the outbox (M9A decision 8 — chrome, not history);
+  // pairing, revocation and the doctor round-trip are Owner actions and
+  // honest history. The `doctor-requested` row doubles as the daemon's
+  // `bridge-doctor` command (the ship-requested idiom; payload carries
+  // the target bridge id + preflight inputs).
+  "bridge-paired", //     a Bridge was paired / its token rotated
+  "bridge-revoked", //    the Owner revoked a Bridge's token
+  "doctor-requested", //  the Owner asked a Bridge to run preflight
+  "doctor-completed", //  the daemon posted its doctor verdict
 ]);
 
 export const feedEvents = pgTable("feed_events", {

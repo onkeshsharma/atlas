@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "bridges_name_unique" ON "bridges" USING btree ("name");
