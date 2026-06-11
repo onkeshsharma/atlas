@@ -98,6 +98,7 @@ describe("expiry", () => {
 
   const labelCases: Array<[string, string]> = [
     ["2026-09-12T12:00:00Z", "in 92 days"],
+    ["2026-07-12T11:59:00Z", "in 30 days"], // 29d23h59m ROUNDS up — the just-created case
     ["2026-06-13T12:00:00Z", "in 1 day"],
     ["2026-06-12T15:00:00Z", "in 3 hours"],
     ["2026-06-12T12:00:30Z", "in 1 hour"], // sub-hour floors to the honest minimum

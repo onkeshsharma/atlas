@@ -180,6 +180,9 @@ test.describe.serial("M10 — capture rig", () => {
     await page.addStyleTag({
       content: "*, *::before, *::after { animation: none !important; }",
     });
+    // the panel renders at the top of the main column (XX:103)
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(200);
     await page.screenshot({ path: join(CAPTURE_DIR, "tokens-show-once-1440.png") });
 
     // variant references at the canonical width
