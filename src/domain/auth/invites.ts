@@ -9,10 +9,19 @@
  * acceptance is built race-safe without one: the conditional UPDATE that
  * claims the invite is the atomic gate, and the membership INSERT is
  * idempotent (`on conflict do nothing` + re-select — the v1 race lesson).
+ *
+ * M11 (sanctioned surgical edits — charter item 2): invites can scope
+ * to a project (`invites.project_id`, migration 0008) — still
+ * INSTANCE-level grants (M5 deviation 3 stands), but acceptance of a
+ * scoped invite ALSO lands the project_members roster row. Every invite
+ * mutation now follows THE OUTBOX RULE: the durable write CTE feeds a
+ * feed_events INSERT in the same statement (`invited` / `joined` /
+ * `invite-declined` / `invite-revoked`), so open cockpits and the audit
+ * log see the trust circle move.
  */
 import { randomBytes } from "node:crypto";
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/src/db/client";
 import { invites, type Invite, type Membership } from "@/src/db/schema";
@@ -58,23 +67,66 @@ export async function issueInvite(input: {
   invitedBy: string;
   invitedName?: string;
   welcomeNote?: string;
+  /** M11 — scope the grant to a project (roster row lands on accept). */
+  projectId?: string;
+  /** display actor for the feed row — "you". M11. */
+  actor?: string;
   ttlDays?: number;
 }): Promise<{ invite: Invite; magicLink: string }> {
   const token = generateInviteToken();
   const expiresAt = new Date(Date.now() + (input.ttlDays ?? INVITE_TTL_DAYS) * 86_400_000);
-  const [invite] = await db
-    .insert(invites)
-    .values({
-      token,
-      email: input.email.trim().toLowerCase(),
-      invitedName: input.invitedName?.trim() || null,
-      welcomeNote: input.welcomeNote?.trim() || null,
-      role: "collaborator",
-      invitedBy: input.invitedBy,
-      expiresAt,
-    })
-    .returning();
+  const email = input.email.trim().toLowerCase();
+  // M11 — THE OUTBOX RULE: the invite INSERT and its `invited` feed row
+  // are one statement; the welcome note rides `preview` (Z's italic line).
+  const result = (await db.execute(sql`
+    with issued as (
+      insert into invites (token, email, invited_name, welcome_note, role, project_id, invited_by, expires_at)
+      values (
+        ${token}, ${email}, ${input.invitedName?.trim() || null},
+        ${input.welcomeNote?.trim() || null}, 'collaborator',
+        ${input.projectId ?? null}, ${input.invitedBy}, ${expiresAt.toISOString()}::timestamptz
+      )
+      returning *
+    ),
+    outbox as (
+      insert into feed_events (kind, actor, summary, preview, project_id, payload, seeded)
+      select
+        'invited',
+        ${input.actor ?? "you"},
+        issued.email || coalesce(
+          ' — ' || (select p.name from projects p where p.id = issued.project_id), ''
+        ),
+        issued.welcome_note,
+        issued.project_id,
+        jsonb_build_object('inviteId', issued.id),
+        false
+      from issued
+      returning id
+    )
+    select * from issued
+  `)) as unknown as { rows: Array<Record<string, unknown>> };
+  const invite = rowToInvite(result.rows[0]);
   return { invite, magicLink: inviteMagicLink(token) };
+}
+
+/** raw-SQL row (snake_case) → the drizzle Invite shape. */
+function rowToInvite(r: Record<string, unknown>): Invite {
+  return {
+    id: r.id as string,
+    token: r.token as string,
+    email: r.email as string,
+    invitedName: (r.invited_name as string | null) ?? null,
+    welcomeNote: (r.welcome_note as string | null) ?? null,
+    role: r.role as Invite["role"],
+    projectId: (r.project_id as string | null) ?? null,
+    invitedBy: r.invited_by as string,
+    createdAt: new Date(r.created_at as string),
+    expiresAt: new Date(r.expires_at as string),
+    acceptedAt: r.accepted_at ? new Date(r.accepted_at as string) : null,
+    acceptedBy: (r.accepted_by as string | null) ?? null,
+    revokedAt: r.revoked_at ? new Date(r.revoked_at as string) : null,
+    declinedAt: r.declined_at ? new Date(r.declined_at as string) : null,
+  };
 }
 
 export async function getInviteByToken(token: string): Promise<Invite | undefined> {
@@ -105,30 +157,60 @@ export type AcceptResult =
  * Claim the invite for `userId` and attach the Collaborator membership.
  * The UPDATE's WHERE re-checks every pending condition, so two racing
  * accepts can't both claim it.
+ *
+ * M11 — the claim statement now ALSO lands the project roster row (for
+ * scoped invites) and the `joined` feed row (THE OUTBOX RULE): claim +
+ * grant + outbox are atomic; the membership INSERT after it stays
+ * idempotent (the M5 race posture, unchanged).
  */
 export async function acceptInvite(input: {
   token: string;
   userId: string;
   displayName: string;
+  /** "the circle as the 3rd Collaborator" ordinal — computed by the caller. */
+  ordinal?: string;
 }): Promise<AcceptResult> {
-  const [claimed] = await db
-    .update(invites)
-    .set({ acceptedAt: new Date(), acceptedBy: input.userId })
-    .where(
-      and(
-        eq(invites.token, input.token),
-        isNull(invites.acceptedAt),
-        isNull(invites.revokedAt),
-        isNull(invites.declinedAt),
-        sql`${invites.expiresAt} > now()`,
-      ),
+  const result = (await db.execute(sql`
+    with claimed as (
+      update invites
+      set accepted_at = now(), accepted_by = ${input.userId}
+      where token = ${input.token}
+        and accepted_at is null
+        and revoked_at is null
+        and declined_at is null
+        and expires_at > now()
+      returning *
+    ),
+    rostered as (
+      insert into project_members (project_id, user_id, added_by)
+      select claimed.project_id, ${input.userId}, claimed.invited_by
+      from claimed
+      where claimed.project_id is not null
+      on conflict do nothing
+      returning project_id
+    ),
+    outbox as (
+      insert into feed_events (kind, actor, summary, project_id, payload, seeded)
+      select
+        'joined',
+        ${input.displayName}::text,
+        'the circle as ' || ${input.ordinal ?? "a Collaborator"}::text || coalesce(
+          ' · ' || (select p.name from projects p where p.id = claimed.project_id), ''
+        ),
+        claimed.project_id,
+        jsonb_build_object('inviteId', claimed.id, 'userId', ${input.userId}::text),
+        false
+      from claimed
+      returning id
     )
-    .returning();
-  if (!claimed) {
+    select * from claimed
+  `)) as unknown as { rows: Array<Record<string, unknown>> };
+  if (!result.rows.length) {
     // claim failed — report why, precisely.
     const check = await validateInvite(input.token);
     return check.ok ? { ok: false, reason: "not-found" } : { ok: false, reason: check.reason };
   }
+  const claimed = rowToInvite(result.rows[0]);
   const membership = await ensureMembership({
     userId: input.userId,
     role: claimed.role,
@@ -139,18 +221,63 @@ export async function acceptInvite(input: {
 
 /** invitee-side "no thanks" (U:156) — only a still-pending invite can decline. */
 export async function declineInvite(token: string): Promise<boolean> {
-  const [declined] = await db
-    .update(invites)
-    .set({ declinedAt: new Date() })
-    .where(
-      and(
-        eq(invites.token, token),
-        isNull(invites.acceptedAt),
-        isNull(invites.revokedAt),
-        isNull(invites.declinedAt),
-      ),
+  // M11 — outbox: the decline and its feed row are one statement; the
+  // invitee has no membership yet, so the actor is their invite identity.
+  const result = (await db.execute(sql`
+    with declined as (
+      update invites
+      set declined_at = now()
+      where token = ${token}
+        and accepted_at is null
+        and revoked_at is null
+        and declined_at is null
+      returning *
     )
-    .returning();
-  return Boolean(declined);
+    insert into feed_events (kind, actor, summary, project_id, payload, seeded)
+    select
+      'invite-declined',
+      coalesce(declined.invited_name, declined.email),
+      declined.email,
+      declined.project_id,
+      jsonb_build_object('inviteId', declined.id),
+      false
+    from declined
+    returning id
+  `)) as unknown as { rows: unknown[] };
+  return result.rows.length > 0;
+}
+
+/**
+ * M11 — Owner-side withdrawal (M:274 "revoke ✕" / WW:265 "cancel
+ * invite"). Only a still-pending invite can be revoked; the mark + its
+ * feed row are one statement (THE OUTBOX RULE).
+ */
+export async function revokeInvite(input: {
+  inviteId: string;
+  /** display actor for the feed row — "you". */
+  actor: string;
+}): Promise<boolean> {
+  const result = (await db.execute(sql`
+    with revoked as (
+      update invites
+      set revoked_at = now()
+      where id = ${input.inviteId}
+        and accepted_at is null
+        and revoked_at is null
+        and declined_at is null
+      returning *
+    )
+    insert into feed_events (kind, actor, summary, project_id, payload, seeded)
+    select
+      'invite-revoked',
+      ${input.actor},
+      revoked.email,
+      revoked.project_id,
+      jsonb_build_object('inviteId', revoked.id),
+      false
+    from revoked
+    returning id
+  `)) as unknown as { rows: unknown[] };
+  return result.rows.length > 0;
 }
 

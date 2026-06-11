@@ -53,12 +53,25 @@ export const KIND_WORD: Record<FeedEventKind, string> = {
   "bridge-revoked": "revoked",
   "doctor-requested": "asked",
   "doctor-completed": "reported",
+  // M11 — People & access ("you invited dev@acme.io — …", "you added ada
+  // to acme-website", "you removed sam from acme-website", "ada declined
+  // your invite", "you changed display name — …"). `joined` stays the
+  // acceptance word (M6).
+  invited: "invited",
+  "invite-revoked": "withdrew",
+  "invite-declined": "declined",
+  "member-added": "added",
+  "member-removed": "removed",
+  "profile-changed": "changed",
 };
 
 export const KIND_CONNECTOR: Partial<Record<FeedEventKind, string>> = {
   replied: "on",
   "needs-input": "on",
   "brief-drafted": "Brief for", // M9 — "Engine drafted Brief for T-247 — …"
+  // M11 — "you withdrew the invite for dev@…", "ada declined the invite".
+  "invite-revoked": "the invite for",
+  "invite-declined": "the invite for",
 };
 
 /** §1.1 dot tone per kind (Z:90–96 adjusted to canon — sky-500 not sky-400). */
@@ -93,6 +106,15 @@ export const KIND_TONE: Record<FeedEventKind, DotTone> = {
   "bridge-revoked": "stone",
   "doctor-requested": "stone",
   "doctor-completed": "stone",
+  // M11 — §1.1 state-social: invites + circle changes are sky (the
+  // `joined` precedent); removals are destructive → rose (TT:144–148's
+  // "danger" family); declines/withdrawals + profile edits are neutral.
+  invited: "sky",
+  "invite-revoked": "stone",
+  "invite-declined": "stone-soft",
+  "member-added": "sky",
+  "member-removed": "rose",
+  "profile-changed": "stone",
 };
 
 /** colored kind word in inbox sentences (Z:407–413 shape, canon palette). */
@@ -125,6 +147,14 @@ export const KIND_WORD_CLASS: Record<FeedEventKind, string> = {
   "bridge-revoked": "text-stone-700",
   "doctor-requested": "text-stone-700",
   "doctor-completed": "text-stone-700",
+  // M11 — sky for circle growth (the `joined` precedent), rose for
+  // removals, neutral elsewhere (§1.1 tone map).
+  invited: "text-sky-700",
+  "invite-revoked": "text-stone-700",
+  "invite-declined": "text-stone-400",
+  "member-added": "text-sky-700",
+  "member-removed": "text-rose-600",
+  "profile-changed": "text-stone-700",
 };
 
 /** display text — dashes read as spaces. */

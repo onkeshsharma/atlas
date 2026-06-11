@@ -67,6 +67,17 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   "bridge-revoked", //    the Owner revoked a Bridge's token
   "doctor-requested", //  the Owner asked a Bridge to run preflight
   "doctor-completed", //  the daemon posted its doctor verdict
+  // M11 — appended in 0008. People & access (PRD #37–#39): every
+  // invite / membership / roster / profile mutation lands its feed row
+  // in the SAME statement as the durable write (THE OUTBOX RULE), so
+  // open cockpits stay live and the audit log (TT) reads a real record.
+  // `joined` (M6) remains the acceptance kind; these cover the rest:
+  "invited", //          the Owner issued an invite (PRD #37)
+  "invite-revoked", //   the Owner withdrew a pending invite
+  "invite-declined", //  the invitee said "no thanks" (U:156)
+  "member-added", //     a roster row landed — project access granted (PRD #38)
+  "member-removed", //   access removed (payload.scope: project | instance)
+  "profile-changed", //  an identity field changed (M10's closing note)
 ]);
 
 export const feedEvents = pgTable("feed_events", {

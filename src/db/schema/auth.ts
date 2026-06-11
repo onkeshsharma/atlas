@@ -10,6 +10,8 @@
 import { sql } from "drizzle-orm";
 import { pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
+import { projects } from "./projects";
+
 /** CONTEXT.md role vocabulary — exactly one Owner per instance (PRD). */
 export const membershipRole = pgEnum("membership_role", ["owner", "collaborator"]);
 
@@ -49,6 +51,15 @@ export const invites = pgTable(
     /** optional welcome note, rendered as the U:55 pull-quote (PRD #37). */
     welcomeNote: text("welcome_note"),
     role: membershipRole("role").notNull().default("collaborator"),
+    /**
+     * M11 (additive) — the project this invite opens. Invites stay
+     * INSTANCE-level (M5 deviation 3 stands: acceptance grants the
+     * memberships row); when set, acceptance ALSO lands a
+     * project_members roster row for this project, and the accept page
+     * restores U's "About this Project" section with the real row.
+     * NULL = a bare instance invite (no roster grant).
+     */
+    projectId: uuid("project_id").references(() => projects.id),
     /** Neon Auth user id of the inviting Owner. */
     invitedBy: text("invited_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
