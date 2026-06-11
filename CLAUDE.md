@@ -49,5 +49,21 @@ Repo-local facts (recorded nowhere else):
   agent writes while the Owner's server is hot) and cached the truncated
   candidate. Cure: stop the server, delete `.next`, restart.
   (Diagnosed 2026-06-11 post-M4.)
+- Live data (M6): the cockpit is live through ONE seam —
+  `src/domain/live/` + `GET /api/live` (SSE over the `feed_events`
+  bigserial cursor; ADR `docs/adr/0001-live-transport.md`). **Outbox
+  rule:** any Run mutation goes through `applyRunTransition`
+  (`src/domain/run/transitions.ts`) or another single-statement
+  update+`feed_events` writer — a state flip that skips the outbox is
+  invisible to every open browser. Pages mount
+  `<LiveRefresh since={await latestCursor()} />` to stay live.
+- `pnpm db:seed` reseeds the demo rows (idempotent; all marked
+  `seeded=true` — honest data and demo data stay distinguishable).
+- e2e (M6): `workers: 1` is required — specs share one real Neon DB and
+  the one-Owner unique index, so spec files must not interleave. Never
+  `waitUntil: "networkidle"` on authed pages (the SSE stream never
+  settles). Next 16's `<nextjs-portal>` dev indicator intercepts
+  pointer events bottom-left — hide it before hovering the sidebar
+  user mark (see `hideDevOverlay`, `e2e/m6-cockpit.spec.ts`).
 - Evidence + handoffs live OUTSIDE the repo in `../notes/` (M-doc
   convention: `M<N>-manual-test.md`, `HANDOFF-M<N>.md`).
