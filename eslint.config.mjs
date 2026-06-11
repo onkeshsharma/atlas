@@ -9,8 +9,9 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
-    // M4 — sandboxed distDir for the Playwright webServer (see next.config.ts)
-    ".next-e2e/**",
+    // M4 — sandboxed distDir for the Playwright webServer (see next.config.ts);
+    // M9 — ATLAS_E2E_DISTDIR is overridable (.next-e2e-m9 etc.), ignore the family.
+    ".next-e2e*/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
