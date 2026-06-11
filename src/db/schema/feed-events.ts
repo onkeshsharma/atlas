@@ -39,6 +39,13 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   "shipped", //      code landed
   "failed", //       a Run failed
   "cancelled", //    a Run was cancelled
+  // M7 — Project-curation kinds (appended; pg enums only ADD VALUE at
+  // the end). Every Project mutation appends one of these so open
+  // cockpits stay live (the outbox rule — see src/domain/project/).
+  "project-created", // a Project was added (R's flow)
+  "project-pinned", //   the Owner pinned a Project (PRD #32)
+  "project-unpinned", // the Owner unpinned a Project
+  "context-edited", //   a Context term was added/dismissed (PRD #31)
 ]);
 
 export const feedEvents = pgTable("feed_events", {

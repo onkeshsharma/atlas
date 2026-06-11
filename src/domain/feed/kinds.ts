@@ -32,6 +32,12 @@ export const KIND_WORD: Record<FeedEventKind, string> = {
   shipped: "shipped",
   failed: "failed",
   cancelled: "cancelled",
+  // M7 — Project-curation kinds (sentences: "you added acme-website — …",
+  // "you pinned acme-website", "you edited acme-website context — added …").
+  "project-created": "added",
+  "project-pinned": "pinned",
+  "project-unpinned": "unpinned",
+  "context-edited": "edited",
 };
 
 export const KIND_CONNECTOR: Partial<Record<FeedEventKind, string>> = {
@@ -53,6 +59,11 @@ export const KIND_TONE: Record<FeedEventKind, DotTone> = {
   shipped: "emerald",
   failed: "rose",
   cancelled: "stone-soft",
+  // M7 — curation is neutral bookkeeping; amber stays scarce (§1.1).
+  "project-created": "stone",
+  "project-pinned": "stone",
+  "project-unpinned": "stone",
+  "context-edited": "stone",
 };
 
 /** colored kind word in inbox sentences (Z:407–413 shape, canon palette). */
@@ -69,6 +80,11 @@ export const KIND_WORD_CLASS: Record<FeedEventKind, string> = {
   shipped: "text-emerald-700",
   failed: "text-rose-600",
   cancelled: "text-stone-400",
+  // M7 — neutral curation words.
+  "project-created": "text-stone-700",
+  "project-pinned": "text-stone-700",
+  "project-unpinned": "text-stone-700",
+  "context-edited": "text-stone-700",
 };
 
 /** display text — dashes read as spaces. */
