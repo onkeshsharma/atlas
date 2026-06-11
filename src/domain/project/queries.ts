@@ -32,8 +32,21 @@ export function projectIngestSummary(project: Project): IngestSummary | null {
   return project.ingestStatus === "ready" ? parseIngestSummary(project.ingestSummary) : null;
 }
 
-/** open = any non-terminal ticket (the M6 vocabulary). */
-const OPEN_STATES = ["triage", "backlog", "in-progress", "review-ready", "failed"] as const;
+/**
+ * open = any non-terminal ticket. M8 extended ticket_state with
+ * needs-info + approved (both non-terminal — TERMINAL_TICKET_STATES in
+ * src/domain/ticket/transitions.ts is shipped/declined only), so they
+ * count as open here too (M7∥M8 integration).
+ */
+const OPEN_STATES = [
+  "triage",
+  "needs-info",
+  "backlog",
+  "approved",
+  "in-progress",
+  "review-ready",
+  "failed",
+] as const;
 
 export type TicketStateCounts = {
   open: number;
@@ -49,7 +62,9 @@ export async function ticketStateCounts(projectId: string): Promise<TicketStateC
     .groupBy(tickets.state);
   const byState = {
     triage: 0,
+    "needs-info": 0, // M8 (9-state vocabulary)
     backlog: 0,
+    approved: 0, // M8
     "in-progress": 0,
     "review-ready": 0,
     shipped: 0,

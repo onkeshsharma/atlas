@@ -106,7 +106,14 @@ function FieldMessage({
   return null;
 }
 
-type InputProps = FieldDecor & Omit<InputHTMLAttributes<HTMLInputElement>, "className">;
+type InputProps = FieldDecor & {
+  /**
+   * §2.13 scale exception — the title-composer form: `text-2xl font-bold
+   * tracking-tight py-3`, placeholder back at normal weight (S:89).
+   * (M8 kit axis; input-only.)
+   */
+  scale?: "base" | "composer";
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "className">;
 
 export function UnderlineInput({
   label,
@@ -117,15 +124,22 @@ export function UnderlineInput({
   hint,
   mono = false,
   focusTone = "ink",
+  scale = "base",
   ...rest
 }: InputProps) {
+  // §2.13 scale exception (S:89) — composer swaps the type step only.
+  const base =
+    scale === "composer"
+      ? BASE.replace("py-2 text-base", "py-3 text-2xl font-bold tracking-tight") +
+        " placeholder:font-normal"
+      : BASE;
   return (
     <div>
       <FieldLabel label={label} labelMeta={labelMeta} labelAction={labelAction} />
       <input
         {...rest}
         disabled={validation === "disabled" || rest.disabled}
-        className={`${BASE} ${mono ? "font-mono " : ""}${borderClasses(validation, focusTone)}`}
+        className={`${base} ${mono ? "font-mono " : ""}${borderClasses(validation, focusTone)}`}
       />
       <FieldMessage validation={validation} message={message} hint={hint} />
     </div>

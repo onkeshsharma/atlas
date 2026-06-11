@@ -22,7 +22,10 @@ export type PillKind =
   | "ghost";
 
 const KIND: Record<Exclude<PillKind, "ghost">, string> = {
-  primary: "text-stone-50 bg-stone-900 hover:bg-stone-700",
+  // M8 axis: honest-disabled M9 CTAs (dispatch/ship render per spec,
+  // unwired — charter hard wall). Recipe is JJ:134–139's disabled form.
+  primary:
+    "text-stone-50 bg-stone-900 hover:bg-stone-700 disabled:bg-stone-300 disabled:cursor-not-allowed",
   // canon §3.4 / ledger E4: the action that lands code is emerald-600.
   // §2.9 — ship carries shadow-sm at every scale (G:249, O:357).
   ship: "text-stone-50 bg-emerald-600 hover:bg-emerald-700 shadow-sm",

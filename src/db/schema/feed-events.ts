@@ -46,6 +46,8 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   "project-pinned", //   the Owner pinned a Project (PRD #32)
   "project-unpinned", // the Owner unpinned a Project
   "context-edited", //   a Context term was added/dismissed (PRD #31)
+  // M8 — appended after M7's values (integration order: 0002 then 0003).
+  "linked", //       M8: a blocks/blocked-by edge was declared (PRD #16)
 ]);
 
 export const feedEvents = pgTable("feed_events", {

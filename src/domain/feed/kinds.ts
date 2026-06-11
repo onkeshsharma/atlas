@@ -38,6 +38,7 @@ export const KIND_WORD: Record<FeedEventKind, string> = {
   "project-pinned": "pinned",
   "project-unpinned": "unpinned",
   "context-edited": "edited",
+  linked: "linked", // M8 — a blocks/blocked-by edge was declared (PRD #16)
 };
 
 export const KIND_CONNECTOR: Partial<Record<FeedEventKind, string>> = {
@@ -64,6 +65,7 @@ export const KIND_TONE: Record<FeedEventKind, DotTone> = {
   "project-pinned": "stone",
   "project-unpinned": "stone",
   "context-edited": "stone",
+  linked: "stone", // M8 — bookkeeping about ordering — neutral
 };
 
 /** colored kind word in inbox sentences (Z:407–413 shape, canon palette). */
@@ -85,6 +87,7 @@ export const KIND_WORD_CLASS: Record<FeedEventKind, string> = {
   "project-pinned": "text-stone-700",
   "project-unpinned": "text-stone-700",
   "context-edited": "text-stone-700",
+  linked: "text-stone-700", // M8
 };
 
 /** display text — dashes read as spaces. */
