@@ -146,6 +146,11 @@ export function QuietHoursForm({
     saveQuietHoursAction,
     {},
   );
+  // CONTROLLED on purpose: React 19 resets uncontrolled fields after a
+  // form action, which would blank the field the user DIDN'T mistype
+  // when a §2.13 validation error comes back (e2e green-run-A find).
+  const [from, setFrom] = useState(quietFrom ?? "");
+  const [until, setUntil] = useState(quietUntil ?? "");
   // CC:243 "detected from browser" — for REAL: the client snapshot is the
   // browser's zone; the server snapshot falls back to the stored one.
   const detected = useSyncExternalStore(
@@ -163,7 +168,8 @@ export function QuietHoursForm({
           label="Quiet from"
           mono
           placeholder="22:00"
-          defaultValue={quietFrom ?? undefined}
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
           validation={state.fieldError ? "error" : undefined}
           message={state.fieldError}
         />
@@ -173,7 +179,8 @@ export function QuietHoursForm({
           label="Until"
           mono
           placeholder="08:00"
-          defaultValue={quietUntil ?? undefined}
+          value={until}
+          onChange={(e) => setUntil(e.target.value)}
           validation={state.fieldError ? "error" : undefined}
         />
       </div>
