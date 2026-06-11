@@ -32,6 +32,7 @@ export const KIND_WORD: Record<FeedEventKind, string> = {
   shipped: "shipped",
   failed: "failed",
   cancelled: "cancelled",
+  linked: "linked", // M8 — a blocks/blocked-by edge was declared (PRD #16)
 };
 
 export const KIND_CONNECTOR: Partial<Record<FeedEventKind, string>> = {
@@ -53,6 +54,7 @@ export const KIND_TONE: Record<FeedEventKind, DotTone> = {
   shipped: "emerald",
   failed: "rose",
   cancelled: "stone-soft",
+  linked: "stone", // bookkeeping about ordering — neutral
 };
 
 /** colored kind word in inbox sentences (Z:407–413 shape, canon palette). */
@@ -69,6 +71,7 @@ export const KIND_WORD_CLASS: Record<FeedEventKind, string> = {
   shipped: "text-emerald-700",
   failed: "text-rose-600",
   cancelled: "text-stone-400",
+  linked: "text-stone-700",
 };
 
 /** display text — dashes read as spaces. */
