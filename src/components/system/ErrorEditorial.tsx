@@ -28,9 +28,9 @@
  *  - ZZ:50–51 "Try again →" is the boundary's real reset(), not an <a>.
  *  - ZZ:138 colophon = design-lab artifact, never ported (canon §4 note).
  */
-import { useState } from "react";
+import { startTransition, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { FeaturedCard, LivePulse } from "@/src/components/kit";
 
@@ -42,9 +42,19 @@ export function ErrorEditorial({
   reset: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   // boundary-render time — client-only render, captured once (ZZ:71).
   const [at] = useState(() => new Date());
   const time = at.toLocaleTimeString("en-GB", { hour12: false });
+
+  // ZZ:50's "Try again" made REAL for server errors too: reset() alone
+  // only re-renders the broken client payload — the Next-canonical
+  // refresh-then-reset re-attempts the server render (charter item 2).
+  const tryAgain = () =>
+    startTransition(() => {
+      router.refresh();
+      reset();
+    });
 
   return (
     <div className="relative min-h-screen overflow-auto text-stone-900 font-sans">
@@ -93,7 +103,7 @@ export function ErrorEditorial({
               <div className="mt-8 flex items-center gap-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={reset}
+                  onClick={tryAgain}
                   className="font-mono text-xs uppercase tracking-widest text-stone-50 bg-stone-900 hover:bg-stone-700 px-5 py-3 rounded-full cursor-pointer transition"
                 >
                   Try again →
@@ -185,7 +195,11 @@ export function ErrorEditorial({
                   Right now on the status page
                 </div>
                 <p className="mt-3 text-base text-stone-700 leading-relaxed">
-                  <Link href="/status" className="text-stone-900 hover:text-amber-600 transition">
+                  {/* canon §1.2 — paths render mono */}
+                  <Link
+                    href="/status"
+                    className="font-mono text-sm text-stone-900 hover:text-amber-600 transition"
+                  >
                     /status
                   </Link>{" "}
                   probes this same instance live — page render, a timed database

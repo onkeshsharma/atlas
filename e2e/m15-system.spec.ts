@@ -142,7 +142,7 @@ test.describe.serial("M15 — the system's bad days stay in register", () => {
     await expect(page.getByText("Atlas · 500 · unexpected error")).toBeVisible();
 
     // honest What-we-know: a server error carries a real digest
-    await expect(page.getByText("Error ID")).toBeVisible();
+    await expect(page.getByText("Error ID", { exact: true })).toBeVisible();
     await expect(page.getByText("/dev-boom").first()).toBeVisible();
 
     // the REAL /status cross-link (HANDOFF-M14's named seam)
@@ -154,20 +154,16 @@ test.describe.serial("M15 — the system's bad days stay in register", () => {
     await expect(page).toHaveURL(/\/status/);
     await expect(page.getByText("Status", { exact: false }).first()).toBeVisible();
 
-    // reset() is real: defuse the boom, Try again re-renders the SAME
-    // route successfully (not a decorative button)
-    await context.addCookies([
-      {
-        name: "atlas_dev_boom_defused",
-        value: "1",
-        url: page.url().replace(/\/status.*/, "/"),
-      },
-    ]);
+    // reset() is real: land on the boom, THEN defuse, then Try again —
+    // the boundary genuinely re-renders the same route (not decorative)
     await page.goto("/dev-boom");
     await hideDevOverlay(page);
     await expect(page.getByText("Something broke on our side")).toBeVisible({
       timeout: 30_000,
     });
+    await context.addCookies([
+      { name: "atlas_dev_boom_defused", value: "1", url: page.url() },
+    ]);
     await page.getByRole("button", { name: "Try again →" }).click();
     await expect(page.getByText("boom defused — this render completed.")).toBeVisible({
       timeout: 30_000,
