@@ -36,9 +36,10 @@ import { latestCursor } from "@/src/domain/live/broker";
 import { runCap } from "@/src/domain/settings/instance";
 import { timeAgo } from "@/src/lib/format";
 
-import { revokeBridgeAction, runDoctorAction, runDoctorAllAction } from "./actions";
+import { runDoctorAction, runDoctorAllAction } from "./actions";
 import { CapControl } from "./cap-control";
 import { PairingForm } from "./pairing-form";
+import { RevokeBridge } from "./revoke-bridge";
 
 export const dynamic = "force-dynamic";
 
@@ -311,12 +312,13 @@ export default async function BridgesPage() {
                           doctor needs the daemon online
                         </span>
                       )}
-                      <form action={revokeBridgeAction}>
-                        <input type="hidden" name="bridgeId" value={b.id} />
-                        <PillButton kind="ghost" ghostDanger type="submit">
-                          revoke ✕
-                        </PillButton>
-                      </form>
+                      {/* M15 — revoke runs through the §2.11 JJ confirm
+                          (PRD #41); ghost is the §3.7 opener now. */}
+                      <RevokeBridge
+                        bridgeId={b.id}
+                        name={b.name}
+                        activeRuns={b.capabilities.busyRunIds.length}
+                      />
                     </div>
                   </div>
 

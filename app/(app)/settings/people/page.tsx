@@ -42,8 +42,9 @@ import { projectRows } from "@/src/domain/cockpit/queries";
 import { timeAgo } from "@/src/lib/format";
 
 import { CopyLinkButton } from "../../projects/[slug]/members/copy-link";
-import { cancelInviteAction, revokeAccessAction } from "./actions";
+import { cancelInviteAction } from "./actions";
 import { CircleInviteForm } from "./circle-invite-form";
+import { RevokeAccess } from "./revoke-access";
 
 export const dynamic = "force-dynamic";
 
@@ -199,15 +200,13 @@ export default async function TrustCirclePage() {
 
                         {/* Actions (WW:216–223; "view profile" dropped — header) */}
                         <div className="flex flex-col items-end gap-2 whitespace-nowrap">
-                          <form action={revokeAccessAction}>
-                            <input type="hidden" name="userId" value={p.userId} />
-                            <button
-                              type="submit"
-                              className="font-mono text-[10px] uppercase tracking-widest text-stone-500 hover:text-rose-700 cursor-pointer"
-                            >
-                              revoke access
-                            </button>
-                          </form>
+                          {/* M15 — runs through the §2.11 JJ confirm (PRD
+                              #41); the ghost is the §3.7 opener now. */}
+                          <RevokeAccess
+                            userId={p.userId}
+                            displayName={p.displayName}
+                            projectCount={p.projects.length}
+                          />
                         </div>
                       </li>
                     );

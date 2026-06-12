@@ -273,3 +273,21 @@ export async function pendingInvites(projectId?: string): Promise<PendingInvite[
     expiresAt: new Date(r.expires_at),
   }));
 }
+
+// ── owner contact ──────────────────────────────────────────────────────
+
+/**
+ * M15 — the 404's Collaborator-only "Ask the Owner · message ↗" mailto
+ * (X:96–103, made real per the M14 ask-a-human precedent). Same
+ * neon_auth join as projectRoster above; read-only.
+ */
+export async function ownerEmail(): Promise<string | null> {
+  const result = (await db.execute(sql`
+    select u.email
+    from memberships m
+    left join neon_auth."user" u on u.id::text = m.user_id
+    where m.role = 'owner'
+    limit 1
+  `)) as unknown as { rows: Array<{ email: string | null }> };
+  return result.rows[0]?.email ?? null;
+}

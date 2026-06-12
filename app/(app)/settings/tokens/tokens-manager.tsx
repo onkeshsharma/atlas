@@ -16,7 +16,9 @@ import { useActionState, useTransition } from "react";
 
 import {
   AmberPanel,
+  DeleteConfirm,
   FeaturedCard,
+  ModalShell,
   NumberedSteps,
   PillButton,
   ScopeChip,
@@ -75,6 +77,9 @@ export function TokensManager({ rows }: { rows: TokenRowData[] }) {
   const [copied, setCopied] = useState(false);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [scopes, setScopes] = useState<string[]>(["tickets:read"]);
+  // M15 — revoke runs through the §2.11 JJ confirm (PRD #41): revocation
+  // is destructive-irreversible, so the one-click ghost became an opener.
+  const [revoking, setRevoking] = useState<TokenRowData | null>(null);
 
   // the freshest secret wins the panel; "I've copied it" clears it.
   const shown = rotateState.token ?? createState.token;
@@ -208,10 +213,11 @@ export function TokensManager({ rows }: { rows: TokenRowData[] }) {
                       >
                         rotate →
                       </button>
+                      {/* §3.7 step-1 ghost opener → the JJ modal below (M15) */}
                       <button
                         type="button"
                         disabled={pending}
-                        onClick={() => startTransition(() => revokeTokenAction({ id: t.id }))}
+                        onClick={() => setRevoking(t)}
                         className="font-mono text-[10px] uppercase tracking-widest text-stone-500 hover:text-rose-700 cursor-pointer"
                       >
                         revoke
@@ -312,6 +318,49 @@ export function TokensManager({ rows }: { rows: TokenRowData[] }) {
           </form>
         </FeaturedCard>
       </section>
+
+      {/* REVOKE CONFIRM — the §2.11 JJ recipe (M15, PRD #41): type the
+          token's label; honest what-goes-away / what-stays lists. */}
+      {revoking && (
+        <div className="fixed inset-0 z-50">
+          <ModalShell onClose={() => setRevoking(null)}>
+            <DeleteConfirm
+              verb="Revoke"
+              name={revoking.name}
+              description={
+                <>
+                  Atlas marks this token dead the moment you confirm. A revoked
+                  token never comes back — revocation beats every future
+                  request.
+                </>
+              }
+              consequences={[
+                <>
+                  The secret behind{" "}
+                  <span className="font-mono text-stone-900">{revoking.prefix}</span>{" "}
+                  — refused everywhere, immediately
+                </>,
+                <>Rotation — a revoked token can&rsquo;t be rotated back to life</>,
+              ]}
+              keeps={
+                <>
+                  The row stays in the list as{" "}
+                  <span className="font-mono text-stone-900">revoked</span> — the
+                  record survives. You can create a fresh token below any time.
+                </>
+              }
+              confirmLabel={pending ? "Revoking…" : "Revoke forever"}
+              onCancel={() => setRevoking(null)}
+              onConfirm={() =>
+                startTransition(async () => {
+                  await revokeTokenAction({ id: revoking.id });
+                  setRevoking(null);
+                })
+              }
+            />
+          </ModalShell>
+        </div>
+      )}
 
       {/* footnote — XX:269–279 (audit-log link arrives with M11) */}
       <p className="mt-16 text-sm italic text-stone-500 leading-relaxed">

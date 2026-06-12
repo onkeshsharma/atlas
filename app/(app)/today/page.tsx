@@ -18,6 +18,7 @@ import {
   AmberPanel,
   DividedList,
   EmptyState,
+  EmptyStateLink,
   FeaturedCard,
   ListRow,
   LivePulse,
@@ -33,6 +34,7 @@ import {
 } from "@/src/components/kit";
 import { LiveRefresh } from "@/src/components/live/LiveRefresh";
 import { requireOwner } from "@/src/domain/auth/guard";
+import { bridgePresence } from "@/src/domain/bridge/status";
 import {
   heroCounts,
   projectRows,
@@ -86,7 +88,7 @@ export default async function TodayPage() {
   const dayStart = new Date();
   dayStart.setHours(0, 0, 0, 0);
 
-  const [counts, projects, sparklines, recent, runs, needsInput, stats, ship, feed, actors, cursor, allTickets, edges] =
+  const [counts, projects, sparklines, recent, runs, needsInput, stats, ship, feed, actors, cursor, allTickets, edges, bridge] =
     await Promise.all([
       heroCounts(),
       projectRows(),
@@ -101,6 +103,7 @@ export default async function TodayPage() {
       latestCursor(),
       boardTickets(),
       allTicketLinks(),
+      bridgePresence(), // M15 audit — the Bridge strip must tell the truth
     ]);
 
   const pinned = projects.filter((p) => p.pinned);
@@ -313,7 +316,8 @@ export default async function TodayPage() {
                 <EmptyState
                   shape="column"
                   note="Nothing running."
-                  goodNews="The Engine is idle. That's a good thing."
+                  // M15 §2.17 audit — the italic line is ONE sentence (II:149–151)
+                  goodNews="The Engine is idle — that's a good thing."
                 />
               </div>
             )}
@@ -601,15 +605,29 @@ export default async function TodayPage() {
             </section>
           )}
 
-          {/* Bridge — honest §2.17 strip until a Bridge exists (M9/M10);
-              E:481–516's healthy-Bridge stats return with the real daemon. */}
+          {/* Bridge — M15 §2.17 audit: the strip claimed "no Bridge is
+              paired" unconditionally, which went false the day M10
+              shipped pairing. Now it tells the truth per bridgePresence;
+              E:481–516's full healthy-Bridge stats panel stays REGISTERED
+              (HANDOFF-M15) — a strip can't carry it. */}
           <section>
             <MonoSectionLabel>Bridge</MonoSectionLabel>
             <div className="mt-3">
-              <EmptyState shape="strip">
-                No Bridge is paired with this Atlas yet. Your machine appears here —
-                heartbeat, preflight, capability — once one connects.
-              </EmptyState>
+              {bridge.status === "none" ? (
+                <EmptyState shape="strip">
+                  No Bridge is paired with this Atlas yet. Your machine appears here —
+                  heartbeat, preflight, capability — once one connects.
+                </EmptyState>
+              ) : (
+                <EmptyState shape="strip">
+                  <span className="font-mono not-italic text-xs text-stone-700">
+                    {bridge.machine}
+                  </span>{" "}
+                  is {bridge.status === "healthy" ? "online" : "offline"} — the full
+                  panel lives in{" "}
+                  <EmptyStateLink href="/settings/bridges">Bridges</EmptyStateLink>.
+                </EmptyState>
+              )}
             </div>
           </section>
         </aside>

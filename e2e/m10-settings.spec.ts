@@ -149,9 +149,17 @@ test.describe.serial("M10 — the settings tier is real", () => {
     expect(after.id).toBe(before.id);
     expect(after.tokenHash).not.toBe(before.tokenHash);
 
-    // revoke: the governance row stays, marked
+    // revoke: through the §2.11 JJ confirm (M15 — PRD #41); the
+    // governance row stays, marked
     await page.getByRole("button", { name: "I’ve copied it →" }).click();
     await tokenRow.getByRole("button", { name: "revoke", exact: true }).click();
+    const confirmRevoke = page.getByRole("button", { name: /revoke forever/i });
+    await expect(confirmRevoke).toBeDisabled();
+    await page.getByPlaceholder(TOKEN_LABEL).fill("not-the-label");
+    await expect(confirmRevoke).toBeDisabled();
+    await page.getByPlaceholder(TOKEN_LABEL).fill(TOKEN_LABEL);
+    await expect(confirmRevoke).toBeEnabled();
+    await confirmRevoke.click();
     await expect(tokenRow.getByText("revoked", { exact: false }).first()).toBeVisible({
       timeout: 30_000,
     });

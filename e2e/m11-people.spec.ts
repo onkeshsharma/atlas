@@ -289,6 +289,13 @@ test.describe.serial("M11 — the People loop is real", () => {
 
     const circleRow = page.locator("li", { hasText: "E2E M11P Ada" });
     await circleRow.getByRole("button", { name: "revoke access" }).click();
+    // M15 — instance revoke runs through the §2.11 JJ confirm (PRD #41):
+    // type the person's display name to arm the rose button.
+    const confirmRevoke = page.getByRole("button", { name: /revoke forever/i });
+    await expect(confirmRevoke).toBeDisabled();
+    await page.getByPlaceholder("E2E M11P Ada").fill("E2E M11P Ada");
+    await expect(confirmRevoke).toBeEnabled();
+    await confirmRevoke.click();
     await expect(circleRow).toHaveCount(0, { timeout: 30_000 });
 
     // membership AND roster rows are gone — one statement, one feed row
