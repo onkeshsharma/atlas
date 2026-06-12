@@ -17,6 +17,7 @@ import { db } from "@/src/db/client";
 import { runs } from "@/src/db/schema";
 import { bridgeFromRequest } from "@/src/domain/bridge/auth";
 import { parseBridgeTransition } from "@/src/domain/bridge/protocol";
+import { notifyShipForFeedEvent } from "@/src/domain/notifier/process";
 import { completeRun, failRun, shipFailRun, shipRun } from "@/src/domain/run/bridge-writers";
 import { applyRunTransition } from "@/src/domain/run/transitions";
 import { applyTicketTransition } from "@/src/domain/ticket/mutations";
@@ -115,6 +116,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           actor: ENGINE_ACTOR,
         });
       }
+      // M13 — the in-path Notifier kick (ADR-0003): compose the ship
+      // notification off the `shipped` outbox row that just landed.
+      // Idempotent; the cron pass heals any kick lost to a crash.
+      await notifyShipForFeedEvent(result.feedEventId);
       return Response.json({ ok: true });
     }
     case "cancelled": {
