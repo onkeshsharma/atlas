@@ -16,8 +16,11 @@ if (!url.includes("ep-small-pine-a7tow9ab")) {
 const sql = neon(url);
 
 // FK-ordered wipe (children first). instance_settings kept (migration-owned).
-// M10 added api_tokens + notification_preferences.
+// M10 added api_tokens + notification_preferences; M13 added
+// notification_outbox (references feed_events/tickets/projects — goes
+// first) + inbox_read_marks.
 for (const t of [
+  "notification_outbox", "inbox_read_marks",
   "run_stdout_chunks", "feed_events", "ticket_links", "ticket_pins",
   "runs", "briefs", "context_terms", "tickets", "project_members", "projects", "invites",
   "api_tokens", "notification_preferences", "bridges",

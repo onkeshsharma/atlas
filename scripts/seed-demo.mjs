@@ -38,6 +38,12 @@ async function main() {
   // feed event on the demo project) must go with their parent, or the
   // seeded-project delete below trips the FK. Wiping a demo project
   // legitimately takes its history with it.
+  // M13 — outbox notifications reference feed events / tickets / projects;
+  // rows born on seeded parents go with the parent (the M7 cascade idiom).
+  await sql`delete from notification_outbox where
+    feed_event_id in (select id from feed_events where seeded or project_id in (select id from projects where seeded))
+    or ticket_id in (select id from tickets where seeded or project_id in (select id from projects where seeded))
+    or project_id in (select id from projects where seeded)`;
   await sql`delete from feed_events where seeded or project_id in (select id from projects where seeded)`;
   await sql`delete from ticket_pins where seeded or ticket_id in (select id from tickets where seeded)`;
   // M8 work — edges reference tickets, so they go before tickets (same
