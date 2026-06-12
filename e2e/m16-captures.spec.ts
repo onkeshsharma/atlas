@@ -93,10 +93,22 @@ test.describe.serial("M16 — capture rig", () => {
       fullPage: true,
     });
 
-    // the byte-locked variant reference at the canonical width
+    // the byte-locked variant reference at the canonical width. OO's root
+    // is `absolute inset-0 overflow-auto` — fullPage can't reach past the
+    // first viewport, so the inner scroller is stepped manually.
     await page.goto("/dev-variants/oo", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(800);
     await freezeMotion(page);
     await page.screenshot({ path: join(CAPTURE_DIR, "variant-oo-1440.png"), fullPage: true });
+    for (const [i, offset] of [800, 1600, 2400].entries()) {
+      await page.evaluate((top) => {
+        const scroller = document.querySelector("div.absolute.inset-0.overflow-auto");
+        if (scroller) scroller.scrollTop = top;
+      }, offset);
+      await page.waitForTimeout(300);
+      await page.screenshot({
+        path: join(CAPTURE_DIR, `variant-oo-1440-scroll${i + 1}.png`),
+      });
+    }
   });
 });

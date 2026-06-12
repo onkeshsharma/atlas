@@ -385,8 +385,24 @@ async function main() {
   const HOUR = 60 * MIN;
   const DAY = 24 * HOUR;
 
+  // base-seed lane fix (in-place edit, the M7 idiom): R-14 is titled
+  // "Helper — …" but predates M9's lane column and landed owner-lane.
+  await sql`update runs set lane = 'helper', helper_kind = 'enrich-ticket'
+    where seeded and title like 'Helper — %' and lane = 'owner'`;
+
   // [ref, project, title, kind, reporter, filedDaysBack, deltaMs]
   const m16Shipped = [
+    // pre-window history (85–150 days back): the PREVIOUS 12-week window
+    // needs ships or velocity can only ever read "new"; `all` gets depth.
+    ["T-190", "acme-website",    "Bootstrap the ordering flow",          "enhancement", "you",           150, 4 * HOUR],
+    ["T-191", "acme-website",    "Catalog import CLI",                   "enhancement", "ada@acme.io",   142, 26 * HOUR],
+    ["T-192", "atlas-internal",  "Bridge heartbeat v0",                  "enhancement", "you",           135, 3 * DAY],
+    ["T-193", "acme-website",    "Checkout smoke tests",                 "enhancement", "you",           126, 7 * HOUR],
+    ["T-194", "side-experiment", "Digest prototype",                     "enhancement", "you",           117, 2.5 * HOUR],
+    ["T-195", "acme-website",    "Payment retries",                      "bug",         "ada@acme.io",   108, 12 * HOUR],
+    ["T-196", "atlas-internal",  "Run queue v0",                         "enhancement", "you",            99, 36 * HOUR],
+    ["T-197", "acme-website",    "Order confirmation emails",            "enhancement", "carmen@acme.io", 88, 5 * HOUR],
+    // in-window history (15–80 days back)
     ["T-205", "acme-website",    "Fix favicon cache headers",            "bug",         "ada@acme.io",    80, 25 * MIN],
     ["T-206", "acme-website",    "Tighten 404 page copy",                "enhancement", "you",            78, 3.2 * HOUR],
     ["T-207", "atlas-internal",  "Heartbeat jitter smoothing",           "bug",         "you",            76, 26 * HOUR],
