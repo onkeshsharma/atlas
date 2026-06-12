@@ -28,7 +28,10 @@ const KIND: Record<Exclude<PillKind, "ghost">, string> = {
     "text-stone-50 bg-stone-900 hover:bg-stone-700 disabled:bg-stone-300 disabled:cursor-not-allowed",
   // canon §3.4 / ledger E4: the action that lands code is emerald-600.
   // §2.9 — ship carries shadow-sm at every scale (G:249, O:357).
-  ship: "text-stone-50 bg-emerald-600 hover:bg-emerald-700 shadow-sm",
+  // M12 axis: honest-disabled ship (JJ:134's disabled recipe — the same
+  // M8 extension primary got; Today's card needs it when no review-ready
+  // run exists to request).
+  ship: "text-stone-50 bg-emerald-600 hover:bg-emerald-700 shadow-sm disabled:bg-stone-300 disabled:cursor-not-allowed",
   "danger-confirm":
     "text-stone-50 bg-rose-600 hover:bg-rose-700 disabled:bg-stone-300 disabled:cursor-not-allowed",
   secondary: "text-stone-700 border border-stone-200 hover:border-stone-300 bg-white",

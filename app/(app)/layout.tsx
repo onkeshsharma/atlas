@@ -19,6 +19,7 @@ import { bridgePresence } from "@/src/domain/bridge/status";
 import { unreadCount } from "@/src/domain/feed/queries";
 import { sidebarCollapsed } from "@/src/domain/preferences/sidebar";
 import { AppSidebar } from "@/src/components/shell/AppSidebar";
+import { PaletteMount } from "@/src/components/search/PaletteMount";
 import type { SidebarItem } from "@/src/components/kit";
 
 import { toggleSidebarAction } from "./actions";
@@ -104,6 +105,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         }
       />
       {children}
+      {/* M12 — the global ⌘K palette, mounted ONCE (charter §2: this line
+          only; no Search nav item — no variant draws one, the palette is
+          the entry). Owner-only until M13 re-derives Collaborator nav. */}
+      {user.role === "owner" && <PaletteMount />}
     </div>
   );
 }

@@ -5,20 +5,23 @@
 import { and, count, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/src/db/client";
-import { feedEvents, projects, type FeedEvent } from "@/src/db/schema";
+import { feedEvents, projects, runs, type FeedEvent } from "@/src/db/schema";
 
-export type FeedRow = FeedEvent & { projectName: string | null };
+// M12 — `runRef` rides along so inbox Run rows can link to /runs/[ref]
+// (the charter's Today/inbox wiring; feed rows store run_id only).
+export type FeedRow = FeedEvent & { projectName: string | null; runRef: string | null };
 
 /** newest first, with project display name. `projectId` scopes to one project (M7). */
 export async function recentFeedEvents(limit = 50, projectId?: string): Promise<FeedRow[]> {
   const rows = await db
-    .select({ event: feedEvents, projectName: projects.name })
+    .select({ event: feedEvents, projectName: projects.name, runRef: runs.ref })
     .from(feedEvents)
     .leftJoin(projects, eq(feedEvents.projectId, projects.id))
+    .leftJoin(runs, eq(feedEvents.runId, runs.id))
     .where(projectId ? eq(feedEvents.projectId, projectId) : undefined)
     .orderBy(desc(feedEvents.createdAt), desc(feedEvents.id))
     .limit(limit);
-  return rows.map((r) => ({ ...r.event, projectName: r.projectName }));
+  return rows.map((r) => ({ ...r.event, projectName: r.projectName, runRef: r.runRef }));
 }
 
 /** inbox unread badge (instance-level read marker — see schema note). */

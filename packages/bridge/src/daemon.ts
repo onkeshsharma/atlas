@@ -58,6 +58,14 @@ export class Daemon {
    * sessions: they never consume cap slots (the worktree already
    * holds the work; shipping is seconds, runs are minutes). */
   private shipping = new Set<string>();
+  /** M12 — ship executions SERIALIZE (one merge at a time): batch ship
+   * requests (the board cluster, Today's card) arrive as near-simultaneous
+   * run-ship commands, and concurrent merges into the same checkout race
+   * on the git index — the second ship honest-failed `not-mergeable`
+   * while the first's merge was in flight (found by m12-ship-card e2e;
+   * the board's "Ship N →" carried the same latent race). Ships still
+   * never consume cap slots; they just queue behind each other. */
+  private shipChain: Promise<void> = Promise.resolve();
   /** M10 — one doctor at a time; duplicate commands collapse. */
   private doctoring = false;
   private stopped = false;
@@ -241,8 +249,10 @@ export class Daemon {
   private startShip(runId: string): void {
     if (this.stopped || this.shipping.has(runId)) return;
     this.shipping.add(runId);
-    void (async () => {
+    // M12 — append to the serial chain (see shipChain note above).
+    this.shipChain = this.shipChain.then(async () => {
       try {
+        if (this.stopped) return; // daemon stopped while queued behind a merge
         const order = await this.opts.client.workOrder(runId);
         if (!order) {
           this.log(`ship ${runId}: no work order (gone) — dropping`);
@@ -287,7 +297,7 @@ export class Daemon {
       } finally {
         this.shipping.delete(runId);
       }
-    })();
+    });
   }
 
   /**
