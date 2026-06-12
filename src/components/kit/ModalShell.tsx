@@ -79,6 +79,7 @@ export function ModalShell({
  * rose focus · footer = ghost cancel + danger-confirm button (JJ:44–141).
  */
 export function DeleteConfirm({
+  verb = "Delete",
   noun,
   name,
   description,
@@ -88,6 +89,13 @@ export function DeleteConfirm({
   onCancel,
   onConfirm,
 }: {
+  /**
+   * title verb — "Delete" (JJ:50) by default; the revoke family
+   * (tokens XX:184–189, bridges N:222, instance access WW:216–223) says
+   * "Revoke" (M15 axis — JJ is the recipe for every destructive-
+   * irreversible confirm per PRD #41, not only deletions).
+   */
+  verb?: string;
   /** what is being deleted — "Delete <name>?" renders the name in mono. */
   noun?: string;
   name: string;
@@ -110,7 +118,8 @@ export function DeleteConfirm({
           ● Permanent · cannot be undone
         </div>
         <h2 className="mt-3 text-4xl font-bold tracking-tighter leading-tight">
-          Delete{noun ? ` ${noun}` : ""} <span className="font-mono text-stone-700">{name}</span>?
+          {verb}
+          {noun ? ` ${noun}` : ""} <span className="font-mono text-stone-700">{name}</span>?
         </h2>
         <p className="mt-4 text-base text-stone-700 leading-relaxed">{description}</p>
       </div>
@@ -151,6 +160,11 @@ export function DeleteConfirm({
           placeholder={name}
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
+          // M15 — JJ:130's "⏎ to confirm" hint made real (it was
+          // decorative): Enter fires the confirm once armed.
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && armed) onConfirm?.();
+          }}
         />
       </div>
 

@@ -228,9 +228,15 @@ test.describe.serial("M10 — the daemon is governable from the browser", () => 
     expect(kinds).toContain("doctor-requested");
     expect(kinds).toContain("doctor-completed");
 
-    // ── revoke: the daemon stops fatally on its next request (ADR-0002 §1) ──
+    // ── revoke: the daemon stops fatally on its next request (ADR-0002 §1).
+    // M15 — revocation runs through the §2.11 JJ confirm (PRD #41). ──
     await row.hover();
     await row.getByRole("button", { name: "revoke ✕" }).click();
+    const confirmRevoke = page.getByRole("button", { name: /revoke forever/i });
+    await expect(confirmRevoke).toBeDisabled();
+    await page.getByPlaceholder(BRIDGE_NAME).fill(BRIDGE_NAME);
+    await expect(confirmRevoke).toBeEnabled();
+    await confirmRevoke.click();
     await expect(page.locator("li.py-7", { hasText: BRIDGE_NAME })).toHaveCount(0, {
       timeout: 30_000,
     });
