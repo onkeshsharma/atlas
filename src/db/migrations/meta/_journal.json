@@ -57,6 +57,13 @@
       "when": 1781201953175,
       "tag": "0007_right_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781219244574,
+      "tag": "0008_lush_zarek",
+      "breakpoints": true
     }
   ]
 }

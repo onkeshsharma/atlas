@@ -19,7 +19,9 @@ export type SettingsSection =
   | "account"
   | "notifications"
   | "tokens"
-  | "profile";
+  | "profile"
+  | "people"
+  | "audit";
 
 const SUB_NAV: Array<{ key: SettingsSection; label: string; href: string }> = [
   { key: "bridges", label: "Bridges", href: "/settings/bridges" },
@@ -28,6 +30,10 @@ const SUB_NAV: Array<{ key: SettingsSection; label: string; href: string }> = [
   { key: "notifications", label: "Notifications", href: "/settings/notifications" },
   { key: "tokens", label: "Tokens", href: "/settings/tokens" },
   { key: "profile", label: "Profile", href: "/settings/profile" },
+  // M11 (sanctioned subnav extension — charter item 3): People + Audit
+  // are standalone-subnav pages (WW/TT), indexed here like Tokens/Profile.
+  { key: "people", label: "People", href: "/settings/people" },
+  { key: "audit", label: "Audit log", href: "/settings/audit" },
 ];
 
 export function SettingsSubnav({

@@ -7,6 +7,9 @@
 // Deviation (M5, flagged): Projects arrive with M7, so U's "About this
 // Project" section describes the instance the Collaborator is joining
 // (the Owner's Atlas) instead of a project row — same markup shape.
+// M11 (sanctioned surgical edit — charter item 2): project-scoped
+// invites restore U:71's REAL "About this Project" section (the M5/M7
+// handoff TODO); bare invites keep the instance form.
 import Link from "next/link";
 
 import { EmptyState, PillButton, PullQuote } from "@/src/components/kit";
@@ -18,6 +21,7 @@ import {
 } from "@/src/domain/auth/invites";
 import { collaboratorCount, ownerMembership } from "@/src/domain/auth/memberships";
 import { authUserById } from "@/src/domain/auth/users";
+import { projectById } from "@/src/domain/project/queries";
 import { dayStamp, ordinal, timeAgo } from "@/src/lib/format";
 
 import { acceptInviteAction, declineInviteAction } from "./actions";
@@ -94,6 +98,8 @@ export default async function InvitePage({
 
   const invitedName = invite.invitedName ?? invite.email.split("@")[0];
   const nth = ordinal((await collaboratorCount()) + 1);
+  // M11 — project-scoped invites carry their real project row (U:71).
+  const project = invite.projectId ? await projectById(invite.projectId) : null;
 
   return (
     <Frame
@@ -137,25 +143,43 @@ export default async function InvitePage({
             </div>
           )}
 
-          {/* About this Atlas (U:71 — see deviation note at top) */}
-          <section className="mt-16">
-            <div className="text-xs font-mono uppercase tracking-[0.25em] text-stone-500">
-              About this Atlas
-            </div>
-            <p className="mt-5 text-base text-stone-700 leading-relaxed">
-              <span className="font-mono text-sm text-stone-900">
-                {inviterName.toLowerCase()}&rsquo;s atlas
-              </span>{" "}
-              {/* the {" "} idiom is load-bearing: Turbopack's JSX transform
-                  drops the leading space of a multi-line text chunk that
-                  follows an inline expression (diagnosed 2026-06-11) */}
-              — where {inviterName}{" "}
-              orchestrates AI-engineered work across their projects. You&rsquo;d be the{" "}
-              <span className="font-mono text-sm text-stone-900">{nth}</span> Collaborator.
-              The Owner is{" "}
-              <span className="font-semibold text-stone-900">{inviterName}</span>.
-            </p>
-          </section>
+          {project ? (
+            /* About this Project (U:71 — real row; M11 restores the
+               M5-deviation TODO for project-scoped invites) */
+            <section className="mt-16">
+              <div className="text-xs font-mono uppercase tracking-[0.25em] text-stone-500">
+                About this Project
+              </div>
+              <p className="mt-5 text-base text-stone-700 leading-relaxed">
+                <span className="font-mono text-sm text-stone-900">{project.name}</span>{" "}
+                {/* the {" "} idiom is load-bearing: Turbopack's JSX transform
+                    drops the leading space of a multi-line text chunk that
+                    follows an inline expression (diagnosed 2026-06-11) */}
+                — {project.description ?? "one of the projects in this Atlas."} You&rsquo;d
+                be the{" "}
+                <span className="font-mono text-sm text-stone-900">{nth}</span> Collaborator.
+                The Owner is{" "}
+                <span className="font-semibold text-stone-900">{inviterName}</span>.
+              </p>
+            </section>
+          ) : (
+            /* About this Atlas (U:71 — see deviation note at top) */
+            <section className="mt-16">
+              <div className="text-xs font-mono uppercase tracking-[0.25em] text-stone-500">
+                About this Atlas
+              </div>
+              <p className="mt-5 text-base text-stone-700 leading-relaxed">
+                <span className="font-mono text-sm text-stone-900">
+                  {inviterName.toLowerCase()}&rsquo;s atlas
+                </span>{" "}
+                — where {inviterName}{" "}
+                orchestrates AI-engineered work across their projects. You&rsquo;d be the{" "}
+                <span className="font-mono text-sm text-stone-900">{nth}</span> Collaborator.
+                The Owner is{" "}
+                <span className="font-semibold text-stone-900">{inviterName}</span>.
+              </p>
+            </section>
+          )}
 
           {/* What you'll do (U:92) */}
           <section className="mt-16">

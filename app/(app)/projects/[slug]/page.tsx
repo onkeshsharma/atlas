@@ -42,8 +42,9 @@ import {
   DOT_TONE_CLASS,
 } from "@/src/components/kit";
 import { LiveRefresh } from "@/src/components/live/LiveRefresh";
-import { collaboratorCount, ownerMembership } from "@/src/domain/auth/memberships";
 import { requireOwner } from "@/src/domain/auth/guard";
+import { activeToday } from "@/src/domain/people/presence";
+import { latestActorActivity, projectRoster } from "@/src/domain/people/queries";
 import { weekStart } from "@/src/domain/cockpit/queries";
 import { KIND_CONNECTOR, KIND_TONE, KIND_WORD } from "@/src/domain/feed/kinds";
 import {
@@ -86,7 +87,9 @@ export default async function ProjectLandingPage({
   const dayStart = new Date();
   dayStart.setHours(0, 0, 0, 0);
 
-  const [counts, pins, ship, failed, actors, feed, sparklines, shipped, terms, owner, collaborators, cursor] =
+  // M11 seam closure — the rail's Members section reads the REAL roster
+  // (owner + project_members) and per-person derived presence.
+  const [counts, pins, ship, failed, actors, feed, sparklines, shipped, terms, roster, activity, cursor] =
     await Promise.all([
       ticketStateCounts(project.id),
       pinnedTickets(project.id),
@@ -97,10 +100,17 @@ export default async function ProjectLandingPage({
       activitySparklines(),
       shippedThisWeek(project.id, weekStart(new Date())),
       contextTermsFor(project.id),
-      ownerMembership(),
-      collaboratorCount(),
+      projectRoster(project.id),
+      latestActorActivity(30),
       latestCursor(),
     ]);
+  const membersActiveToday = roster.filter((m) =>
+    activeToday(
+      { displayName: m.displayName, handle: m.handle, email: m.email, isOwner: m.role === "owner" },
+      activity,
+      dayStart,
+    ),
+  ).length;
 
   const summary = projectIngestSummary(project);
   const healthy = summary !== null && summary.health.every((h) => h.ok);
@@ -468,22 +478,46 @@ export default async function ProjectLandingPage({
               </div>
             </section>
 
-            {/* Members (O:392–417) — real instance membership (see header) */}
+            {/* Members (O:392–417) — M11 seam closure (HANDOFF-M7 note):
+                real per-project roster + derived presence + the restored
+                "manage members →". O:413 "2 active now" → "active today"
+                (the M6 presence derivation; no liveness channel). */}
             <section>
               <MonoSectionLabel>Members</MonoSectionLabel>
               <div className="mt-5 flex items-center gap-4">
-                {owner && (
+                {roster.map((m) => (
                   <InitialMark
-                    initial={
-                      owner.initial ?? owner.displayName.charAt(0).toLowerCase()
+                    key={m.userId}
+                    initial={m.initial}
+                    presence={
+                      activeToday(
+                        {
+                          displayName: m.displayName,
+                          handle: m.handle,
+                          email: m.email,
+                          isOwner: m.role === "owner",
+                        },
+                        activity,
+                        dayStart,
+                      )
+                        ? "emerald"
+                        : undefined
                     }
                   />
-                )}
+                ))}
               </div>
               <div className="mt-3 font-mono text-[10px] uppercase tracking-widest text-stone-400">
-                {owner ? "1 owner" : "no owner yet"} · {collaborators} collaborator
-                {collaborators === 1 ? "" : "s"}
+                {roster.some((m) => m.role === "owner") ? "1 owner" : "no owner yet"} ·{" "}
+                {roster.filter((m) => m.role === "collaborator").length} collaborator
+                {roster.filter((m) => m.role === "collaborator").length === 1 ? "" : "s"}
+                {membersActiveToday > 0 && <> · {membersActiveToday} active today</>}
               </div>
+              <Link
+                href={`/projects/${project.slug}/members`}
+                className="mt-3 inline-block font-mono text-[10px] uppercase tracking-widest text-stone-700 hover:text-amber-600 cursor-pointer"
+              >
+                manage members →
+              </Link>
             </section>
 
             {/* Quick links footer (O:420–447) */}

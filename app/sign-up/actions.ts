@@ -12,12 +12,14 @@ import { redirect } from "next/navigation";
 
 import { acceptInvite, validateInvite } from "@/src/domain/auth/invites";
 import {
+  collaboratorCount,
   ensureMembership,
   OwnerExistsError,
   ownerExists,
   verifyOwnerCode,
 } from "@/src/domain/auth/memberships";
 import { auth } from "@/src/domain/auth/server";
+import { ordinal } from "@/src/lib/format";
 
 export type SignUpState = {
   fieldErrors?: {
@@ -83,10 +85,13 @@ export async function signUpWithEmail(
   }
 
   if (isInviteFlow) {
+    // M11 (sanctioned seam edit) — the joined feed row reads "the circle
+    // as the 3rd Collaborator"; the ordinal is display-best-effort.
     const accepted = await acceptInvite({
       token: inviteToken,
       userId: data.user.id,
       displayName: name,
+      ordinal: `the ${ordinal((await collaboratorCount()) + 1)} Collaborator`,
     });
     if (!accepted.ok) {
       return { formError: INVITE_REASON_COPY[accepted.reason] };

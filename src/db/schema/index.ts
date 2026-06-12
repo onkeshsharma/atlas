@@ -18,3 +18,5 @@ export * from "./instance-settings";
 // M10 — Bridge & settings (API tokens · notification prefs)
 export * from "./api-tokens";
 export * from "./notification-preferences";
+// M11 — People (per-project rosters; the two-table rule lives in this file's header)
+export * from "./project-members";
