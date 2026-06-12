@@ -16,7 +16,6 @@ import {
   inboxReadMarks,
   invites,
   memberships,
-  notificationOutbox,
   notificationPreferences,
   projectMembers,
   projects,

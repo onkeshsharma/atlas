@@ -118,8 +118,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       }
       // M13 — the in-path Notifier kick (ADR-0003): compose the ship
       // notification off the `shipped` outbox row that just landed.
-      // Idempotent; the cron pass heals any kick lost to a crash.
-      await notifyShipForFeedEvent(result.feedEventId);
+      // Idempotent; the cron pass heals any kick lost to a crash — so a
+      // compose error must NEVER fail the daemon's transition post.
+      try {
+        await notifyShipForFeedEvent(result.feedEventId);
+      } catch (err) {
+        console.error("notifier kick failed (the cron pass will heal it):", err);
+      }
       return Response.json({ ok: true });
     }
     case "cancelled": {
