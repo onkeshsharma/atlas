@@ -64,6 +64,13 @@
       "when": 1781219244574,
       "tag": "0008_lush_zarek",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781226386276,
+      "tag": "0009_yellow_magik",
+      "breakpoints": true
     }
   ]
 }

@@ -79,6 +79,14 @@ export const tickets = pgTable(
     enrichment: jsonb("enrichment"),
     /** display name/email of who filed it — "ada@acme.io", "you" (E:274). */
     reporter: text("reporter").notNull(),
+    /**
+     * M13 (additive, migration 0009) — the reporter's Neon Auth user id.
+     * `reporter` stays the display string; this column is the Notifier's
+     * recipient contract (PRD #28: the REPORTING Collaborator gets the
+     * ship email — resolved by id, never by re-parsing the display
+     * string). NULL on pre-M13 rows and seed rows: no email, honestly.
+     */
+    reporterUserId: text("reporter_user_id"),
     seeded: boolean("seeded").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

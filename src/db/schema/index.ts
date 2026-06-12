@@ -20,3 +20,6 @@ export * from "./api-tokens";
 export * from "./notification-preferences";
 // M11 — People (per-project rosters; the two-table rule lives in this file's header)
 export * from "./project-members";
+// M13 — Notifier (notification outbox = audit + no-key fallback) + per-user inbox read marks
+export * from "./notification-outbox";
+export * from "./inbox-read-marks";
