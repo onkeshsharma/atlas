@@ -360,13 +360,174 @@ async function main() {
   }
   // ════════════════════════════════════════ end M8 work ════════════════
 
+  // ════════════════════════════════════════════════════════════════════
+  // M16 insights — backdated ship history (ADDITIVE section; the wipe at
+  // the top already covers these rows via seeded=true).
+  //
+  // The base seed's record is thin for /insights: 3 `shipped` feed rows
+  // and ZERO filed→shipped pairs, so throughput charts ~2 bars and the
+  // percentile section can only name its gap. This section seeds an
+  // HONEST 11-week history — every shipped Ticket carries its own owner
+  // Run, its `filed` row at filing time and its `shipped` row at landing
+  // time, deltas spread 25 min → 9 days so P10/P50/P90/P99 separate.
+  // Everything is ≥ 14 days old ON PURPOSE: Today's week stats, the
+  // inbox unread count and the M13 digest period keys never see these
+  // rows (all read=true, all pre-last-week). Charter M16 item 3.
+  // ════════════════════════════════════════════════════════════════════
+
+  const m16At = (daysBack, hour = 13, min = 0) => {
+    const t = new Date(now);
+    t.setDate(t.getDate() - daysBack);
+    t.setHours(hour, min, 0, 0);
+    return t;
+  };
+  const MIN = 60_000;
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+
+  // [ref, project, title, kind, reporter, filedDaysBack, deltaMs]
+  const m16Shipped = [
+    ["T-205", "acme-website",    "Fix favicon cache headers",            "bug",         "ada@acme.io",    80, 25 * MIN],
+    ["T-206", "acme-website",    "Tighten 404 page copy",                "enhancement", "you",            78, 3.2 * HOUR],
+    ["T-207", "atlas-internal",  "Heartbeat jitter smoothing",           "bug",         "you",            76, 26 * HOUR],
+    ["T-208", "acme-website",    "Product grid spacing drift",           "bug",         "carmen@acme.io", 71, 5 * HOUR],
+    ["T-209", "acme-website",    "Cart icon badge overflow",             "bug",         "ada@acme.io",    69, 90 * MIN],
+    ["T-210", "side-experiment", "Digest footer link 404s",              "bug",         "you",            66, 8 * HOUR],
+    ["T-211", "acme-website",    "Checkout coupon stacking edge case",   "bug",         "ada@acme.io",    62, 2.2 * DAY],
+    ["T-212", "atlas-internal",  "Worktree prune on failed claim",       "enhancement", "you",            60, 9 * HOUR],
+    ["T-213", "acme-website",    "Hero image LCP regression",            "bug",         "carmen@acme.io", 55, 4.5 * HOUR],
+    ["T-214", "acme-website",    "Stripe webhook retry logging",         "enhancement", "you",            52, 30 * HOUR],
+    ["T-215", "atlas-internal",  "Run queue starvation probe",           "enhancement", "you",            47, 6.5 * HOUR],
+    ["T-216", "acme-website",    "Order email copy pass",                "enhancement", "carmen@acme.io", 44, 3 * HOUR],
+    ["T-217", "side-experiment", "Logo asset sweep prep",                "enhancement", "ada@acme.io",    41, 5.8 * DAY],
+    ["T-218", "acme-website",    "Search results dedupe",                "bug",         "ada@acme.io",    38, 7 * HOUR],
+    ["T-219", "acme-website",    "Refund flow null guard",               "bug",         "you",            35, 55 * MIN],
+    ["T-220", "atlas-internal",  "Doctor verdict copy",                  "enhancement", "you",            31, 12 * HOUR],
+    ["T-221", "acme-website",    "Sitemap stale URLs",                   "bug",         "carmen@acme.io", 28, 4 * HOUR],
+    ["T-222", "acme-website",    "A11y pass on checkout",                "enhancement", "ada@acme.io",    25, 2.6 * HOUR],
+    ["T-223", "atlas-internal",  "Bridge log rotation",                  "enhancement", "you",            21, 9 * DAY],
+    ["T-224", "acme-website",    "Mobile nav flicker",                   "bug",         "ada@acme.io",    17, 6 * HOUR],
+    ["T-225", "side-experiment", "Color token cleanup",                  "enhancement", "you",            15, 1.9 * HOUR],
+  ];
+
+  let m16RunSeq = 100; // R-100… — far above the seed band, below run_ref_seq draws
+  for (const [ref, proj, title, kind, reporter, filedDaysBack, deltaMs] of m16Shipped) {
+    const filedAt = m16At(filedDaysBack, 10, 17);
+    const shippedAt = new Date(filedAt.getTime() + deltaMs);
+    const dispatchedAt = new Date(filedAt.getTime() + Math.min(deltaMs / 3, 2 * HOUR));
+
+    const [trow] = await sql`
+      insert into tickets (ref, project_id, title, state, kind, reporter, seeded, created_at, updated_at)
+      values (${ref}, ${project[proj]}, ${title}, 'shipped', ${kind}, ${reporter}, true, ${filedAt}, ${shippedAt})
+      returning id
+    `;
+    ticket[ref] = trow.id;
+
+    const runRef = `R-${m16RunSeq++}`;
+    const [rrow] = await sql`
+      insert into runs (ref, project_id, ticket_id, title, state, lane, seeded, created_at, updated_at)
+      values (${runRef}, ${project[proj]}, ${trow.id}, ${title}, 'shipped', 'owner', true, ${dispatchedAt}, ${shippedAt})
+      returning id
+    `;
+    run[runRef] = rrow.id;
+
+    await sql`
+      insert into feed_events (kind, actor, summary, project_id, ticket_id, ticket_ref, read_at, seeded, created_at)
+      values ('filed', ${reporter === "you" ? "you" : reporter.split("@")[0]},
+              ${`${ref} — ${title}`}, ${project[proj]}, ${trow.id}, ${ref}, ${filedAt}, true, ${filedAt})
+    `;
+    await sql`
+      insert into feed_events (kind, actor, summary, project_id, ticket_id, run_id, ticket_ref, payload, read_at, seeded, created_at)
+      values ('shipped', 'Engine', ${`${ref} — ${title}`}, ${project[proj]}, ${trow.id}, ${rrow.id}, ${ref},
+              ${JSON.stringify({ from: "review-ready", to: "shipped" })}::jsonb, ${shippedAt}, true, ${shippedAt})
+    `;
+  }
+
+  // failed first attempts (the retry-then-land story): a failed owner Run
+  // + its `failed` feed row on Tickets that later shipped above — the
+  // throughput chart's rose stack and the failure-rate metric are real.
+  // [ticketRef, failedDaysBack, failureKind]
+  const m16Failed = [
+    ["T-211", 61, "engine-timeout"],
+    ["T-214", 51, "engine-crash"],
+    ["T-223", 19, "conflict"],
+  ];
+  for (const [tref, failedDaysBack, failureKind] of m16Failed) {
+    const failedAt = m16At(failedDaysBack, 16, 40);
+    const startedAt = new Date(failedAt.getTime() - 2 * HOUR);
+    const trow = m16Shipped.find((s) => s[0] === tref);
+    const title = trow[2];
+    const runRef = `R-${m16RunSeq++}`;
+    const [rrow] = await sql`
+      insert into runs (ref, project_id, ticket_id, title, state, lane, failure_kind, seeded, created_at, updated_at)
+      values (${runRef}, ${project[trow[1]]}, ${ticket[tref]}, ${title}, 'failed', 'owner', ${failureKind}, true, ${startedAt}, ${failedAt})
+      returning id
+    `;
+    run[runRef] = rrow.id;
+    await sql`
+      insert into feed_events (kind, actor, summary, project_id, ticket_id, run_id, ticket_ref, payload, read_at, seeded, created_at)
+      values ('failed', 'Engine', ${`${runRef} — ${title}`}, ${project[trow[1]]}, ${ticket[tref]}, ${rrow.id}, ${tref},
+              ${JSON.stringify({ from: "running", to: "failed" })}::jsonb, ${failedAt}, true, ${failedAt})
+    `;
+  }
+
+  // one cancelled owner Run (T-217's first attempt, pulled back before
+  // the re-dispatch that landed) — the outcomes mix shows all three kinds.
+  {
+    const cancelledAt = m16At(40, 11, 5);
+    const cancelledRef = `R-${m16RunSeq++}`;
+    const [rrow] = await sql`
+      insert into runs (ref, project_id, ticket_id, title, state, lane, seeded, created_at, updated_at)
+      values (${cancelledRef}, ${project["side-experiment"]}, ${ticket["T-217"]}, 'Logo asset sweep prep', 'cancelled', 'owner', true, ${new Date(cancelledAt.getTime() - HOUR)}, ${cancelledAt})
+      returning id
+    `;
+    await sql`
+      insert into feed_events (kind, actor, summary, project_id, ticket_id, run_id, ticket_ref, payload, read_at, seeded, created_at)
+      values ('cancelled', 'you', ${`${cancelledRef} — Logo asset sweep prep`}, ${project["side-experiment"]}, ${ticket["T-217"]}, ${rrow.id}, 'T-217',
+              ${JSON.stringify({ from: "running", to: "cancelled" })}::jsonb, ${cancelledAt}, true, ${cancelledAt})
+    `;
+  }
+
+  // helper-lane history (the helper-vs-owner load metric): two completed
+  // enrichment helpers + one cancelled one. Their deliverable rows are
+  // `enriched` — NEVER `shipped`; insights' owner-lane scoping is the
+  // honesty rule and these rows are its demo.
+  const m16Helpers = [
+    // [daysBack, ticketRef|null, state, helperKind]
+    [30, "T-221", "shipped", "enrich-ticket"],
+    [24, "T-222", "shipped", "enrich-ticket"],
+    [20, null, "cancelled", "draft-brief"],
+  ];
+  for (const [daysBack, tref, state, helperKind] of m16Helpers) {
+    const doneAt = m16At(daysBack, 9, 30);
+    const title = tref
+      ? `Helper — enrich ${tref}`
+      : "Helper — draft a Brief for a withdrawn Ticket";
+    const runRef = `R-${m16RunSeq++}`;
+    const [rrow] = await sql`
+      insert into runs (ref, project_id, ticket_id, title, state, lane, helper_kind, seeded, created_at, updated_at)
+      values (${runRef}, ${project["acme-website"]}, ${tref ? ticket[tref] : null}, ${title}, ${state}, 'helper', ${helperKind}, true, ${new Date(doneAt.getTime() - 20 * MIN)}, ${doneAt})
+      returning id
+    `;
+    if (state === "shipped" && tref) {
+      await sql`
+        insert into feed_events (kind, actor, summary, project_id, ticket_id, run_id, ticket_ref, read_at, seeded, created_at)
+        values ('enriched', 'Engine', ${`${tref} — Helper enrichment landed`}, ${project["acme-website"]}, ${ticket[tref]}, ${rrow.id}, ${tref}, ${doneAt}, true, ${doneAt})
+      `;
+    }
+  }
+  // ════════════════════════════════════════ end M16 insights ═══════════
+
   // integration summary — M7 (terms/pins) + M8 (DB-counted tickets) lines merged
   const [{ count: events }] = await sql`select count(*)::int as count from feed_events where seeded`;
   const [{ count: terms }] = await sql`select count(*)::int as count from context_terms where seeded`;
   const [{ count: pins }] = await sql`select count(*)::int as count from ticket_pins where seeded`;
   const [{ count: allTickets }] = await sql`select count(*)::int as count from tickets where seeded`;
+  // M16 — runs are DB-counted too (the M8 tickets idiom; the insights
+  // section seeds runs outside runSeed).
+  const [{ count: allRuns }] = await sql`select count(*)::int as count from runs where seeded`;
   console.log(
-    `seeded: ${projectRows.length} projects · ${allTickets} tickets · ${runSeed.length} runs · ${events} feed events · ${terms} context terms · ${pins} ticket pins (all marked seeded=true)`,
+    `seeded: ${projectRows.length} projects · ${allTickets} tickets · ${allRuns} runs · ${events} feed events · ${terms} context terms · ${pins} ticket pins (all marked seeded=true)`,
   );
 }
 
