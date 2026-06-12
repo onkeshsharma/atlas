@@ -15,14 +15,18 @@ export function AppSidebar({
   user,
   bridge,
   expanded,
+  brandHref = "/today",
   signOutSlot,
   expandedSignOutSlot,
   popoverExtra,
 }: {
   items: SidebarItem[];
-  user: { initial: string; email: string; machine: string };
+  /** M13 — `machine` optional (kit axis: the Bridge belongs to the Owner, §2.1). */
+  user: { initial: string; email: string; machine?: string };
   bridge: BridgeStatus;
   expanded: boolean;
+  /** M13 — the brand mark lands on the role's home (Collaborators: /inbox). */
+  brandHref?: string;
   /** popover form — mono "Sign out →" (E:102). */
   signOutSlot?: React.ReactNode;
   /** expanded-rail form — plain-sans "sign out" hover:underline (C:37). */
@@ -41,7 +45,7 @@ export function AppSidebar({
         items={withActive}
         user={user}
         bridge={bridge}
-        brandHref="/today"
+        brandHref={brandHref}
         signOutSlot={signOutSlot}
         popoverExtra={popoverExtra}
       />
@@ -58,7 +62,7 @@ export function AppSidebar({
           user={user}
           bridge={bridge}
           expanded
-          brandHref="/today"
+          brandHref={brandHref}
           signOutSlot={expandedSignOutSlot ?? signOutSlot}
           popoverExtra={popoverExtra}
         />
@@ -68,7 +72,7 @@ export function AppSidebar({
           items={withActive}
           user={user}
           bridge={bridge}
-          brandHref="/today"
+          brandHref={brandHref}
           signOutSlot={signOutSlot}
           popoverExtra={popoverExtra}
         />

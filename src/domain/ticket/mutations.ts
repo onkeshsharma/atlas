@@ -22,6 +22,8 @@ export type FileTicketInput = {
   priority: TicketPriority;
   /** display actor — "you", "ada@acme.io". */
   reporter: string;
+  /** M13 — the reporter's Neon Auth user id (the Notifier's recipient contract, PRD #28). */
+  reporterUserId?: string | null;
 };
 
 export type FileTicketResult =
@@ -38,7 +40,7 @@ export async function fileTicket(input: FileTicketInput): Promise<FileTicketResu
 
   const result = await db.execute(sql`
     with created as (
-      insert into tickets (ref, project_id, title, body, state, kind, priority, reporter)
+      insert into tickets (ref, project_id, title, body, state, kind, priority, reporter, reporter_user_id)
       values (
         'T-' || nextval('ticket_ref_seq'),
         ${input.projectId},
@@ -47,7 +49,8 @@ export async function fileTicket(input: FileTicketInput): Promise<FileTicketResu
         'triage',
         ${input.kind},
         ${input.priority},
-        ${input.reporter}
+        ${input.reporter},
+        ${input.reporterUserId ?? null}
       )
       returning id, ref, project_id, title
     ),

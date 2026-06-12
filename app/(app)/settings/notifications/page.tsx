@@ -6,13 +6,16 @@
  * rail CC:271–357). Preferences are REAL rows the Notifier (M13) reads.
  *
  * Sanctioned deviations (charter item 7 — copy tells the truth about
- * what delivers TODAY; recorded in HANDOFF-M10): the lede + Email
- * channel row say plainly that email delivery hasn't shipped (feed and
- * inbox deliver now; the rows are the contract M13 honors); CC's
- * "Send test pack" card would fake a delivery — replaced by the honest
- * note; the rail's mocked sent-counts are replaced by the real 7-day
- * inbox tally; "preview a sample email ↗" drops (emails are M13's).
- * Event groups keep CC's structure with owner-true copy.
+ * what delivers TODAY; recorded in HANDOFF-M10): CC's "Send test pack"
+ * card would fake a delivery — replaced by the honest note; the rail's
+ * mocked sent-counts are replaced by real tallies; "preview a sample
+ * email ↗" drops. Event groups keep CC's structure with owner-true copy.
+ *
+ * M13 — delivery is REAL now (charter item 5's copy-truth sweep): the
+ * lede / Email row / rail / footer state the live truth per
+ * configuration — sending when RESEND_API_KEY exists, composing to the
+ * outbox record when not. Collaborators get their own chrome
+ * (collab-notifications.tsx) over the same table and controls.
  */
 import { sql } from "drizzle-orm";
 
@@ -28,6 +31,10 @@ import {
   notificationPrefs,
 } from "@/src/domain/notifications/preferences";
 
+import { emailConfigured } from "@/src/domain/notifier/deliver";
+import { outboxTally } from "@/src/domain/notifier/outbox";
+
+import { CollabNotificationsPage } from "./collab-notifications";
 import {
   ChannelRow,
   EmailFormatControl,
@@ -47,12 +54,19 @@ async function inboxCount7d(): Promise<number> {
 
 export default async function NotificationsPage() {
   const user = await requireUser();
-  const [prefs, weekCount, bridges, cursor] = await Promise.all([
+  // M13 — Collaborators get the same table + controls under their own
+  // chrome (PRD #48); the Owner settings shell stays the Owner's tier.
+  if (user.role === "collaborator") {
+    return <CollabNotificationsPage user={user} />;
+  }
+  const [prefs, weekCount, bridges, cursor, tally] = await Promise.all([
     notificationPrefs(user.id),
     inboxCount7d(),
     bridgeViews(),
     latestCursor(),
+    outboxTally(),
   ]);
+  const emailLive = emailConfigured();
 
   return (
     <SettingsShell
@@ -70,8 +84,19 @@ export default async function NotificationsPage() {
                 <span className="absolute -bottom-1 left-0 h-[2px] w-8 bg-amber-500" />
               </span>
             </div>
+            {/* M13 copy-truth sweep — the Notifier shipped; say what's real */}
             <p className="mt-3 text-sm text-stone-500 leading-relaxed">
-              Everything lands in your inbox now; email joins when the Notifier ships.
+              {emailLive ? (
+                <>
+                  Everything lands in your inbox; ship emails and digests send to your
+                  Collaborators via Resend.
+                </>
+              ) : (
+                <>
+                  Everything lands in your inbox; Collaborator emails compose to the
+                  outbox record and send once a Resend key is configured.
+                </>
+              )}
             </p>
             <ul className="mt-5 space-y-2 text-sm">
               <li className="flex items-baseline justify-between">
@@ -80,7 +105,11 @@ export default async function NotificationsPage() {
               </li>
               <li className="flex items-baseline justify-between">
                 <span className="text-stone-700">Emails sent</span>
-                <span className="font-mono text-stone-900">0 · not wired yet</span>
+                <span className="font-mono text-stone-900">{tally.sent}</span>
+              </li>
+              <li className="flex items-baseline justify-between">
+                <span className="text-stone-700">Composed, waiting</span>
+                <span className="font-mono text-stone-900">{tally.composed}</span>
               </li>
             </ul>
           </section>
@@ -113,11 +142,21 @@ export default async function NotificationsPage() {
             </ul>
           </section>
 
-          {/* Footer — CC:352–357, made true */}
+          {/* Footer — CC:352–357; M13 copy-truth sweep (the Notifier is live) */}
           <section className="pt-4 border-t border-stone-200/80">
             <p className="text-sm italic text-stone-500 leading-relaxed">
-              Atlas sends no email today. When the Notifier ships, these preferences are
-              the contract it honors — saved now so nothing surprises you later.
+              {emailLive ? (
+                <>
+                  These preferences are the contract the Notifier honors on every send —
+                  the outbox record on each profile shows every decision it made.
+                </>
+              ) : (
+                <>
+                  No Resend key is configured, so Atlas composes email to the outbox
+                  record without sending. Add RESEND_API_KEY and these preferences govern
+                  real delivery — nothing else changes.
+                </>
+              )}
             </p>
           </section>
         </>
@@ -125,9 +164,20 @@ export default async function NotificationsPage() {
     >
       <LiveRefresh since={cursor} />
       <h1 className="text-5xl font-bold tracking-tighter">Notifications.</h1>
+      {/* M13 copy-truth sweep — email delivery is real (key-gated) */}
       <p className="mt-4 text-lg text-stone-500 leading-relaxed max-w-xl">
-        The feed and your inbox are live now; email ships with the Notifier. Tell Atlas
-        how loud and how often — it saves as you change things.
+        {emailLive ? (
+          <>
+            The feed, your inbox, and Collaborator email are live. Tell Atlas how loud
+            and how often — it saves as you change things.
+          </>
+        ) : (
+          <>
+            The feed and your inbox are live; Collaborator emails compose now and send
+            once a Resend key is configured. Tell Atlas how loud and how often — it
+            saves as you change things.
+          </>
+        )}
       </p>
 
       {/* WHERE — CC:127–154 */}
@@ -137,9 +187,10 @@ export default async function NotificationsPage() {
           The channels Atlas can reach you on.
         </p>
         <ul className="mt-7 divide-y divide-stone-200">
+          {/* M13 copy-truth sweep — the Email row states the live truth */}
           <ChannelRow
             label="Email"
-            sub={`${user.email} · delivery starts when the Notifier ships`}
+            sub={`${user.email} · ${emailLive ? "delivering via Resend" : "sends once a Resend key is configured"}`}
             on={prefs.emailEnabled}
           />
           <ChannelRow
@@ -191,8 +242,9 @@ export default async function NotificationsPage() {
       {/* QUIET HOURS — CC:214–246 */}
       <section className="mt-16 pb-14 border-b border-stone-200">
         <MonoSectionLabel>Quiet hours</MonoSectionLabel>
+        {/* M13 copy-truth sweep — present tense; the hold is real */}
         <p className="mt-4 text-base text-stone-500 leading-relaxed">
-          The Notifier will hold email until your window opens. Leave both empty for no
+          The Notifier holds email until your window opens. Leave both empty for no
           quiet window.
         </p>
         <QuietHoursForm
@@ -205,8 +257,9 @@ export default async function NotificationsPage() {
       {/* EMAIL FORMAT — CC:249–267 */}
       <section className="mt-16">
         <MonoSectionLabel>Email format</MonoSectionLabel>
+        {/* M13 copy-truth sweep — emails render now */}
         <p className="mt-4 text-base text-stone-500 leading-relaxed">
-          How emails will render in your inbox, once they send.
+          How emails render in the recipient&rsquo;s inbox.
         </p>
         <div className="mt-7">
           <EmailFormatControl format={prefs.emailFormat} />

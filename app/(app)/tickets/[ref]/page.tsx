@@ -22,7 +22,7 @@
  *   the variant drew no move affordance anywhere.
  */
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import {
   EmptyState,
@@ -37,7 +37,7 @@ import {
 } from "@/src/components/kit";
 import { LiveRefresh } from "@/src/components/live/LiveRefresh";
 import type { FeedEvent } from "@/src/db/schema";
-import { requireOwner } from "@/src/domain/auth/guard";
+import { requireUser } from "@/src/domain/auth/guard";
 import { bridgePresence } from "@/src/domain/bridge/status";
 import {
   activeHelperRun,
@@ -65,6 +65,7 @@ import { BriefProse } from "@/src/components/run/BriefProse";
 
 import { AddLinkForm } from "./add-link-form";
 import { dispatchTicketAction, moveTicketAction, regenerateBriefAction } from "./actions";
+import { CollabTicketView } from "./collab-view";
 
 export const dynamic = "force-dynamic";
 
@@ -125,8 +126,16 @@ export default async function TicketDetailPage({
 }: {
   params: Promise<{ ref: string }>;
 }) {
-  await requireOwner();
+  // M13 — the role branch (charter item 4): Collaborators get the
+  // plain-English T-derived view, GUARDED by projectAccessFor inside
+  // collabTicketByRef (404 off-roster — done criterion 2). Owners keep
+  // M8's page below, unchanged.
+  const user = await requireUser();
+  if (!user.role) redirect("/no-access");
   const { ref } = await params;
+  if (user.role === "collaborator") {
+    return <CollabTicketView refParam={decodeURIComponent(ref)} user={user} />;
+  }
 
   const ticket = await ticketByRef(decodeURIComponent(ref));
   if (!ticket) notFound();

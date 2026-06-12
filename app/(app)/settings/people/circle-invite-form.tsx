@@ -42,10 +42,11 @@ export function CircleInviteForm({
       {showPanel && state.magicLink && (
         <div className="mt-5">
           <AmberPanel kicker="Invite created · share the link" pulse={false}>
+            {/* M13 copy-truth sweep — invites stay hand-delivered by design */}
             <p className="mt-3 text-base text-stone-800 leading-relaxed">
               Pass this magic link to{" "}
               <span className="font-mono text-sm">{state.email}</span> yourself — Atlas
-              doesn&rsquo;t send email yet.
+              doesn&rsquo;t email invites.
             </p>
             <div className="mt-5">
               <SecretBlock
@@ -103,9 +104,11 @@ export function CircleInviteForm({
           </p>
         )}
       </form>
+      {/* M13 copy-truth sweep — the Notifier shipped (ship/digest email); a
+          magic link is an access grant and stays hand-delivered by design */}
       <p className="mt-4 text-sm italic text-stone-500 leading-relaxed">
-        You share the magic link yourself — email joins when the Notifier ships.
-        Invitations expire in 14 days.
+        You share the magic link yourself — an access grant travels over a channel you
+        trust, never an automated email. Invitations expire in 14 days.
       </p>
     </section>
   );

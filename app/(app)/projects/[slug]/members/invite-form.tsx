@@ -5,10 +5,12 @@
  * shapes, the optional-note textarea, the Send CTA + italic line).
  *
  * Deviation (recorded): M:237 promises "they'll get a magic-link email"
- * — no email sends until the Notifier (M13; M5 deviation 1 stands), so
- * a successful invite renders the REAL magic link in the M10 show-once
- * idiom (AmberPanel + SecretBlock, XX:104's alarm chrome — §2.4 context
- * 7) and the italic line tells the truth.
+ * — a successful invite renders the REAL magic link in the M10
+ * show-once idiom (AmberPanel + SecretBlock, XX:104's alarm chrome —
+ * §2.4 context 7) and the italic line tells the truth. M13 copy-truth
+ * sweep: the Notifier now sends ship/digest email, but INVITES are
+ * deliberately not an email kind (a magic link is an access grant —
+ * hand it over a channel you trust); the copy says precisely that.
  */
 import { useActionState, useState } from "react";
 
@@ -28,8 +30,9 @@ export function InviteForm({ projectId, slug }: { projectId: string; slug: strin
       {showPanel && state.magicLink && (
         <div className="mt-8">
           <AmberPanel kicker="Invite created · share the link" pulse={false}>
+            {/* M13 copy-truth sweep — invites stay hand-delivered by design */}
             <p className="mt-3 text-base text-stone-800 leading-relaxed">
-              Atlas doesn&rsquo;t send email yet — pass this magic link to{" "}
+              Atlas doesn&rsquo;t email invites — pass this magic link to{" "}
               <span className="font-mono text-sm">{state.email}</span> yourself, over
               whatever channel you trust.
             </p>

@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 
 import { requireUser } from "@/src/domain/auth/guard";
 import { enqueueHelperRun } from "@/src/domain/dispatch/mutations";
+import { visibleProjectIds } from "@/src/domain/people/guard";
 import { fileTicket } from "@/src/domain/ticket/mutations";
 
 const KINDS = ["bug", "enhancement", "other"] as const;
@@ -27,6 +28,15 @@ export async function fileTicketAction(formData: FormData): Promise<void> {
     redirect("/tickets/new?error=title");
   }
 
+  // M13 — THE GUARD on the write path (charter hard wall): a
+  // Collaborator may only file against a project they are rostered on
+  // (visibleProjectIds — never a re-derived join). A forged projectId
+  // dies here, not at render time.
+  if (user.role === "collaborator") {
+    const visible = await visibleProjectIds(user.id);
+    if (!visible.includes(projectId)) redirect("/tickets/new?error=project");
+  }
+
   const kind = (KINDS as readonly string[]).includes(kindRaw)
     ? (kindRaw as (typeof KINDS)[number])
     : null;
@@ -35,10 +45,19 @@ export async function fileTicketAction(formData: FormData): Promise<void> {
     : "whenever";
 
   // the Owner files as "you" (the feed's first-person actor — E:274);
-  // Collaborator filing keeps their address (M13 re-derives the surface).
+  // Collaborators file as their address. reporterUserId is the
+  // Notifier's recipient contract either way (M13, PRD #28).
   const reporter = user.role === "owner" ? "you" : (user.email ?? "collaborator");
 
-  const result = await fileTicket({ projectId, title, body, kind, priority, reporter });
+  const result = await fileTicket({
+    projectId,
+    title,
+    body,
+    kind,
+    priority,
+    reporter,
+    reporterUserId: user.id,
+  });
   if (!result.ok) redirect("/tickets/new?error=title");
 
   // M9 — Helper Runs enrich new Tickets automatically (PRD #17). The
