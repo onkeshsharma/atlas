@@ -22,6 +22,10 @@ if (process.env.ATLAS_E2E_NEON_AUTH_BASE_URL) {
 // ATLAS_E2E_PORT keeps them off each other's (and the default) port.
 const E2E_PORT = Number(process.env.ATLAS_E2E_PORT ?? 3100);
 
+// M13 — the notifier cron route is CRON_SECRET-authed; give the suite a
+// deterministic secret (spec + webServer share it) unless one is set.
+process.env.CRON_SECRET ??= "e2e-cron-secret";
+
 // 1440 is the canonical design viewport (master plan §5).
 export default defineConfig({
   testDir: "e2e",
@@ -66,6 +70,7 @@ export default defineConfig({
       // Overridable like ATLAS_E2E_PORT — two concurrent suite runs need
       // disjoint distDirs (Next 16 per-distDir dev lock) as well as ports.
       ATLAS_E2E_DISTDIR: process.env.ATLAS_E2E_DISTDIR ?? ".next-e2e",
+      CRON_SECRET: process.env.CRON_SECRET,
       ...(process.env.DATABASE_URL
         ? { DATABASE_URL: process.env.DATABASE_URL }
         : {}),

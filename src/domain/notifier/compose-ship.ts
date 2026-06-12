@@ -109,12 +109,18 @@ export function composeShipEmail(input: ShipEmailInput): ComposedEmail {
     <p style="font-family:${FONT_SANS};font-size:24px;line-height:1.25;letter-spacing:-0.025em;color:${INK.stone900};margin:24px 0 0 0;">
       The <span style="font-weight:600;">${escapeHtml(input.ticketTitle)}</span> you asked for is live on <span style="font-weight:600;">${escapeHtml(input.projectName)}</span>.
     </p>
-    <!-- AA:74–92 — emerald PullQuote (§2.15: emerald in shipped contexts) -->
-    <div style="position:relative;margin:40px 0 0 0;padding:0 0 0 24px;">
-      <div style="font-family:${FONT_SANS};font-weight:700;font-size:48px;line-height:1;color:${INK.emerald400_80};margin:0 0 4px -4px;">&ldquo;</div>
-      <p style="font-family:${FONT_SANS};font-size:16px;font-style:italic;line-height:1.625;color:#292524;margin:0;">${escapeHtml(verify)}</p>
-      <div style="${monoMeta(INK.stone500)}margin:12px 0 0 0;">what the Engine did, in plain language</div>
-    </div>
+    <!-- AA:74–92 — emerald PullQuote (§2.15: emerald in shipped contexts).
+         Hanging-quote geometry as a two-column table: mail clients strip
+         position:absolute (AA:75's recipe), so the 24px gutter column
+         carries the oversized glyph beside the first line — same render,
+         mail-safe (convergence r2 fix). -->
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:40px 0 0 0;border-collapse:collapse;"><tr>
+      <td style="width:24px;vertical-align:top;font-family:${FONT_SANS};font-weight:700;font-size:48px;line-height:0.75;color:${INK.emerald400_80};">&ldquo;</td>
+      <td style="vertical-align:top;">
+        <p style="font-family:${FONT_SANS};font-size:16px;font-style:italic;line-height:1.625;color:#292524;margin:0;">${escapeHtml(verify)}</p>
+        <div style="${monoMeta(INK.stone500)}margin:12px 0 0 0;">what the Engine did, in plain language</div>
+      </td>
+    </tr></table>
     ${actions.length ? `<div style="margin:48px 0 0 0;">${actions.join("&nbsp;&nbsp;")}</div>` : ""}
     <!-- AA:108 — the still-broken line -->
     <p style="${bodyProse(INK.stone700)}margin:48px 0 0 0;">

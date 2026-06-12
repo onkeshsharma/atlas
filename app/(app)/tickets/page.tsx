@@ -219,9 +219,11 @@ export default async function CollabTicketsPage({
                   <span className="absolute -bottom-1 left-0 h-[2px] w-8 bg-amber-500" />
                 </span>
               </div>
+              {/* {" "} — Turbopack drops the leading space of a multi-line
+                  chunk after an inline expression (CLAUDE.md; caught r1) */}
               <p className="mt-3 text-sm text-stone-500 leading-relaxed">
-                <span className="font-mono text-emerald-600">{shipped.length}</span> shipped —
-                that&rsquo;s real change you made.
+                <span className="font-mono text-emerald-600">{shipped.length}</span>{" "}
+                shipped — that&rsquo;s real change you made.
               </p>
               <ul className="mt-5 space-y-2 text-sm">
                 <li className="flex items-baseline justify-between">
