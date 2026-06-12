@@ -123,9 +123,12 @@ test.describe.serial("M8 — the work loop over real rows", () => {
     await page.getByRole("button", { name: /create account/i }).click();
     await expect(page).toHaveURL(/\/welcome/, { timeout: 30_000 });
 
-    // the nav Board item is claimed (real href + triage badge)
+    // the nav Board item is claimed (real href + triage badge).
+    // M12 — .first(): Today's ship card now carries a second /board link
+    // ("Review first →" wired per HANDOFF-M8 item 1); the sidebar item
+    // renders first in the DOM.
     await page.goto("/today");
-    await expect(page.locator('a[href="/board"]')).toBeVisible();
+    await expect(page.locator('a[href="/board"]').first()).toBeVisible();
 
     // file-a-ticket (variant S)
     await page.goto("/tickets/new");
