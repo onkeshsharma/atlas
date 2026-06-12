@@ -91,7 +91,13 @@ describe("applyRunTransition — single-statement claim + outbox", () => {
     });
     expect(result).toEqual({ ok: false, reason: "not-claimed" });
     const { events } = await pollLiveEvents(before);
-    expect(events.filter((e) => e.type === "run-state-changed")).toHaveLength(0);
+    // M16 — scoped to THIS run: vitest files run in parallel against one
+    // real DB, and sibling integration suites legitimately append run
+    // events inside this cursor window (found when m16-insights' fixture
+    // shipped rows landed here).
+    expect(
+      events.filter((e) => e.type === "run-state-changed" && e.runId === runId),
+    ).toHaveLength(0);
   });
 
   it("queued → running flips the row AND appends the outbox event atomically", async () => {
