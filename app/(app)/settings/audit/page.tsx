@@ -31,7 +31,7 @@
  */
 import Link from "next/link";
 
-import { MonoSectionLabel, PageHeader, PageTitle } from "@/src/components/kit";
+import { EmptyState, MonoSectionLabel, PageHeader, PageTitle } from "@/src/components/kit";
 import { LiveRefresh } from "@/src/components/live/LiveRefresh";
 import {
   AUDIT_FAMILIES,
@@ -183,16 +183,19 @@ export default async function AuditLogPage({
             {/* TIMELINE (TT:294–351) */}
             <section className="mt-12">
               {visible.length === 0 ? (
-                /* §2.17 column shape — nothing matches */
-                <div className="py-10 text-center">
-                  <div className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
-                    {q ? `Nothing matches "${q}".` : "Nothing here."}
-                  </div>
-                  <p className="mt-2 text-sm italic text-stone-500">
-                    {q || actor || filter !== "everything"
-                      ? "Loosen a filter — the record is still there."
-                      : "Events appear the moment something happens."}
-                  </p>
+                /* §2.17 column shape — M15 audit: was a hand-rolled twin
+                   of the kit recipe; surfaces never define local variants
+                   of kit primitives (master plan §7.3). */
+                <div className="py-10">
+                  <EmptyState
+                    shape="column"
+                    note={q ? `Nothing matches "${q}".` : "Nothing here."}
+                    goodNews={
+                      q || actor || filter !== "everything"
+                        ? "Loosen a filter — the record is still there."
+                        : "Events appear the moment something happens."
+                    }
+                  />
                 </div>
               ) : (
                 <ol className="relative">

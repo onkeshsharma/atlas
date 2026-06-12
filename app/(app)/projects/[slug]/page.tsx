@@ -30,6 +30,7 @@ import { notFound } from "next/navigation";
 import {
   DividedList,
   EmptyState,
+  EmptyStateLink,
   FeaturedCard,
   InitialMark,
   ListRow,
@@ -43,6 +44,7 @@ import {
 } from "@/src/components/kit";
 import { LiveRefresh } from "@/src/components/live/LiveRefresh";
 import { requireOwner } from "@/src/domain/auth/guard";
+import { bridgePresence } from "@/src/domain/bridge/status";
 import { activeToday } from "@/src/domain/people/presence";
 import { latestActorActivity, projectRoster } from "@/src/domain/people/queries";
 import { weekStart } from "@/src/domain/cockpit/queries";
@@ -89,7 +91,7 @@ export default async function ProjectLandingPage({
 
   // M11 seam closure — the rail's Members section reads the REAL roster
   // (owner + project_members) and per-person derived presence.
-  const [counts, pins, ship, failed, actors, feed, sparklines, shipped, terms, roster, activity, cursor] =
+  const [counts, pins, ship, failed, actors, feed, sparklines, shipped, terms, roster, activity, cursor, bridge] =
     await Promise.all([
       ticketStateCounts(project.id),
       pinnedTickets(project.id),
@@ -103,6 +105,7 @@ export default async function ProjectLandingPage({
       projectRoster(project.id),
       latestActorActivity(30),
       latestCursor(),
+      bridgePresence(), // M15 audit — the Bridge strip must tell the truth
     ]);
   const membersActiveToday = roster.filter((m) =>
     activeToday(
@@ -467,14 +470,28 @@ export default async function ProjectLandingPage({
               </FeaturedCard>
             )}
 
-            {/* Bridge mini (O:368–389) — honest until M9/M10 */}
+            {/* Bridge mini (O:368–389) — M15 §2.17 audit: the "no Bridge
+                is paired" claim went false when M10 shipped pairing; the
+                strip now tells the truth per bridgePresence. O's full
+                Bridge mini stats stay REGISTERED (HANDOFF-M15). */}
             <section>
               <MonoSectionLabel>Bridge</MonoSectionLabel>
               <div className="mt-3">
-                <EmptyState shape="strip">
-                  No Bridge is paired with this Atlas yet. Runs for this project
-                  queue until one connects.
-                </EmptyState>
+                {bridge.status === "none" ? (
+                  <EmptyState shape="strip">
+                    No Bridge is paired with this Atlas yet. Runs for this project
+                    queue until one connects.
+                  </EmptyState>
+                ) : (
+                  <EmptyState shape="strip">
+                    <span className="font-mono not-italic text-xs text-stone-700">
+                      {bridge.machine}
+                    </span>{" "}
+                    is {bridge.status === "healthy" ? "online" : "offline"} — the
+                    full panel lives in{" "}
+                    <EmptyStateLink href="/settings/bridges">Bridges</EmptyStateLink>.
+                  </EmptyState>
+                )}
               </div>
             </section>
 
