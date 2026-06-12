@@ -40,11 +40,26 @@ type Drop = {
 /** the REAL v2 history — master plan §8, newest first. */
 const DROPS: Drop[] = [
   {
+    anchor: "M13 · M15",
+    id: "m13-m15",
+    date: "shipped June 12, 2026",
+    title: "The loop closes — and even the bad days stay in register.",
+    current: true,
+    intro:
+      "The trusted circle got its whole experience: plain-language requests, honest status, and the ship email that closes the loop. And when Atlas itself stumbles, the error pages now speak the same editorial language.",
+    shipped: [
+      "The Collaborator tier — file a request in plain words, watch it move through plain-English states, reply without leaving Atlas",
+      "The Notifier — ship emails and weekly digests, composed to a durable outbox and delivered when email is configured, honoring every preference including quiet hours",
+      "Notification preferences for Collaborators — the same contract the Owner already had",
+      "An editorial 404 and 500 — with a working try-again and a live link to the status page",
+      "Type-to-confirm on every destructive action, one consistent recipe",
+    ],
+  },
+  {
     anchor: "M11 · M12",
     id: "m11-m12",
     date: "shipped June 12, 2026",
     title: "Everyone visible, everything two keystrokes away.",
-    current: true,
     intro:
       "The trust circle became a real surface, and the cockpit learned to answer questions: who can touch what, where is that ticket, and what is safe to ship together.",
     shipped: [
