@@ -69,6 +69,14 @@ export async function insightsData(
 ): Promise<InsightsData> {
   const window = rangeWindow(range, now);
 
+  // Helper-Run completions also travel review-ready → shipped through
+  // applyRunTransition, so their feed rows read `shipped` — but an
+  // enrichment landing is NOT code landing. Insights counts a `shipped`/
+  // `failed`/`cancelled` row only when it has no run (ticket bookkeeping,
+  // e.g. seed history) or its run is OWNER-lane; helper load is its own
+  // honest metric below.
+  const ownerLaneOnly = sql`(${feedEvents.runId} is null or ${runs.lane} = 'owner')`;
+
   const [outcomeRows, lifecycleRows, projectRows, laneRows, openRows, prevShipped] =
     await Promise.all([
       // terminal outcome events in window (plus none before — the window
@@ -82,9 +90,11 @@ export async function insightsData(
           runId: feedEvents.runId,
         })
         .from(feedEvents)
+        .leftJoin(runs, eq(feedEvents.runId, runs.id))
         .where(
           and(
             inArray(feedEvents.kind, ["shipped", "failed", "cancelled"]),
+            ownerLaneOnly,
             ...(window.from ? [gte(feedEvents.createdAt, window.from)] : []),
           ),
         ),
@@ -99,7 +109,13 @@ export async function insightsData(
         })
         .from(feedEvents)
         .innerJoin(tickets, eq(feedEvents.ticketId, tickets.id))
-        .where(inArray(feedEvents.kind, ["filed", "shipped"])),
+        .leftJoin(runs, eq(feedEvents.runId, runs.id))
+        .where(
+          and(
+            inArray(feedEvents.kind, ["filed", "shipped"]),
+            sql`(${feedEvents.kind} = 'filed' or (${feedEvents.runId} is null or ${runs.lane} = 'owner'))`,
+          ),
+        ),
       db.select({ id: projects.id, name: projects.name, slug: projects.slug }).from(projects),
       db
         .select({ lane: runs.lane })
@@ -110,9 +126,11 @@ export async function insightsData(
         ? db
             .select({ n: count() })
             .from(feedEvents)
+            .leftJoin(runs, eq(feedEvents.runId, runs.id))
             .where(
               and(
                 eq(feedEvents.kind, "shipped"),
+                ownerLaneOnly,
                 gte(feedEvents.createdAt, window.prevFrom),
                 lt(feedEvents.createdAt, window.from),
               ),
