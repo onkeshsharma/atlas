@@ -148,6 +148,7 @@ describe("actions + pages — every row is a real route (no 'soon' rows)", () =>
     "/projects",
     "/settings",
     "/search",
+    "/insights", // M16 — /insights shipped; the registry row is real
     "/tickets/new",
     "/settings/bridges",
   ];

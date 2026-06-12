@@ -55,6 +55,10 @@ export const PAGE_ENTRIES: SearchResult[] = [
   { type: "page", title: "Projects", href: "/projects", meta: "all projects", glyph: "·" },
   { type: "page", title: "Settings", href: "/settings", meta: "preferences · bridges · tokens", glyph: "·" },
   { type: "page", title: "Search", href: "/search", meta: "full-page search", glyph: "⌕" },
+  // M16 — /insights is real; this registry's own contract ("every real
+  // authed route with a front door") demands the row. No sidebar item:
+  // no variant draws an Insights nav initial (charter M16 §2 decision).
+  { type: "page", title: "Insights", href: "/insights", meta: "throughput · time-to-ship · stragglers", glyph: "·" },
 ];
 
 /** the always-real actions (dispatch suggestions join from the DB in query.ts). */

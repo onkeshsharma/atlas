@@ -501,14 +501,24 @@ test.describe.serial("M13 — the Collaborator loop is real", () => {
     // unread exist (the loop above generated plenty)
     await expect(page.getByRole("button", { name: "mark all read →" })).toBeVisible();
     await page.getByRole("button", { name: "mark all read →" }).click();
-    await expect(page.getByText("0 new", { exact: false })).toBeVisible({ timeout: 30_000 });
 
-    // the per-user mark moved …
-    const [mark] = await db
-      .select()
-      .from(inboxReadMarks)
-      .where(eq(inboxReadMarks.userId, collabUserId));
-    expect(mark.lastReadEventId).toBeGreaterThan(0);
+    // M16 — poll the durable mark instead of the "0 new" text: substring
+    // matching made any "…0 new" count (10, 20…) satisfy the old
+    // assertion BEFORE the action committed, racing the DB read below
+    // (surfaced when the M16 seed grew the collab-visible event count).
+    await expect
+      .poll(
+        async () => {
+          const [mark] = await db
+            .select()
+            .from(inboxReadMarks)
+            .where(eq(inboxReadMarks.userId, collabUserId));
+          return mark?.lastReadEventId ?? 0;
+        },
+        { timeout: 30_000 },
+      )
+      .toBeGreaterThan(0);
+    await expect(page.getByText(/^0 new/).first()).toBeVisible({ timeout: 30_000 });
     // … and the Owner's instance-level marker did NOT
     const ownerUnreadAfter = await db
       .select({ n: sql<number>`count(*)::int` })
