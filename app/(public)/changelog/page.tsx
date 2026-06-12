@@ -40,11 +40,29 @@ type Drop = {
 /** the REAL v2 history — master plan §8, newest first. */
 const DROPS: Drop[] = [
   {
+    anchor: "M11 · M12",
+    id: "m11-m12",
+    date: "shipped June 12, 2026",
+    title: "Everyone visible, everything two keystrokes away.",
+    current: true,
+    intro:
+      "The trust circle became a real surface, and the cockpit learned to answer questions: who can touch what, where is that ticket, and what is safe to ship together.",
+    shipped: [
+      "Per-project member rosters with roles — invite with a welcome note, remove with one honest click",
+      "The trust circle — every person, every project, presence derived from what they actually did today",
+      "The audit log — sign-ins, invites, access changes, bridge and token history, searchable and filterable",
+      "Cmd-K — projects, tickets, Runs, docs, Context terms, and actions from any page",
+      "Full-page search with type filters, and Today's ship card now names what is parallel-safe — only when the math says so",
+    ],
+    fixed: [
+      "Two ships approved together could race the same checkout — the daemon now lands them one at a time",
+    ],
+  },
+  {
     anchor: "M10 · M14",
     id: "m10-m14",
     date: "shipped June 12, 2026",
     title: "The daemon answers to the browser — and Atlas makes its own case.",
-    current: true,
     intro:
       "Two modules built in parallel worktrees: the settings tier that governs the Bridge from the cockpit, and the public pages you are reading right now.",
     shipped: [

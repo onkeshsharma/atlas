@@ -115,17 +115,17 @@ test.describe("public tier — signed-out renders", () => {
     await expect(page.getByText("No Bridge row here, on purpose")).toBeVisible();
   });
 
-  test("/changelog is the real M0→M14 history", async ({ page }) => {
+  test("/changelog is the real M0→M12 history", async ({ page }) => {
     await page.goto("/changelog");
     await expect(page.getByRole("heading", { name: "What we shipped." })).toBeVisible();
-    await expect(page.getByText("7 drops")).toBeVisible();
+    await expect(page.getByText("8 drops")).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "The Engine takes orders." }),
     ).toBeVisible();
     await expect(page.getByRole("heading", { name: "Law before code." })).toBeVisible();
     // the newest drop carries the live "current" marker (NN:145–153);
-    // it moves with each integration (M10·M14 entry added at round 2).
-    await expect(page.locator("#m10-m14").getByText("current")).toBeVisible();
+    // it moves with each integration (one drop per round — dispatcher upkeep).
+    await expect(page.locator("#m11-m12").getByText("current")).toBeVisible();
     // permalinks are real anchors (kit id axis)
     await expect(page.locator("article#m9")).toBeVisible();
     await expect(page.locator("article#m0-m2")).toBeVisible();
