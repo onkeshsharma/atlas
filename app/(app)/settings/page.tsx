@@ -11,7 +11,7 @@
  * (H:239) drops because every control here saves on change (its own
  * italic line says so — kept); the rail's Docs section drops (the docs
  * tier is M14, in flight — no fake links) and Shortcuts lists only keys
- * that exist (triage deck, M8) with the palette honestly "soon" (M12);
+ * that exist (triage deck, M8) — palette "soon" removed at M-SHIP sweep (M12 shipped it);
  * About's mock build-sha row is replaced by real facts.
  */
 import {
@@ -89,7 +89,7 @@ export default async function PreferencesPage() {
           <section>
             <MonoSectionLabel>Shortcuts</MonoSectionLabel>
             <ul className="mt-5 space-y-3 text-sm">
-              <ShortcutRow keys={["Ctrl", "K"]} label="Command palette" soon />
+              <ShortcutRow keys={["Ctrl", "K"]} label="Command palette" /> {/* M-SHIP: palette shipped M12 — soon removed */}
               <ShortcutRow keys={["A"]} label="Triage · approve" />
               <ShortcutRow keys={["B"]} label="Triage · backlog" />
               <ShortcutRow keys={["I"]} label="Triage · needs info" />
