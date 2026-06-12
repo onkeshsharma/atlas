@@ -40,11 +40,26 @@ type Drop = {
 /** the REAL v2 history — master plan §8, newest first. */
 const DROPS: Drop[] = [
   {
+    anchor: "M16",
+    id: "m16",
+    date: "shipped June 12, 2026",
+    title: "How you actually ship.",
+    current: true,
+    intro:
+      "The last surface: Insights. Throughput, time-to-ship, and the tickets quietly going stale — every number derived live from the record, every gap named instead of faked.",
+    shipped: [
+      "Weekly throughput and velocity, compared against the previous window only when a previous window exists",
+      "Time-to-ship from filed to shipped, computed from the feed's own timestamps",
+      "Stragglers — open work sitting longer than the median, capped and honest",
+      "Run outcomes and helper-vs-owner load, with the failure rate and failure count kept as the different truths they are",
+      "CSV export of the underlying rows",
+    ],
+  },
+  {
     anchor: "M13 · M15",
     id: "m13-m15",
     date: "shipped June 12, 2026",
     title: "The loop closes — and even the bad days stay in register.",
-    current: true,
     intro:
       "The trusted circle got its whole experience: plain-language requests, honest status, and the ship email that closes the loop. And when Atlas itself stumbles, the error pages now speak the same editorial language.",
     shipped: [
