@@ -150,6 +150,17 @@ export async function collabFeedEvents(userId: string, limit = 50): Promise<Feed
   return rows.map((r) => ({ ...r.event, projectName: r.projectName, runRef: r.runRef }));
 }
 
+/** the project picker rows (file-a-request) — visible projects, named. */
+export async function collabProjects(userId: string): Promise<Array<{ id: string; name: string }>> {
+  const visible = await visibleProjectIds(userId);
+  if (visible.length === 0) return [];
+  return db
+    .select({ id: projects.id, name: projects.name })
+    .from(projects)
+    .where(inArray(projects.id, visible))
+    .orderBy(projects.name);
+}
+
 /** unread = visible rows above the user's high-water mark. */
 export async function collabUnreadCount(userId: string): Promise<number> {
   const visible = await visibleProjectIds(userId);

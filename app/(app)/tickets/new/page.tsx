@@ -16,8 +16,10 @@
  *   against real Projects; S mocked a single-project context.
  * - S:154–165's attachment drop-zone is dropped — no upload pipeline
  *   exists (the M5 SS:&ldquo;attach image&rdquo; precedent).
- * - the rail footer is Owner-adapted; M13 re-derives the Collaborator
- *   filing surface.
+ * - M13 (charter item 4): one form, two personas — Collaborators get
+ *   the visibleProjectIds-scoped project pick (THE GUARD), their own
+ *   recently-filed rows, and plain-language lede/rail/footer copy that
+ *   stays TRUE in the no-Resend-key configuration.
  */
 import Link from "next/link";
 
@@ -31,8 +33,10 @@ import {
 import { LiveRefresh } from "@/src/components/live/LiveRefresh";
 import { SegmentedField } from "@/src/components/work/SegmentedField";
 import { requireUser } from "@/src/domain/auth/guard";
+import { collabProjects, collabTickets } from "@/src/domain/collab/queries";
 import { projectRows } from "@/src/domain/cockpit/queries";
 import { latestCursor } from "@/src/domain/live/broker";
+import { emailConfigured } from "@/src/domain/notifier/deliver";
 import { recentlyFiled } from "@/src/domain/ticket/queries";
 import { shortAgo } from "@/src/lib/format";
 
@@ -45,16 +49,38 @@ export default async function FileTicketPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const params = await searchParams;
   const titleError = params.error === "title";
+  const projectError = params.error === "project";
+
+  // M13 — the Collaborator flavor (charter item 4; HANDOFF-M8 deviation
+  // 8 reserved this re-derivation): the project pick comes from
+  // visibleProjectIds (THE GUARD — a Collaborator never sees, or files
+  // against, an off-roster project), "recently filed" shows THEIR rows
+  // only, and the rail/footer copy tells the loop from their side.
+  const isCollab = user.role === "collaborator";
 
   const [projects, recent, cursor] = await Promise.all([
-    projectRows(),
-    recentlyFiled(3),
+    isCollab
+      ? collabProjects(user.id)
+      : projectRows().then((rows) => rows.map((p) => ({ id: p.id, name: p.name, pinned: p.pinned }))),
+    isCollab
+      ? collabTickets(user.id, user.email).then((rows) =>
+          rows.slice(0, 3).map((t) => ({
+            id: t.id,
+            ref: t.ref,
+            title: t.title,
+            reporter: "you",
+            createdAt: t.createdAt,
+          })),
+        )
+      : recentlyFiled(3),
     latestCursor(),
   ]);
-  const defaultProject = projects.find((p) => p.pinned) ?? projects[0];
+  const defaultProject =
+    projects.find((p) => "pinned" in p && (p as { pinned?: boolean }).pinned) ?? projects[0];
+  const emailLive = emailConfigured();
 
   return (
     <main className="flex-1 px-16 pt-8 pb-24">
@@ -65,16 +91,34 @@ export default async function FileTicketPage({
         {/* MAIN COL (S:67–179) */}
         <div className="max-w-2xl">
           <h1 className="text-5xl font-bold tracking-tighter">What needs fixing?</h1>
+          {/* M13 — collab lede: their side of the loop, in their language */}
           <p className="mt-4 text-lg text-stone-700 leading-relaxed">
-            Tell us what you ran into, or what you&rsquo;d love to see. Atlas shapes it
-            into a Brief, the Engine takes it from there, and you&rsquo;ll see what
-            shipped.
+            {isCollab ? (
+              <>
+                Tell it like you&rsquo;d tell a friend — what you ran into, or what
+                you&rsquo;d love to see. The Owner takes it from there, and you&rsquo;ll
+                hear back when it ships.
+              </>
+            ) : (
+              <>
+                Tell us what you ran into, or what you&rsquo;d love to see. Atlas shapes
+                it into a Brief, the Engine takes it from there, and you&rsquo;ll see
+                what shipped.
+              </>
+            )}
           </p>
 
           <form action={fileTicketAction}>
             <section className="mt-16 space-y-12">
-              {/* PROJECT — honest v2 addition (real Projects exist; §2.13 select) */}
-              <UnderlineSelect name="projectId" label="Project" defaultValue={defaultProject?.id}>
+              {/* PROJECT — honest v2 addition (real Projects exist; §2.13 select).
+                  M13: the Collaborator's options are visibleProjectIds only. */}
+              <UnderlineSelect
+                name="projectId"
+                label="Project"
+                defaultValue={defaultProject?.id}
+                validation={projectError ? "error" : undefined}
+                message={projectError ? "pick a project you're on" : undefined}
+              >
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -202,33 +246,74 @@ export default async function FileTicketPage({
             <div className="text-xs font-mono uppercase tracking-[0.25em] text-stone-500">
               What happens next
             </div>
-            <ol className="mt-5 space-y-3 text-sm text-stone-700 leading-relaxed">
-              <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
-                <span className="font-mono text-xs text-stone-400">→</span>
-                <span>It lands in Triage, enriched by a Helper Run.</span>
-              </li>
-              <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
-                <span className="font-mono text-xs text-stone-400">→</span>
-                <span>You approve, park, or decline it there.</span>
-              </li>
-              {/* M9 Session B — steps 3–4 made true (the charter's seam
-                  closure): the Engine WORKS on your Bridge, you review the
-                  diff and ship from Atlas; reporter emails are M13's. */}
-              <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
-                <span className="font-mono text-xs text-stone-400">→</span>
-                <span>
-                  Atlas drafts a <em>Brief</em> you can edit; dispatch sends the Engine to
-                  work on your Bridge.
-                </span>
-              </li>
-              <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
-                <span className="font-mono text-xs text-stone-400">→</span>
-                <span>
-                  You review the diff and <em>approve &amp; ship</em> — review and ship are
-                  one motion.
-                </span>
-              </li>
-            </ol>
+            {isCollab ? (
+              /* M13 — the loop from the Collaborator's side (PRD #42),
+                 email step TRUE in both key configurations (charter item 5) */
+              <ol className="mt-5 space-y-3 text-sm text-stone-700 leading-relaxed">
+                <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
+                  <span className="font-mono text-xs text-stone-400">→</span>
+                  <span>It lands in the Owner&rsquo;s triage within seconds.</span>
+                </li>
+                <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
+                  <span className="font-mono text-xs text-stone-400">→</span>
+                  <span>
+                    Your tickets page shows every move in plain English — no jargon to
+                    decode.
+                  </span>
+                </li>
+                <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
+                  <span className="font-mono text-xs text-stone-400">→</span>
+                  <span>
+                    If the Owner has a question, it comes back to you here — replying
+                    keeps everything in Atlas.
+                  </span>
+                </li>
+                <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
+                  <span className="font-mono text-xs text-stone-400">→</span>
+                  <span>
+                    {emailLive ? (
+                      <>
+                        When it ships, an email tells you what changed and how to check
+                        it works.
+                      </>
+                    ) : (
+                      <>
+                        When it ships, this page tells you what changed — ship emails
+                        join once the Owner configures a Resend key.
+                      </>
+                    )}
+                  </span>
+                </li>
+              </ol>
+            ) : (
+              <ol className="mt-5 space-y-3 text-sm text-stone-700 leading-relaxed">
+                <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
+                  <span className="font-mono text-xs text-stone-400">→</span>
+                  <span>It lands in Triage, enriched by a Helper Run.</span>
+                </li>
+                <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
+                  <span className="font-mono text-xs text-stone-400">→</span>
+                  <span>You approve, park, or decline it there.</span>
+                </li>
+                {/* M9 Session B — steps 3–4 made true (the charter's seam
+                    closure): the Engine WORKS on your Bridge, you review the
+                    diff and ship from Atlas; reporter emails are M13's. */}
+                <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
+                  <span className="font-mono text-xs text-stone-400">→</span>
+                  <span>
+                    Atlas drafts a <em>Brief</em> you can edit; dispatch sends the Engine
+                    to work on your Bridge.
+                  </span>
+                </li>
+                <li className="grid grid-cols-[24px_1fr] gap-3 items-baseline">
+                  <span className="font-mono text-xs text-stone-400">→</span>
+                  <span>
+                    You review the diff and <em>approve &amp; ship</em> — review and ship
+                    are one motion.
+                  </span>
+                </li>
+              </ol>
+            )}
           </section>
 
           {/* Recently filed (S:244–269) — real latest rows, project-agnostic */}
@@ -263,11 +348,20 @@ export default async function FileTicketPage({
             )}
           </section>
 
-          {/* Footer (S:271–277) — Owner-adapted; M13 re-derives the Collaborator copy */}
+          {/* Footer (S:271–277) — per-persona truth (M13 closed the M8 note) */}
           <section className="pt-4 border-t border-stone-200/80">
             <p className="text-sm italic text-stone-500 leading-relaxed">
-              Everything you file lands in your own Triage — you decide what the Engine
-              builds, and in what order.
+              {isCollab ? (
+                <>
+                  You never need to read code to ask for work — plain English is the
+                  whole job.
+                </>
+              ) : (
+                <>
+                  Everything you file lands in your own Triage — you decide what the
+                  Engine builds, and in what order.
+                </>
+              )}
             </p>
           </section>
         </aside>

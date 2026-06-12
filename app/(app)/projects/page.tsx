@@ -6,6 +6,7 @@
  * pinned mark is E:209's iconography carried by the same rows on Today.
  */
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import {
   DividedList,
@@ -32,7 +33,10 @@ function ingestMeta(p: ProjectRow): React.ReactNode {
 
 export default async function ProjectsPage() {
   const user = await requireUser();
-  void user;
+  // M13 — THE GUARD: this index lists every project (names, counts,
+  // activity) and its rows link to Owner-tier landings; a Collaborator's
+  // project surface is their scoped tickets view. Redirect, don't leak.
+  if (user.role === "collaborator") redirect("/tickets");
 
   const [rows, cursor] = await Promise.all([projectRows(), latestCursor()]);
 

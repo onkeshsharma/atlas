@@ -343,9 +343,10 @@ export default async function ProjectMembersPage({
             {/* Quick invite card (M:347–358; honest repurpose — header) */}
             <section className="rounded-2xl bg-white/70 border border-stone-200/80 p-5">
               <MonoSectionLabel>Quick invite</MonoSectionLabel>
+              {/* M13 copy-truth sweep — invites stay hand-delivered by design */}
               <p className="mt-3 text-sm text-stone-700 leading-relaxed">
                 Every invite returns a one-time magic link to share over Signal or Slack —
-                Atlas doesn&rsquo;t send email yet.
+                Atlas doesn&rsquo;t email invites.
               </p>
               <a
                 href="#invite"

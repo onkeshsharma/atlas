@@ -16,7 +16,9 @@ export function SignInForm({
   forgotHint = false,
   googleError = false,
 }: {
-  /** "forgot? →" was clicked — password reset ships with the Notifier module. */
+  /** "forgot? →" was clicked. M13 copy-truth sweep: the Notifier shipped
+   *  (ship/digest email) WITHOUT a reset flow — reset needs its own Neon
+   *  Auth wiring, so the hint no longer ties itself to email delivery. */
   forgotHint?: boolean;
   /** the Google social flow bounced (provider not configured). */
   googleError?: boolean;
@@ -52,7 +54,7 @@ export function SignInForm({
             message={state.fieldErrors?.password}
             hint={
               forgotHint
-                ? "password reset arrives with email delivery — ask the Owner to re-invite you"
+                ? "password reset isn't wired yet — ask the Owner to re-invite you"
                 : undefined
             }
           />

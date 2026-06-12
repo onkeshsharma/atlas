@@ -3,6 +3,8 @@
  * written from CONTEXT.md's normative glossary (the two personas) and the
  * M5 invite surfaces. Honesty: the unbuilt parts of the Collaborator
  * surface are said out loud, not implied shipped.
+ * M13 — the "not yet shipped" paragraph HANDOFF-M14 parked is updated:
+ * the Collaborator surface + Notifier are real now.
  */
 import { DocSection, Term } from "./article-kit";
 import type { DocArticle } from "./types";
@@ -56,14 +58,18 @@ export const ownerAndCollaborator: DocArticle = {
           The Owner sees everything: the cockpit, the board, every Run&rsquo;s
           stream and diff, the people surfaces, the Bridge&rsquo;s health.
         </p>
+        {/* M13 — the paragraph HANDOFF-M14 parked: the Collaborator surface
+            shipped, so the docs say what is now true. */}
         <p>
-          A Collaborator today files requests and follows the activity feed
-          from their inbox. The rest of their surface — plain-English ticket
-          states, ship summaries by email, a strictly per-person view — is on
-          v2&rsquo;s build path and not yet shipped. These docs will say so
-          plainly when it lands; until then, the honest summary is:
-          Collaborators can already ask and watch, and the code side of Atlas
-          is Owner-only.
+          A Collaborator sees a strictly per-person Atlas: their own tickets
+          in plain English (&ldquo;Engine is working on it&rdquo;, never
+          &ldquo;review-ready&rdquo;), an inbox scoped to the projects they
+          are rostered on, replies that go straight to the Owner, and their
+          own notification preferences. When a request ships they get a
+          plain-language email saying what changed and how to check it works,
+          and a weekly digest rounds up their projects — both honoring their
+          cadence, quiet hours, and format choices. The code side of Atlas
+          stays Owner-only.
         </p>
       </DocSection>
 

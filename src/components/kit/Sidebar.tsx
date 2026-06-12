@@ -59,7 +59,9 @@ export function Sidebar({
   popoverExtra,
 }: {
   items: SidebarItem[];
-  user: { initial: string; email: string; machine: string };
+  /** M13 axis — `machine` optional: the Bridge belongs to the Owner
+   *  (§2.1), so a Collaborator's mark carries no machine line. */
+  user: { initial: string; email: string; machine?: string };
   bridge?: BridgeStatus;
   /** default-collapsed below 1440px; persisted per user (§2.1). */
   expanded?: boolean;
@@ -79,10 +81,12 @@ export function Sidebar({
           <a href={brandHref} className="text-2xl font-bold tracking-tighter">
             atlas
           </a>
-          <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
-            <span className={`inline-block h-1.5 w-1.5 rounded-full ${BRIDGE_DOT[bridge]}`} />
-            <span className="font-mono">{user.machine}</span>
-          </div>
+          {user.machine !== undefined && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
+              <span className={`inline-block h-1.5 w-1.5 rounded-full ${BRIDGE_DOT[bridge]}`} />
+              <span className="font-mono">{user.machine}</span>
+            </div>
+          )}
         </div>
         <nav className="space-y-5">
           {items.map((n) => (
@@ -167,12 +171,16 @@ export function Sidebar({
         <div className="absolute left-full bottom-0 ml-3 w-60 bg-white rounded-2xl shadow-lg border border-stone-200 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none group-hover:pointer-events-auto transition z-30">
           <div className="text-sm text-stone-900 break-all leading-tight">{user.email}</div>
           <hr className="my-4 border-stone-200" />
-          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-stone-500">
-            <span className={`inline-block h-1.5 w-1.5 rounded-full ${BRIDGE_DOT[bridge]}`} />
-            {BRIDGE_LABEL[bridge]}
-          </div>
-          <div className="mt-1 font-mono text-[10px] text-stone-400">{user.machine}</div>
-          <hr className="my-4 border-stone-200" />
+          {user.machine !== undefined && (
+            <>
+              <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-stone-500">
+                <span className={`inline-block h-1.5 w-1.5 rounded-full ${BRIDGE_DOT[bridge]}`} />
+                {BRIDGE_LABEL[bridge]}
+              </div>
+              <div className="mt-1 font-mono text-[10px] text-stone-400">{user.machine}</div>
+              <hr className="my-4 border-stone-200" />
+            </>
+          )}
           {popoverExtra && (
             <>
               {popoverExtra}

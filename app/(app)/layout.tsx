@@ -16,6 +16,7 @@ import { heroCounts } from "@/src/domain/cockpit/queries";
 import { signOutAction } from "@/src/domain/auth/actions";
 import { requireUser } from "@/src/domain/auth/guard";
 import { bridgePresence } from "@/src/domain/bridge/status";
+import { collabUnreadCount } from "@/src/domain/collab/queries";
 import { unreadCount } from "@/src/domain/feed/queries";
 import { sidebarCollapsed } from "@/src/domain/preferences/sidebar";
 import { AppSidebar } from "@/src/components/shell/AppSidebar";
@@ -30,36 +31,56 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
   if (!user.role) redirect("/no-access");
 
+  // M13 — role-derived nav: the Collaborator's Atlas is their scoped
+  // surfaces (Inbox + their Tickets + their notification prefs); Owner
+  // pages would only bounce them through guards. Their inbox badge is
+  // the per-user mark over visible projects, never the Owner's count.
+  const isCollab = user.role === "collaborator";
+
   // M9 — the sidebar BridgeStatus goes live from the heartbeat (the one
   // sanctioned shell touch — charter §4).
   const [unread, counts, collapsed, bridge] = await Promise.all([
-    unreadCount(),
-    heroCounts(),
+    isCollab ? collabUnreadCount(user.id) : unreadCount(),
+    isCollab ? null : heroCounts(),
     sidebarCollapsed(user.id),
     bridgePresence(),
   ]);
 
-  const items: SidebarItem[] = [
-    { key: "today", label: "Today", initial: "T", href: "/today" },
-    {
-      key: "inbox",
-      label: "Inbox",
-      initial: "I",
-      href: "/inbox",
-      badge: unread > 0 ? unread : undefined,
-    },
-    // Board is real (M8); Projects (M7) and Settings (M10) are real.
-    {
-      key: "board",
-      label: "Board",
-      initial: "B",
-      href: "/board",
-      badge: counts.triage > 0 ? counts.triage : undefined,
-    },
-    // M7 — Projects is real (charter §4: this line only; M8 claims Board).
-    { key: "projects", label: "Projects", initial: "P", href: "/projects" },
-    { key: "settings", label: "Settings", initial: "S", href: "/settings" }, // M10 — real (charter §2: this line only)
-  ];
+  const items: SidebarItem[] = isCollab
+    ? [
+        {
+          key: "inbox",
+          label: "Inbox",
+          initial: "I",
+          href: "/inbox",
+          badge: unread > 0 ? unread : undefined,
+        },
+        // T's own sidebar mock highlights a projects-tier item (T:114) —
+        // v2's collab project surface IS the tickets view (/tickets).
+        { key: "tickets", label: "Tickets", initial: "T", href: "/tickets" },
+        { key: "notifications", label: "Notifications", initial: "N", href: "/settings/notifications" },
+      ]
+    : [
+        { key: "today", label: "Today", initial: "T", href: "/today" },
+        {
+          key: "inbox",
+          label: "Inbox",
+          initial: "I",
+          href: "/inbox",
+          badge: unread > 0 ? unread : undefined,
+        },
+        // Board is real (M8); Projects (M7) and Settings (M10) are real.
+        {
+          key: "board",
+          label: "Board",
+          initial: "B",
+          href: "/board",
+          badge: counts && counts.triage > 0 ? counts.triage : undefined,
+        },
+        // M7 — Projects is real (charter §4: this line only; M8 claims Board).
+        { key: "projects", label: "Projects", initial: "P", href: "/projects" },
+        { key: "settings", label: "Settings", initial: "S", href: "/settings" }, // M10 — real (charter §2: this line only)
+      ];
 
   const initial =
     user.membership?.initial ??
@@ -69,8 +90,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen">
       <AppSidebar
         items={items}
-        user={{ initial, email: user.email, machine: bridge.machine }}
-        bridge={bridge.status}
+        // M13 — the Bridge belongs to the Owner (§2.1); a Collaborator's
+        // mark carries no bridge dot and no machine line.
+        user={{ initial, email: user.email, machine: isCollab ? undefined : bridge.machine }}
+        bridge={isCollab ? "none" : bridge.status}
+        brandHref={isCollab ? "/inbox" : "/today"}
         expanded={!collapsed}
         signOutSlot={
           <form action={signOutAction}>
