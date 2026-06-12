@@ -5,7 +5,12 @@
 // daemon's next heartbeat and the page shows the daemon-confirmed cap,
 // the doctor runs from the UI and its real preflight verdict renders
 // live, and revoking the token stops the daemon fatally on its next
-// request. Daemon lock port 9230 (m9-engine holds 9223, m9b-ship 9224).
+// request. Daemon lock port 9230 (m9-engine holds 9223, m9b-ship 9224) —
+// M11 mechanical sweep: derived from ATLAS_E2E_LOCK_BASE (default 9220)
+// because the lock is MACHINE-global TCP; two parallel module worktrees
+// running this suite concurrently collided on 9230 (observed 2026-06-12,
+// the playwright.config "two concurrent suite runs" law extended to
+// daemon locks). Defaults unchanged; assertions use the same constant.
 // Self-cleaning; afterAll reseeds the demo universe.
 import { execSync, spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -36,6 +41,8 @@ const RUN = Date.now();
 const OWNER_EMAIL = `e2e-m10b-owner-${RUN}@example.com`;
 const PASSWORD = "editorial-register-16";
 const BRIDGE_NAME = `e2e-m10-machine-${RUN}`;
+// machine-global daemon lock — see header (M11 mechanical sweep)
+const LOCK_PORT = Number(process.env.ATLAS_E2E_LOCK_BASE ?? 9220) + 10;
 
 let daemon: ChildProcess | null = null;
 let daemonLog = "";
@@ -166,7 +173,7 @@ test.describe.serial("M10 — the daemon is governable from the browser", () => 
           ATLAS_BRIDGE_TOKEN: token,
           ATLAS_BRIDGE_ENGINE: "fake",
           ATLAS_BRIDGE_DATA_DIR: dataDir,
-          ATLAS_BRIDGE_LOCK_PORT: "9230",
+          ATLAS_BRIDGE_LOCK_PORT: String(LOCK_PORT),
           ATLAS_BRIDGE_TICK_MS: "250",
           ATLAS_BRIDGE_HEARTBEAT_MS: "2000",
         },
@@ -206,7 +213,7 @@ test.describe.serial("M10 — the daemon is governable from the browser", () => 
     const [verdictRow] = await db.select().from(bridges).where(eq(bridges.id, paired.id));
     const doctor = verdictRow.doctor as { lockPort: number; checks: Array<{ key: string; status: string }> };
     expect(verdictRow.doctorRequestedAt).toBeNull();
-    expect(doctor.lockPort).toBe(9230);
+    expect(doctor.lockPort).toBe(LOCK_PORT);
     expect(doctor.checks.find((c) => c.key === "atlas-sync")?.status).toBe("pass");
     expect(doctor.checks.find((c) => c.key === `repo:e2e-m10b-${RUN}`)?.status).toBe("pass");
 

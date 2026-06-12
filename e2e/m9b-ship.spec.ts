@@ -192,7 +192,9 @@ test.beforeAll(async () => {
         ATLAS_BRIDGE_TOKEN: BRIDGE_TOKEN,
         ATLAS_BRIDGE_ENGINE: "fake",
         ATLAS_BRIDGE_DATA_DIR: dataDir,
-        ATLAS_BRIDGE_LOCK_PORT: "9224", // m9-engine holds 9223
+        // M11 mechanical sweep — machine-global lock, derived so parallel
+        // worktree suites can't collide (see m10-bridge.spec.ts header)
+        ATLAS_BRIDGE_LOCK_PORT: String(Number(process.env.ATLAS_E2E_LOCK_BASE ?? 9220) + 4),
         ATLAS_BRIDGE_TICK_MS: "250",
         ATLAS_BRIDGE_HEARTBEAT_MS: "2000",
       },
