@@ -54,6 +54,8 @@ export type InsightsData = {
   /** first-half vs second-half medians for the Engine-read trend. */
   trend: { firstMs: number | null; secondMs: number | null };
   velocity: Velocity;
+  /** ships in the previous equal window; null when none exists (range=all). */
+  prevShipped: number | null;
   outcomes: RunOutcomes;
   helpers: HelperLoad;
   projects: ProjectInsightRow[];
@@ -174,6 +176,7 @@ export async function insightsData(
     percentiles: percentileRows(deltas),
     trend: halfWindowMedians(pairs, window, now),
     velocity: velocity(throughput.totalShipped, prevShipped),
+    prevShipped,
     outcomes: runOutcomes(outcomes),
     helpers: helperLoad(laneRows.map((r) => r.lane)),
     projects: projectInsights,

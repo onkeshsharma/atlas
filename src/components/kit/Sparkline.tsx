@@ -41,31 +41,51 @@ export type WeekBar = {
   negative?: number;
 };
 
+/**
+ * M16 axis: `size` — "rail" is E:324–350's This-week chart; "figure" is
+ * OO:131–171's main-column throughput figure (taller track, gap-1.5
+ * columns, gap-2 inside). Same primitive, scaled to context (§2.19).
+ */
+const WEEKBAR_SIZE = {
+  rail: { row: "gap-1 h-14", column: "gap-1.5", track: "h-9" },
+  figure: { row: "gap-1.5 h-32", column: "gap-2", track: "h-24" },
+} as const;
+
 /** Weekly bar chart — current period amber-500, others amber-400/60 (E:324–350). */
 export function WeekBars({
   bars,
   currentIndex,
   max,
+  size = "rail",
 }: {
   bars: WeekBar[];
   currentIndex?: number;
   max?: number;
+  size?: keyof typeof WEEKBAR_SIZE;
 }) {
   const top = max ?? Math.max(...bars.map((b) => b.value + (b.negative ?? 0)), 1);
+  const s = WEEKBAR_SIZE[size];
   return (
-    <div className="flex items-end gap-1 h-14">
+    <div className={`flex items-end ${s.row}`}>
       {bars.map((b, i) => {
         const isCurrent = i === currentIndex;
         const total = b.value + (b.negative ?? 0);
         const negativePct = total > 0 ? ((b.negative ?? 0) / total) * 100 : 0;
         return (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+          <div key={i} className={`flex-1 flex flex-col items-center ${s.column}`}>
             {/* canon §2.19/E12: definite-height bar track — the variants'
                 %-in-auto-flex collapses bars to 0 (prototype CSS bug) */}
-            <div className="w-full h-9 flex items-end">
+            <div className={`w-full ${s.track} flex items-end`}>
               <div
                 className="w-full relative rounded-t-sm overflow-hidden"
-                style={{ height: `${Math.max((total / top) * 100, 4)}%` }}
+                // a zero week draws NO bar on the figure scale — OO:145's
+                // max(pct, 5) floor would invent a ship where none landed.
+                style={{
+                  height:
+                    size === "figure" && total === 0
+                      ? "0%"
+                      : `${Math.max((total / top) * 100, 4)}%`,
+                }}
               >
               <div
                 className={`absolute inset-0 ${isCurrent ? "bg-amber-500" : "bg-amber-400/60"}`}

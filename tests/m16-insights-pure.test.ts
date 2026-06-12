@@ -432,6 +432,7 @@ describe("insightsCsv", () => {
       percentiles: percentileRows([2 * HOUR]),
       trend: { firstMs: null, secondMs: 2 * HOUR },
       velocity: velocity(1, 0),
+      prevShipped: 0,
       outcomes: runOutcomes(events),
       helpers: helperLoad(["owner", "helper"]),
       projects: perProject(
