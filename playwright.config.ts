@@ -28,6 +28,9 @@ process.env.CRON_SECRET ??= "e2e-cron-secret";
 
 // 1440 is the canonical design viewport (master plan §5).
 export default defineConfig({
+  // M16 consecutive-run fix: sweep accumulated neon_auth rows for E2E
+  // addresses before every suite run (see e2e/global-setup.ts).
+  globalSetup: "./e2e/global-setup.ts",
   testDir: "e2e",
   timeout: 120_000,
   // M6 — specs share ONE real Neon DB and the one-Owner invariant

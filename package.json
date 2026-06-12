@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit && tsc --noEmit -p packages/bridge",
     "test": "vitest run && pnpm --dir packages/bridge test",
+    "pretest:e2e": "node scripts/kill-e2e-server.mjs",
     "test:e2e": "playwright test",
     "tripwire": "node scripts/fidelity-tripwire.mjs",
     "prepare": "husky",
