@@ -19,7 +19,7 @@ const sql = neon(url);
 // M10 added api_tokens + notification_preferences.
 for (const t of [
   "run_stdout_chunks", "feed_events", "ticket_links", "ticket_pins",
-  "runs", "briefs", "context_terms", "tickets", "projects", "invites",
+  "runs", "briefs", "context_terms", "tickets", "project_members", "projects", "invites",
   "api_tokens", "notification_preferences", "bridges",
   "user_preferences", "memberships",
 ]) {
