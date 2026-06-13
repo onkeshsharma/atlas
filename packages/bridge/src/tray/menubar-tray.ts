@@ -99,8 +99,7 @@ function loadSysTray(): new (conf: SystrayConf) => ISysTray {
     // ESM / Node 24 source path: import.meta.url is the file:// URL of this module.
     requireFn = createRequire(import.meta.url);
   } catch {
-    // CJS/SEA path: use the global require (available as createRequire from module root)
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // CJS/SEA path: resolve via process.execPath (createRequire accepts a path string)
     requireFn = createRequire(process.execPath);
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
