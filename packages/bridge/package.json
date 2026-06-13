@@ -3,11 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Atlas v2 Bridge — the local orchestrator daemon (ADR-0001/0002). Runs N Engine sessions in per-Run git worktrees, streams up, accepts steering down. Node 24 runs the TypeScript sources directly (erasable syntax only).",
+  "description": "Atlas v2 Bridge — the local orchestrator daemon + CLI. `atlas-bridge pair|start|stop|status|doctor`. Node 24 runs the TypeScript sources directly (erasable syntax only).",
+  "bin": {
+    "atlas-bridge": "./src/cli/index.ts"
+  },
+  "files": [
+    "src/",
+    "!src/**/*.test.ts"
+  ],
   "scripts": {
     "start": "node src/index.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "echo 'BP3 publish step: set private:false, ensure Node SEA or tsc dist/ build, update bin to dist/. See HANDOFF-BP1.md.' && exit 1"
   },
   "devDependencies": {
     "@types/node": "^20",
