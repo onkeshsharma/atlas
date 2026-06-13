@@ -28,6 +28,13 @@ export function InstallOneLiner({ atlasUrl }: { atlasUrl: string }) {
       ? `irm ${atlasUrl}/install.ps1 | iex`
       : `curl -fsSL ${atlasUrl}/install.sh | sh`;
 
+  // `irm`/`iex` are PowerShell cmdlets — they fail in Command Prompt (cmd).
+  // Spell out the shell so nobody pastes it into the wrong one.
+  const shellHint =
+    os === "windows"
+      ? "Run this in PowerShell — not Command Prompt (cmd)."
+      : "Run this in your terminal (bash / zsh).";
+
   return (
     <div className="mt-5">
       <SegmentedControl
@@ -49,6 +56,9 @@ export function InstallOneLiner({ atlasUrl }: { atlasUrl: string }) {
           }}
         />
       </div>
+      <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-stone-400">
+        {shellHint}
+      </p>
     </div>
   );
 }

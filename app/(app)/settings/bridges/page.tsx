@@ -268,7 +268,9 @@ export default async function BridgesPage() {
           {/* Install one-liner — BPI, ADR-0005 §2 */}
           <AmberPanel kicker="Connect your first machine" pulse={false}>
             <p className="mt-3 text-base text-stone-800 leading-relaxed">
-              Paste one line in a terminal on the machine you want to connect.
+              Paste one line into <span className="font-medium">PowerShell</span> (Windows)
+              or a <span className="font-medium">terminal</span> (macOS / Linux) on the
+              machine you want to connect.
             </p>
 
             {/* OS-tab picker (client component) */}
