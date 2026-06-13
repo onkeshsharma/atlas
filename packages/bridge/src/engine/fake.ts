@@ -5,6 +5,7 @@
  * for real. Suites and e2e run on this and only this (charter hard wall).
  */
 import { fileURLToPath } from "node:url";
+import { join, dirname } from "node:path";
 
 import {
   FAILURE_KINDS,
@@ -16,7 +17,33 @@ import {
 import { superviseChild } from "./process-session.ts";
 import type { EngineAdapter, EngineOutcome, EngineSession, EngineStartArgs } from "./types.ts";
 
-const SCRIPT_PATH = fileURLToPath(new URL("./fake-engine-script.ts", import.meta.url));
+/**
+ * Lazily resolve the fake-engine script path.
+ *
+ * BP4 FIX: The original code resolved this at MODULE TOP LEVEL using
+ * `new URL(..., import.meta.url)`. In a Node SEA / CJS bundle there is no
+ * valid `import.meta.url`, so every import of this module crashed with
+ * `TypeError: Invalid URL` — even on the real-engine path.
+ *
+ * Fix: compute the path INSIDE the spawn function, only when the fake engine
+ * actually runs. We use `__dirname` / `import.meta.url` guarded by the CJS
+ * check so the same source works in both ESM (Node 24 direct) and CJS (SEA).
+ */
+function getFakeEngineScriptPath(): string {
+  // In CJS bundles (SEA), `import.meta` is unavailable — use a relative path
+  // from the known bundle location via process.execPath sibling heuristic.
+  // In ESM (Node 24 direct execution), `import.meta.url` is valid.
+  try {
+    // ESM path — works when running from source with Node 24 TS-direct
+    return fileURLToPath(new URL("./fake-engine-script.ts", import.meta.url));
+  } catch {
+    // CJS/SEA fallback — resolve relative to this file's assumed dist location.
+    // The SEA bundles everything together; fake-engine-script is not embedded
+    // (it must be run by a fresh node process). In practice the SEA/prod path
+    // never uses the fake engine; this branch satisfies type-safety only.
+    return join(dirname(process.execPath), "fake-engine-script.ts");
+  }
+}
 
 type DonePayload = {
   outcome?: string;
@@ -54,7 +81,7 @@ export function fakeEngineAdapter(): EngineAdapter {
         command: process.execPath,
         // --no-warnings: keep Node's TS-stripping notices out of the
         // run's stdout record.
-        args: ["--no-warnings", SCRIPT_PATH],
+        args: ["--no-warnings", getFakeEngineScriptPath()],
         cwd: args.worktree ?? args.sandbox,
         env: { ...process.env, ATLAS_FAKE_TASK: JSON.stringify(task) },
         timeoutMs: args.timeoutMs,

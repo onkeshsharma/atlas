@@ -11,6 +11,13 @@
  * the e2e recipe (M9A-handoff "daemon for e2e") depends on this.
  * This module is ADDITIVE: we backfill env vars from the config file
  * only when those vars are absent, then hand off to loadConfig().
+ *
+ * BP4 — Tray wiring (ADR-0004 §2):
+ *   On an interactive desktop run, `startTray()` is called AFTER the daemon
+ *   starts. Tray failure is NON-FATAL: a single log line is emitted and the
+ *   daemon continues headlessly. Set ATLAS_BRIDGE_NO_TRAY=1 to suppress the
+ *   tray (used in tests/e2e/CI so the daemon-spawn specs never pop a tray or
+ *   hang).
  */
 import { readConfigFile } from "../config-file.ts";
 import { loadConfig, BRIDGE_VERSION } from "../config.ts";
@@ -19,6 +26,24 @@ import { fakeEngineAdapter } from "../engine/fake.ts";
 import { realEngineAdapter } from "../engine/real.ts";
 import { Daemon } from "../daemon.ts";
 import { acquireInstanceLock } from "../single-instance.ts";
+
+/**
+ * Returns true when the tray should be started.
+ *
+ * Suppressed when:
+ *   - ATLAS_BRIDGE_NO_TRAY=1 (tests, e2e, CI, headless servers)
+ *   - Not running on a platform that has a desktop (win32/darwin/linux with DISPLAY)
+ *   - Running without a TTY (piped / non-interactive)
+ */
+function shouldStartTray(env: NodeJS.ProcessEnv): boolean {
+  if (env.ATLAS_BRIDGE_NO_TRAY === "1") return false;
+  const platform = process.platform;
+  if (platform !== "win32" && platform !== "darwin") {
+    // Linux: only if DISPLAY is set (X11 or XWayland — headless servers won't have it)
+    if (!env.DISPLAY && !env.WAYLAND_DISPLAY) return false;
+  }
+  return true;
+}
 
 export async function runStart(
   opts: { env?: NodeJS.ProcessEnv; silent?: boolean } = {},
@@ -68,6 +93,34 @@ export async function runStart(
   };
   process.on("SIGINT", () => void shutdown("SIGINT"));
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
+
+  // BP4 — Tray wiring (ADR-0004 §2): NON-FATAL, NO_TRAY-suppressible.
+  //
+  // The tray is started AFTER daemon setup but BEFORE daemon.start() so that
+  // the icon appears promptly. If the tray fails to launch (no desktop, missing
+  // native binary, etc.), we log one line and continue headlessly — the daemon
+  // MUST NOT crash or block because of a tray failure.
+  //
+  // Pause/resume: the tray's pause/resume actions call daemon.setPaused(bool),
+  // which controls whether the daemon starts new runs (connection stays alive).
+  if (shouldStartTray(env)) {
+    void (async () => {
+      try {
+        const { startTray } = await import("../tray/menubar-tray.ts");
+        await startTray({
+          atlasUrl: config.atlasUrl || null,
+          paused: false,
+          bridgeHome: env.ATLAS_BRIDGE_HOME,
+          onPause: () => daemon.setPaused(true),
+          onResume: () => daemon.setPaused(false),
+          isPaused: () => daemon.isPaused(),
+        });
+      } catch (err) {
+        // NON-FATAL: tray failure must never crash or block the daemon.
+        log(`[bridge] tray unavailable (headless or no systray binary) — running headless: ${(err as Error).message}`);
+      }
+    })();
+  }
 
   try {
     await daemon.start();

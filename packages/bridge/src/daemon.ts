@@ -69,6 +69,8 @@ export class Daemon {
   /** M10 — one doctor at a time; duplicate commands collapse. */
   private doctoring = false;
   private stopped = false;
+  /** BP4 — local paused posture: the daemon stays connected but starts no new runs. */
+  private paused = false;
   private aborter: AbortController | null = null;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -117,6 +119,25 @@ export class Daemon {
       running: [...this.running.keys()],
       cap: this.cap,
     };
+  }
+
+  /**
+   * BP4 — local paused posture (ADR-0004 §5, tray control).
+   * When paused, the daemon stays connected (heartbeats + SSE continue) but
+   * claims no new runs. Runs already in flight continue to completion.
+   */
+  setPaused(paused: boolean): void {
+    const changed = this.paused !== paused;
+    this.paused = paused;
+    if (changed) {
+      this.log(paused ? "[bridge] paused — no new runs will start" : "[bridge] resumed — accepting new runs");
+      if (!paused) this.tick(); // drain the queue now that we're resumed
+    }
+  }
+
+  /** Returns the current paused state (for the tray). */
+  isPaused(): boolean {
+    return this.paused;
   }
 
   private async connectionLoop(): Promise<void> {
@@ -365,7 +386,7 @@ export class Daemon {
   }
 
   private tick(): void {
-    if (this.stopped) return;
+    if (this.stopped || this.paused) return; // BP4: paused = stay connected, no new starts
     const picks = nextToStart({
       cap: this.cap,
       runningCount: this.running.size,
