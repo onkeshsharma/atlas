@@ -15,10 +15,13 @@
     "start": "node src/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "echo 'BP3 publish step: set private:false, ensure Node SEA or tsc dist/ build, update bin to dist/. See HANDOFF-BP1.md.' && exit 1"
+    "build:sea": "node scripts/build-sea.mjs",
+    "prepublishOnly": "echo 'BP3 publish step: set private:false, ensure Node SEA or tsc dist/ build, update bin to dist/. See HANDOFF-BP1.md + HANDOFF-BP3.md.' && exit 1"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "esbuild": "^0.28.1",
+    "postject": "1.0.0-alpha.6",
     "typescript": "^5",
     "vitest": "^4.1.8"
   }
