@@ -149,6 +149,8 @@ test.beforeAll(async () => {
         ATLAS_BRIDGE_LOCK_PORT: String(Number(process.env.ATLAS_E2E_LOCK_BASE ?? 9220) + 3),
         ATLAS_BRIDGE_TICK_MS: "250",
         ATLAS_BRIDGE_HEARTBEAT_MS: "2000",
+        // BP4: suppress tray in e2e — no desktop session; daemon must not pop a tray or hang
+        ATLAS_BRIDGE_NO_TRAY: "1",
       },
       stdio: ["ignore", "pipe", "pipe"],
     },

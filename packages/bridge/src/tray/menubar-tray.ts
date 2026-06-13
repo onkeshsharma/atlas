@@ -27,6 +27,11 @@
 // Strategy: declare the minimal types we need locally (matching the real
 // lib/index.d.ts exactly) and use createRequire to load the CJS constructor.
 // This avoids the namespace-vs-type conflict entirely.
+//
+// BP4 FIX: The original code called `createRequire(import.meta.url)` at MODULE
+// TOP LEVEL. In a Node SEA/CJS bundle, `import.meta.url` is empty/undefined,
+// causing a TypeError on load. Fix: resolve the SysTray constructor lazily
+// inside `startTray()`, only when the tray is actually being started.
 import { createRequire } from "node:module";
 import type { EventEmitter } from "node:events";
 
@@ -79,7 +84,28 @@ interface ISysTray extends EventEmitter {
   readonly binPath: string;
 }
 
-const SysTray = createRequire(import.meta.url)("systray").default as new (conf: SystrayConf) => ISysTray;
+/**
+ * Load the systray CJS constructor lazily (BP4 fix: cannot call
+ * `createRequire(import.meta.url)` at module top level in a CJS SEA bundle —
+ * `import.meta.url` is empty/undefined in that context, causing a TypeError.
+ * Moving it inside the function means it only runs when the tray is actually
+ * started, and the non-fatal catch in start.ts handles any failure gracefully.
+ */
+function loadSysTray(): new (conf: SystrayConf) => ISysTray {
+  // In CJS (SEA bundle), import.meta.url is empty. Fall back to __filename /
+  // require directly — in a fully-bundled CJS context `require` is available.
+  let requireFn: NodeRequire;
+  try {
+    // ESM / Node 24 source path: import.meta.url is the file:// URL of this module.
+    requireFn = createRequire(import.meta.url);
+  } catch {
+    // CJS/SEA path: use the global require (available as createRequire from module root)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    requireFn = createRequire(process.execPath);
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (requireFn("systray") as any).default as new (conf: SystrayConf) => ISysTray;
+}
 
 import type { TrayModel, TrayMenuItem, TrayAction } from "./state.ts";
 import { buildTrayModel } from "./state.ts";
@@ -92,10 +118,19 @@ const POLL_INTERVAL_MS = 5_000;
 export type TrayOpts = {
   /** Atlas URL (from config or env). */
   atlasUrl?: string | null;
-  /** Initial paused state. */
+  /** Initial paused state (used only when onPause/onResume/isPaused not supplied). */
   paused?: boolean;
   /** ATLAS_BRIDGE_HOME env override. */
   bridgeHome?: string;
+  /**
+   * BP4 — daemon pause callbacks (wired in start.ts).
+   * When supplied, pause/resume actions delegate to the daemon instead of
+   * managing local state in the tray. If absent, the tray manages its own
+   * paused boolean (standalone mode / tests).
+   */
+  onPause?: () => void;
+  onResume?: () => void;
+  isPaused?: () => boolean;
 };
 
 /**
@@ -136,12 +171,18 @@ export async function startTray(opts: TrayOpts = {}): Promise<void> {
     ? { ...process.env, ATLAS_BRIDGE_HOME: opts.bridgeHome }
     : process.env;
 
-  let paused = opts.paused ?? false;
+  // BP4: Use daemon-delegated pause state when callbacks are provided (wired
+  // from start.ts). Fall back to local boolean when running standalone.
+  const hasDaemonCallbacks = !!(opts.onPause && opts.onResume && opts.isPaused);
+  let localPaused = opts.paused ?? false;
+
+  const getPaused = (): boolean =>
+    hasDaemonCallbacks ? opts.isPaused!() : localPaused;
 
   // Build the initial status.
   let status = await runStatus({ env, silent: true });
   const atlasUrl = opts.atlasUrl ?? status.atlasUrl ?? null;
-  let model = buildTrayModel(status, paused, atlasUrl);
+  let model = buildTrayModel(status, getPaused(), atlasUrl);
 
   // Build the initial systray config.
   const trayConfig = {
@@ -155,7 +196,23 @@ export async function startTray(opts: TrayOpts = {}): Promise<void> {
     copyDir: true, // copy native binary to working dir
   };
 
+  const SysTray = loadSysTray();
   const tray = new SysTray(trayConfig);
+
+  // Polling loop — defined before onClick so refreshTray is in scope.
+  async function refreshTray() {
+    status = await runStatus({ env, silent: true });
+    model = buildTrayModel(status, getPaused(), atlasUrl);
+    tray.sendAction({
+      type: "update-menu",
+      menu: {
+        icon: buildIconPath(model.connectionState),
+        title: "",
+        tooltip: model.tooltipText,
+        items: buildSystrayMenu(model),
+      },
+    });
+  }
 
   // Handle action clicks.
   tray.onClick((action: { seq_id: number }) => {
@@ -169,11 +226,16 @@ export async function startTray(opts: TrayOpts = {}): Promise<void> {
     if (!clicked || !clicked.enabled) return;
 
     handleAction(clicked.id, {
-      paused,
+      paused: getPaused(),
       atlasUrl,
       env,
       onPausedChange: async (newPaused) => {
-        paused = newPaused;
+        if (hasDaemonCallbacks) {
+          // Delegate to the daemon (start.ts wired this in BP4).
+          if (newPaused) opts.onPause!(); else opts.onResume!();
+        } else {
+          localPaused = newPaused;
+        }
         await refreshTray();
       },
       onPair: async () => {
@@ -182,21 +244,6 @@ export async function startTray(opts: TrayOpts = {}): Promise<void> {
       },
     });
   });
-
-  // Polling loop.
-  async function refreshTray() {
-    status = await runStatus({ env, silent: true });
-    model = buildTrayModel(status, paused, atlasUrl);
-    tray.sendAction({
-      type: "update-menu",
-      menu: {
-        icon: buildIconPath(model.connectionState),
-        title: "",
-        tooltip: model.tooltipText,
-        items: buildSystrayMenu(model),
-      },
-    });
-  }
 
   const pollTimer = setInterval(() => { refreshTray().catch(() => {}); }, POLL_INTERVAL_MS);
 

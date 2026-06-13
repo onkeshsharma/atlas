@@ -202,6 +202,8 @@ test.beforeAll(async () => {
         ATLAS_BRIDGE_LOCK_PORT: "9240", // m9-engine 9223 · m9b 9224 · m10 9230
         ATLAS_BRIDGE_TICK_MS: "250",
         ATLAS_BRIDGE_HEARTBEAT_MS: "2000",
+        // BP4: suppress tray in e2e — no desktop session; daemon must not pop a tray or hang
+        ATLAS_BRIDGE_NO_TRAY: "1",
       },
       stdio: ["ignore", "pipe", "pipe"],
     },
