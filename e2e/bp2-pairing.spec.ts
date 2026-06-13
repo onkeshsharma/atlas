@@ -17,11 +17,10 @@
 //
 // Self-cleaning: rows are swept in afterAll.
 import { createServer } from "node:http";
-import type { Server as HttpServer } from "node:http";
 import { parse } from "node:url";
 
 import { expect, test, type Page } from "@playwright/test";
-import { like, sql } from "drizzle-orm";
+import { eq, like, sql } from "drizzle-orm";
 
 import { db } from "../src/db/client";
 import { bridges, memberships, userPreferences } from "../src/db/schema";
@@ -59,7 +58,7 @@ async function cleanupRows() {
     .from(memberships)
     .where(like(memberships.displayName, "E2E BP2 %"));
   for (const o of owners) {
-    await db.delete(userPreferences).where(sql`user_id = ${o.userId}`);
+    await db.delete(userPreferences).where(eq(userPreferences.userId, o.userId));
   }
   await db.delete(memberships).where(like(memberships.displayName, "E2E BP2 %"));
 }
@@ -82,7 +81,7 @@ function startLoopbackListener(port: number): {
     resolver = res;
   });
 
-  const server: HttpServer = createServer((req, res) => {
+  const server = createServer((req, res) => {
     const parsed = parse(req.url ?? "", true);
     resolver(parsed.query as Record<string, string>);
     res.writeHead(200, { "Content-Type": "text/html" });
