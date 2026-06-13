@@ -19,6 +19,11 @@ const eslintConfig = defineConfig([
     // the canon cites them by file:line; lint must never touch them
     // (excluded via config, per the M3 charter — never by editing them).
     "design/variants/**",
+    // BP3 — Node SEA build output (CJS bundle) and build scripts (.mjs).
+    // The CJS bundle uses require() by design (esbuild CJS format); the
+    // build script is a plain .mjs node script, not app code.
+    "packages/bridge/dist/**",
+    "packages/bridge/scripts/**",
   ]),
 ]);
 

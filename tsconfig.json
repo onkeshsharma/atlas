@@ -60,6 +60,7 @@
   ],
   "exclude": [
     "node_modules",
-    "packages"
+    "packages",
+    "e2e/bp3-true-pairing.spec.ts"
   ]
 }
