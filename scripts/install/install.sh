@@ -11,7 +11,7 @@
 #   4. Registers it as a login-item:
 #        macOS  → ~/Library/LaunchAgents/io.atlas.bridge.plist + launchctl load
 #        Linux  → ~/.config/systemd/user/io.atlas.bridge.service + systemctl --user enable+start
-#   5. Runs `atlas-bridge pair --url $ATLAS_ORIGIN` so you can approve from the UI
+#   5. Runs `atlas-bridge pair --url $ATLAS_URL` so you can approve from the UI
 #
 # Note (macOS): macOS may show a Gatekeeper warning for the unsigned binary.
 # Open System Settings → Privacy & Security → scroll to the 'Security' section
@@ -25,7 +25,7 @@
 
 set -euo pipefail
 
-ATLAS_ORIGIN='ATLAS_ORIGIN'
+ATLAS_URL='ATLAS_ORIGIN'
 GITHUB_REPO='GITHUB_REPO_SLUG'
 INSTALL_DIR="$HOME/.local/bin"
 BINARY="$INSTALL_DIR/atlas-bridge"
@@ -35,7 +35,7 @@ SYSTEMD_UNIT="$HOME/.config/systemd/user/io.atlas.bridge.service"
 # ── 1. Detect OS and arch ─────────────────────────────────────────────────────
 echo ""
 echo "Atlas Bridge installer"
-echo "  Atlas URL : $ATLAS_ORIGIN"
+echo "  Atlas URL : $ATLAS_URL"
 echo "  GitHub    : $GITHUB_REPO"
 
 OS="$(uname -s)"
@@ -190,13 +190,13 @@ fi
 
 # ── 5. Pair with Atlas ────────────────────────────────────────────────────────
 echo ""
-echo "Step 4/4 — pairing with Atlas at $ATLAS_ORIGIN ..."
+echo "Step 4/4 — pairing with Atlas at $ATLAS_URL ..."
 echo "  A browser window will open — approve the bridge from the Atlas UI."
 
-if ! atlas-bridge pair --url "$ATLAS_ORIGIN"; then
+if ! atlas-bridge pair --url "$ATLAS_URL"; then
   echo "" >&2
   echo "Error: pairing failed. You can retry manually:" >&2
-  echo "  atlas-bridge pair --url $ATLAS_ORIGIN" >&2
+  echo "  atlas-bridge pair --url $ATLAS_URL" >&2
   exit 1
 fi
 
