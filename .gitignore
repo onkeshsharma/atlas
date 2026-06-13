@@ -48,6 +48,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.e2e-last-run.log
-.dev-*.log
-.e2e-m10-*.log
+*.log
+
+.vercel

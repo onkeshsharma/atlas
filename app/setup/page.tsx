@@ -6,8 +6,7 @@
 // renders as genuinely waiting (it is), nothing fakes green, and the
 // install token is a display preview labelled as such (deviation noted
 // in HANDOFF-M5). Copy deltas: "Jobs" → "Runs" (CONTEXT.md).
-import { randomBytes } from "node:crypto";
-
+import { headers } from "next/headers";
 import Link from "next/link";
 
 import {
@@ -20,7 +19,7 @@ import {
 import { requireOwner } from "@/src/domain/auth/guard";
 import { dayStamp } from "@/src/lib/format";
 
-import { CopyButton } from "./copy-button";
+import { InstallOneLiner } from "@/app/(app)/settings/bridges/install-one-liner";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +37,15 @@ export default async function SetupPage() {
     { key: "ready", label: "File your first Ticket", status: "pending" },
   ];
 
-  // display-only preview token — real Bridge registration tokens arrive
-  // with M9 (no fake liveness; the line under the block says so).
-  const previewToken = `at_${randomBytes(4).toString("hex")}`;
-  const installCmd = `curl -fsSL https://atlas.dev/bridge/install.sh | sh -s -- --token=${previewToken}`;
+  // The real install one-liner is served by THIS instance (BPI: /install.ps1
+  // + /install.sh interpolate the origin). No token in the command — the
+  // install script runs `atlas-bridge pair`, which gets the token via the
+  // browser approve (ADR-0004 §4). Origin from the request (ATLAS_APP_URL
+  // in prod; the forwarded host otherwise).
+  const h = await headers();
+  const origin =
+    process.env.ATLAS_APP_URL ??
+    `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host") ?? "localhost:3000"}`;
 
   return (
     <div className="relative flex-1 text-stone-900 font-sans">
@@ -71,19 +75,18 @@ export default async function SetupPage() {
             to it; your Engine runs them locally. Your code never leaves your machine.
           </p>
 
-          {/* Install command — mono block, the one chrome'd moment (Q:98–112) */}
+          {/* Install command — the real, instance-served one-liner (BPI).
+              OS-aware; no token (the script pairs via the browser). */}
           <div className="mt-12">
             <div className="text-xs font-mono uppercase tracking-[0.25em] text-stone-500">
               Run this on the machine where you write code
             </div>
-            <div className="mt-5 group relative rounded-lg border border-stone-300 bg-stone-50 p-5 font-mono text-sm text-stone-800 break-all">
-              {installCmd}
-              <CopyButton text={installCmd} />
-            </div>
-            {/* honest token line — Q:109's countdown becomes a preview note
-                until the Bridge exists (M9); same mono-micro shape */}
+            <InstallOneLiner atlasUrl={origin} />
+            {/* honest note — the binary isn't code-signed yet, so the OS will
+                warn on first run; say so before they hit it. */}
             <div className="mt-3 font-mono text-[10px] uppercase tracking-widest text-stone-400">
-              token preview · <span className="text-stone-700">Bridge install opens soon</span>
+              not yet code-signed ·{" "}
+              <span className="text-stone-700">your OS will warn — choose “run anyway”</span>
             </div>
           </div>
 
@@ -118,12 +121,13 @@ export default async function SetupPage() {
                   {
                     body: (
                       <>
-                        Prompts you to authorize with your Claude Code account, the same one
-                        your Engine will use.
+                        Registers it to start on login, then opens your browser to{" "}
+                        <span className="font-mono text-sm text-stone-600">approve</span>{" "}
+                        the pairing — no token to copy.
                       </>
                     ),
                   },
-                  { body: <>Registers this Bridge with Atlas using the token above.</> },
+                  { body: <>Connects with the token from that approval and registers this Bridge.</> },
                   {
                     body: (
                       <>
