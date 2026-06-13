@@ -1,0 +1,113 @@
+# Bridge Release Workflow
+#
+# Triggers on a `bridge-v*` tag push (e.g. bridge-v0.1.0).
+# To activate: push this repo to GitHub and cut a tag:
+#   git tag bridge-v0.1.0
+#   git push origin bridge-v0.1.0
+#
+# Each runner builds the Node-SEA binary for its OS, optionally signs it
+# (no-op step until signing secrets exist), then attaches the binary to a
+# GitHub Release created by softprops/action-gh-release.
+
+name: Bridge Release
+
+on:
+  push:
+    tags:
+      - 'bridge-v*'
+
+# Required so the workflow can create/update GitHub Releases and upload assets.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build atlas-bridge (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: atlas-bridge-windows-x64
+            binary_path: packages/bridge/dist/atlas-bridge.exe
+          - os: macos-latest
+            artifact_name: atlas-bridge-darwin-arm64
+            binary_path: packages/bridge/dist/atlas-bridge-darwin
+          - os: ubuntu-latest
+            artifact_name: atlas-bridge-linux-x64
+            binary_path: packages/bridge/dist/atlas-bridge-linux
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      # Only install bridge package deps — no need to build the entire monorepo.
+      - name: Install bridge dependencies
+        run: pnpm install --filter @atlas/bridge
+
+      - name: Build Node-SEA binary
+        working-directory: packages/bridge
+        run: node scripts/build-sea.mjs
+
+      # ── Sign binary (no-op until ATLAS_WIN_CERT / APPLE_* secrets exist) ──────
+      # WHEN SECRETS EXIST: set if: env.ATLAS_WIN_CERT != '' || env.APPLE_DEVELOPER_ID != ''
+      # Then fill in the platform-specific signing commands below.
+      #
+      # Windows example (EV cert via Azure Trusted Signing or signtool):
+      #   - run: |
+      #       signtool sign /fd sha256 /tr http://timestamp.digicert.com /td sha256 \
+      #         /sha1 $env:ATLAS_WIN_CERT_THUMBPRINT "${{ matrix.binary_path }}"
+      #     env:
+      #       ATLAS_WIN_CERT_THUMBPRINT: ${{ secrets.ATLAS_WIN_CERT_THUMBPRINT }}
+      #
+      # macOS example (Developer ID Application + notarytool):
+      #   - run: |
+      #       codesign --deep --force --options runtime \
+      #         --sign "$APPLE_DEVELOPER_ID" "${{ matrix.binary_path }}"
+      #       xcrun notarytool submit "${{ matrix.binary_path }}" \
+      #         --apple-id "$APPLE_ID" --password "$APPLE_APP_PWD" \
+      #         --team-id "$APPLE_TEAM_ID" --wait
+      #       xcrun stapler staple "${{ matrix.binary_path }}"
+      #     env:
+      #       APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+      #       APPLE_ID:           ${{ secrets.APPLE_ID }}
+      #       APPLE_APP_PWD:      ${{ secrets.APPLE_APP_PWD }}
+      #       APPLE_TEAM_ID:      ${{ secrets.APPLE_TEAM_ID }}
+      - name: Sign binary (no-op until ATLAS_WIN_CERT / APPLE_* secrets exist)
+        if: false
+        run: echo "Signing placeholder — replace this step body when secrets are ready."
+
+      # Rename the binary to the artifact name so releases have consistent filenames.
+      - name: Rename binary for release
+        shell: bash
+        run: |
+          src="${{ matrix.binary_path }}"
+          dst="packages/bridge/dist/${{ matrix.artifact_name }}"
+          # Preserve .exe extension on Windows
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            dst="${dst}.exe"
+          fi
+          mv "$src" "$dst"
+          echo "RELEASE_ASSET=$dst" >> "$GITHUB_ENV"
+
+      # Attach the binary to the GitHub Release created (or updated) for this tag.
+      # softprops/action-gh-release creates the release if it doesn't exist yet.
+      - name: Attach binary to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.RELEASE_ASSET }}
+          # The tag name becomes the release name; edit on GitHub after the run
+          # to add release notes (changelog, upgrade instructions, etc.).
+          generate_release_notes: true

@@ -19,13 +19,17 @@
  * verdicts); HeartbeatPoll is this page's sanctioned heartbeat
  * exception (see its header).
  */
+import Link from "next/link";
+
 import {
+  AmberPanel,
   FeaturedCard,
   LivePulse,
   MonoSectionLabel,
   NumberedSteps,
   PillButton,
 } from "@/src/components/kit";
+import { InstallOneLiner } from "./install-one-liner";
 import { HeartbeatPoll } from "@/src/components/live/HeartbeatPoll";
 import { LiveRefresh } from "@/src/components/live/LiveRefresh";
 import { SettingsShell } from "@/src/components/settings/SettingsShell";
@@ -257,6 +261,61 @@ export default async function BridgesPage() {
         Your Bridge is the daemon that runs the Engine locally on your computer. Atlas
         dispatches Runs to it; results come back.
       </p>
+
+      {/* FIRST-RUN INSTALL — BPI, ADR-0005 §2; only renders before any Bridge is paired */}
+      {bridges.length === 0 && (
+        <section className="mt-12">
+          {/* Install one-liner — BPI, ADR-0005 §2 */}
+          <AmberPanel kicker="Connect your first machine" pulse={false}>
+            <p className="mt-3 text-base text-stone-800 leading-relaxed">
+              Paste one line in a terminal on the machine you want to connect.
+            </p>
+
+            {/* OS-tab picker (client component) */}
+            <InstallOneLiner atlasUrl={atlasUrl} />
+
+            {/* Honest SmartScreen warning — §3.3 AmberPanel is appropriate; mandatory per ADR-0005 §3 */}
+            <div className="mt-5 p-4 rounded-xl bg-amber-100/60 border border-amber-200">
+              <p className="text-sm text-stone-800 leading-relaxed">
+                <span className="font-semibold">Windows note:</span> Windows will say it doesn&rsquo;t recognise this app.
+                That&rsquo;s expected — the binary is not yet code-signed.{" "}
+                Click <span className="font-semibold">More info → Run anyway</span>.
+                macOS shows a similar Gatekeeper prompt; go to System Settings → Privacy &amp; Security → Open Anyway.
+              </p>
+            </div>
+
+            {/* Download fallback */}
+            <div className="mt-5">
+              <FeaturedCard>
+                <div className="font-mono text-[10px] uppercase tracking-widest text-stone-500">
+                  Direct download
+                </div>
+                <p className="mt-2 text-sm text-stone-700 leading-relaxed">
+                  Prefer to download the binary manually?{" "}
+                  <a
+                    href={`https://github.com/${process.env.ATLAS_GITHUB_REPO ?? "your-org/atlas-v2"}/releases/latest`}
+                    className="font-mono text-xs text-stone-700 hover:text-amber-600 transition"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    GitHub Releases ↗
+                  </a>
+                  {" "}— download the binary for your OS, place it on your PATH, then run{" "}
+                  <span className="font-mono text-xs text-stone-700">atlas-bridge pair --url {atlasUrl}</span>.
+                </p>
+              </FeaturedCard>
+            </div>
+
+            {/* Doc link */}
+            <p className="mt-4 text-sm italic text-stone-500">
+              New to this?{" "}
+              <Link href="/docs/connect-your-machine" className="not-italic font-mono text-xs text-stone-700 hover:text-amber-600 transition">
+                Full setup guide →
+              </Link>
+            </p>
+          </AmberPanel>
+        </section>
+      )}
 
       {/* REGISTERED — N:178–261 over real rows */}
       <section className="mt-16">

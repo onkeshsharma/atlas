@@ -5,6 +5,7 @@
  * architecture deep-dive lives at its own route (/docs/architecture, PP)
  * and appears here as index metadata only.
  */
+import { connectYourMachine } from "./connect-your-machine";
 import { needsInputAndSteering } from "./needs-input-and-steering";
 import { ownerAndCollaborator } from "./owner-and-collaborator";
 import { sequenceHintsAndShipGroups } from "./sequence-hints-and-ship-groups";
@@ -19,6 +20,7 @@ export type { DocArticle } from "./types";
 /** reading order. */
 export const DOC_ARTICLES: DocArticle[] = [
   welcomeToAtlas,
+  connectYourMachine,
   ownerAndCollaborator,
   ticketsBriefsAndRuns,
   theBridgeAndTheEngine,
@@ -73,7 +75,7 @@ export const DOCS_INDEX: DocsIndexSection[] = [
   {
     label: "Getting started",
     intro: "Read this first. About three minutes.",
-    slugs: ["welcome-to-atlas"],
+    slugs: ["welcome-to-atlas", "connect-your-machine"],
   },
   {
     label: "Concepts",
