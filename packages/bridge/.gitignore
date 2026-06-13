@@ -1,0 +1,3 @@
+# Build artifacts (Node SEA — built per-platform, never committed; BP3 runbook §2)
+dist/
+
