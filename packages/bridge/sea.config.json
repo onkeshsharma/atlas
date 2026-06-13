@@ -3,5 +3,10 @@
   "output": "dist/sea-prep.blob",
   "disableExperimentalSEAWarning": true,
   "useSnapshot": false,
-  "useCodeCache": true
+  "useCodeCache": true,
+  "assets": {
+    "traybin/tray_windows_release.exe": "node_modules/systray/traybin/tray_windows_release.exe",
+    "traybin/tray_darwin_release": "node_modules/systray/traybin/tray_darwin_release",
+    "traybin/tray_linux_release": "node_modules/systray/traybin/tray_linux_release"
+  }
 }

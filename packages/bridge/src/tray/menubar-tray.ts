@@ -18,6 +18,20 @@
  *   When connectionState === "not-paired", the "Pair this machine…" action
  *   calls `runPair()` (BP1's loopback handshake). After pairing resolves,
  *   the tray polls `runStatus()` and rebuilds the model.
+ *
+ * BP5 — SEA tray-binary extraction:
+ *   In the packaged Node SEA binary, the systray helper (a pre-built Go
+ *   executable) is NOT accessible at its npm package path because the
+ *   node_modules tree doesn't exist inside the single-file exe. Fix:
+ *   bundle the helper as a SEA asset (sea.config.json "assets"), then at
+ *   runtime extract it to ~/.cache/node-systray/<version>/ before creating
+ *   the SysTray instance. systray's copyDir logic finds the file there and
+ *   skips the broken fs.copySync from the wrong __dirname.
+ *
+ *   Source of truth: systray@1.0.5 lib/index.js `getTrayBinPath`:
+ *     copyDistPath = ~/.cache/node-systray/<version>/<binName>
+ *     if (!fs.existsSync(copyDistPath)) { fs.copySync(binPath, copyDistPath); }
+ *     return copyDistPath;   ← pre-placing the file skips the broken copy
  */
 
 // systray is a CJS package with no `exports` field; its declaration file is
@@ -104,6 +118,96 @@ function loadSysTray(): new (conf: SystrayConf) => ISysTray {
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (requireFn("systray") as any).default as new (conf: SystrayConf) => ISysTray;
+}
+
+/**
+ * BP5 — SEA tray binary extraction.
+ *
+ * In the packaged Node SEA, systray's Go helper binary lives inside the SEA
+ * asset store (bundled at build time). At runtime we extract it to the same
+ * cache path that systray's `copyDir: true` would copy to — so when systray
+ * checks `fs.existsSync(copyDistPath)`, the file is already there and the
+ * broken `fs.copySync(binPath, ...)` is skipped entirely.
+ *
+ * Cache path mirrors systray@1.0.5 lib/index.js:
+ *   ~/.cache/node-systray/<pkg.version>/<binName>
+ *
+ * Returns the cache directory path (pass as `copyDir` string to SysTray).
+ * In non-SEA (dev / source) mode returns null — systray handles it natively.
+ *
+ * Per-platform binary names (systray@1.0.5):
+ *   win32:  tray_windows_release.exe
+ *   darwin: tray_darwin_release
+ *   linux:  tray_linux_release
+ */
+async function extractTrayBinaryIfSea(): Promise<string | null> {
+  // Only needed inside a Node SEA.
+  let sea: typeof import("node:sea") | null = null;
+  try {
+    sea = await import("node:sea");
+  } catch {
+    return null;
+  }
+  if (!sea.isSea()) return null;
+
+  const SYSTRAY_VERSION = "1.0.5"; // must match package.json dep
+  const binName: string | undefined = ({
+    win32: "tray_windows_release.exe",
+    darwin: "tray_darwin_release",
+    linux: "tray_linux_release",
+  } as Record<string, string>)[process.platform];
+
+  if (!binName) return null; // unknown platform — let systray fail naturally
+
+  // Asset key embedded in the SEA (must match sea.config.json assets map).
+  const assetKey = `traybin/${binName}`;
+
+  let assetBuffer: ArrayBuffer | string;
+  try {
+    assetBuffer = sea.getRawAsset(assetKey);
+  } catch {
+    // Asset not present (older build without bundled traybin) — graceful fallback.
+    return null;
+  }
+  if (typeof assetBuffer === "string") {
+    // Should not happen for binary assets, but guard defensively.
+    return null;
+  }
+
+  const { homedir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { mkdir, writeFile, access, constants, chmod } = await import("node:fs/promises");
+
+  // systray@1.0.5 getTrayBinPath when copyDir is a string:
+  //   copyDir = path.join(<copyDir string>, pkg.version)
+  //   copyDistPath = path.join(copyDir, binName)
+  //   → <copyDir string>/<version>/<binName>
+  // So we must pass the BASE cache dir (without version), not the versioned subdir.
+  const baseCacheDir = join(homedir(), ".cache", "node-systray");
+  const versionedCacheDir = join(baseCacheDir, SYSTRAY_VERSION);
+  const destPath = join(versionedCacheDir, binName);
+
+  // Only write if the file isn't already there (idempotent across restarts).
+  let alreadyPresent = false;
+  try {
+    await access(destPath, constants.F_OK);
+    alreadyPresent = true;
+  } catch {
+    alreadyPresent = false;
+  }
+
+  if (!alreadyPresent) {
+    await mkdir(versionedCacheDir, { recursive: true });
+    await writeFile(destPath, Buffer.from(assetBuffer));
+    // Make executable on POSIX.
+    if (process.platform !== "win32") {
+      await chmod(destPath, 0o755);
+    }
+  }
+
+  // Return the BASE cache dir (without version). systray appends pkg.version
+  // itself, so it resolves: <baseCacheDir>/<version>/<binName> = destPath.
+  return baseCacheDir;
 }
 
 import type { TrayModel, TrayMenuItem, TrayAction } from "./state.ts";
@@ -195,8 +299,18 @@ export async function startTray(opts: TrayOpts = {}): Promise<void> {
     copyDir: true, // copy native binary to working dir
   };
 
+  // BP5 — In a Node SEA, extract the bundled tray binary to the systray cache
+  // dir before constructing SysTray. systray's copyDir logic finds the file
+  // there and skips the broken fs.copySync (which uses __dirname wrong in SEA).
+  const seaCacheDir = await extractTrayBinaryIfSea();
+
   const SysTray = loadSysTray();
-  const tray = new SysTray(trayConfig);
+  // If we pre-extracted to a specific dir, pass it as copyDir (string path).
+  // Otherwise use copyDir: true so systray copies from its own node_modules.
+  const trayConfigWithCopyDir = seaCacheDir
+    ? { ...trayConfig, copyDir: seaCacheDir }
+    : trayConfig;
+  const tray = new SysTray(trayConfigWithCopyDir);
 
   // Polling loop — defined before onClick so refreshTray is in scope.
   async function refreshTray() {

@@ -18,6 +18,14 @@
  *   daemon continues headlessly. Set ATLAS_BRIDGE_NO_TRAY=1 to suppress the
  *   tray (used in tests/e2e/CI so the daemon-spawn specs never pop a tray or
  *   hang).
+ *
+ * BP5 — Detached / windowless mode (`--detached` flag):
+ *   When `--detached` is passed, `start` re-spawns itself as a hidden,
+ *   detached background process and exits immediately. This prevents a
+ *   foreground console window at login (HKCU Run) or after install.
+ *   The child process uses `--foreground` to skip the re-spawn loop.
+ *   Without either flag, `start` runs in the foreground (unchanged for
+ *   CI / NO_TRAY / debug use-cases).
  */
 import { readConfigFile } from "../config-file.ts";
 import { loadConfig, BRIDGE_VERSION } from "../config.ts";
@@ -45,12 +53,68 @@ function shouldStartTray(env: NodeJS.ProcessEnv): boolean {
   return true;
 }
 
+/**
+ * Spawn a detached, windowless copy of the daemon and return immediately.
+ *
+ * On Windows, Start-Process … -WindowStyle Hidden achieves the same effect
+ * but we need a cross-platform approach here; instead we use Node's built-in
+ * spawn with { detached: true, windowsHide: true } so no console window flashes.
+ *
+ * The child receives the same argv minus `--detached`, plus `--foreground` so
+ * the child runs the daemon instead of re-spawning again.
+ */
+async function spawnDetached(): Promise<void> {
+  const { spawn } = await import("node:child_process");
+  // Strip --detached from the original args; add --foreground for the child.
+  const childArgs = process.argv
+    .slice(2)
+    .filter((a) => a !== "--detached")
+    .concat("--foreground");
+
+  // In a Node SEA binary, process.execPath IS the binary and the SEA's main
+  // is a virtual entry — we must NOT pass process.argv[1] to the child spawn
+  // or the OS will try to find a script file that doesn't exist on disk.
+  // Detect SEA mode and skip the script-path argument accordingly.
+  let isSea = false;
+  try {
+    const sea = await import("node:sea");
+    isSea = sea.isSea();
+  } catch {
+    isSea = false;
+  }
+
+  // SEA: `atlas-bridge.exe start --foreground`
+  // Source: `node [execArgv] src/cli/index.ts start --foreground`
+  const spawnArgs = isSea
+    ? [...process.execArgv, ...childArgs]
+    : [...process.execArgv, process.argv[1], ...childArgs];
+
+  const child = spawn(process.execPath, spawnArgs, {
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true,
+  });
+  child.unref();
+  // Give the child a moment to write its PID lock before we exit, so callers
+  // (install scripts) can reliably check status afterwards.
+  await new Promise<void>((resolve) => setTimeout(resolve, 600));
+}
+
 export async function runStart(
-  opts: { env?: NodeJS.ProcessEnv; silent?: boolean } = {},
+  opts: { env?: NodeJS.ProcessEnv; silent?: boolean; argv?: string[] } = {},
 ): Promise<void> {
   const env = opts.env ?? process.env;
   const silent = opts.silent ?? false;
   const log = silent ? () => {} : console.log.bind(console);
+
+  // BP5 — Detached mode: re-spawn hidden and exit (the child uses --foreground).
+  const argv = opts.argv ?? process.argv.slice(2);
+  const isDetached = argv.includes("--detached");
+  const isForeground = argv.includes("--foreground");
+  if (isDetached && !isForeground) {
+    await spawnDetached();
+    return;
+  }
 
   // Back-fill env vars from the config file (only where not already set).
   const file = await readConfigFile(env);
@@ -116,8 +180,9 @@ export async function runStart(
           isPaused: () => daemon.isPaused(),
         });
       } catch (err) {
-        // NON-FATAL: tray failure must never crash or block the daemon.
-        log(`[bridge] tray unavailable (headless or no systray binary) — running headless: ${(err as Error).message}`);
+        // NON-FATAL: tray fallback — headless or no native desktop. This is
+        // expected in CI/SSH/WSL. The daemon runs normally without the icon.
+        log(`[bridge] tray not available, running headless: ${(err as Error).message}`);
       }
     })();
   }

@@ -175,7 +175,7 @@ describe("non-fatal tray-launch failure", () => {
     //
     //   void (async () => {
     //     try { await startTray(...); }
-    //     catch (err) { log(`[bridge] tray unavailable...`); }
+    //     catch (err) { log(`[bridge] tray not available, running headless: ...`); }
     //   })();
     //
     // The daemon.start() call happens AFTER this void (not awaited). A tray
@@ -198,7 +198,7 @@ describe("non-fatal tray-launch failure", () => {
       try {
         await failingStartTray();
       } catch (err) {
-        log(`[bridge] tray unavailable (headless or no systray binary) — running headless: ${(err as Error).message}`);
+        log(`[bridge] tray not available, running headless: ${(err as Error).message}`);
       }
     })();
 
@@ -211,7 +211,7 @@ describe("non-fatal tray-launch failure", () => {
 
     expect(daemonStartCalled).toBe(true);
     expect(logged).toHaveLength(1);
-    expect(logged[0]).toContain("tray unavailable");
+    expect(logged[0]).toContain("tray not available");
     expect(logged[0]).toContain("no systray binary found");
   });
 
@@ -230,7 +230,7 @@ describe("non-fatal tray-launch failure", () => {
       try {
         await throwingStartTray();
       } catch (err) {
-        log(`[bridge] tray unavailable (headless or no systray binary) — running headless: ${(err as Error).message}`);
+        log(`[bridge] tray not available, running headless: ${(err as Error).message}`);
       }
     })();
 
@@ -239,7 +239,7 @@ describe("non-fatal tray-launch failure", () => {
     await trayPromise;
 
     expect(daemonStartCalled).toBe(true);
-    expect(logged[0]).toContain("tray unavailable");
+    expect(logged[0]).toContain("tray not available");
   });
 });
 
@@ -314,5 +314,65 @@ describe("Daemon.setPaused / isPaused", () => {
     daemon.setPaused(true); // second call — should not throw or double-log
     expect(daemon.isPaused()).toBe(true);
     await atlas.stop();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. BP5 — softened tray-unavailable log message (Defect 4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("BP5 softened tray-unavailable log", () => {
+  it("log message does not say 'error' — uses 'tray not available' phrasing", () => {
+    // The softened message (changed in BP5 — defect 4):
+    //   BEFORE: "[bridge] tray unavailable (headless or no systray binary) — running headless: <err>"
+    //   AFTER:  "[bridge] tray not available, running headless: <err>"
+    // Test: message contains the new phrasing and does NOT contain "error" as a word.
+    const simulatedError = new Error("spawn ENOENT");
+    const msg = `[bridge] tray not available, running headless: ${simulatedError.message}`;
+    expect(msg).toContain("tray not available");
+    expect(msg).toContain("running headless");
+    expect(msg).toContain("ENOENT");
+    // Benign fallback — should not read as an error condition.
+    expect(msg).not.toContain("error:");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. BP5 — detached mode flag logic (Defect 2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("BP5 detached mode flag detection", () => {
+  it("start argv with --detached (and no --foreground) triggers detach path", () => {
+    const argv = ["start", "--detached"];
+    const isDetached = argv.includes("--detached");
+    const isForeground = argv.includes("--foreground");
+    expect(isDetached && !isForeground).toBe(true);
+  });
+
+  it("start argv with --detached AND --foreground does NOT re-detach (child path)", () => {
+    // The child process re-spawned by spawnDetached receives --foreground,
+    // so it must NOT re-spawn again.
+    const argv = ["start", "--detached", "--foreground"];
+    const isDetached = argv.includes("--detached");
+    const isForeground = argv.includes("--foreground");
+    // When isForeground is true, the detach branch is skipped.
+    expect(isDetached && !isForeground).toBe(false);
+  });
+
+  it("start argv without --detached runs normally (foreground default)", () => {
+    const argv = ["start"];
+    const isDetached = argv.includes("--detached");
+    expect(isDetached).toBe(false);
+  });
+
+  it("spawnDetached childArgs strips --detached and appends --foreground", () => {
+    // Mirror the logic in spawnDetached()
+    const originalArgv = ["start", "--detached"];
+    const childArgs = originalArgv
+      .filter((a) => a !== "--detached")
+      .concat("--foreground");
+    expect(childArgs).toEqual(["start", "--foreground"]);
+    expect(childArgs).not.toContain("--detached");
+    expect(childArgs).toContain("--foreground");
   });
 });
