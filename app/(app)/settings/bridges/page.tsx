@@ -370,14 +370,36 @@ export default async function BridgesPage() {
         )}
       </section>
 
-      {/* PAIR A NEW BRIDGE — N:263–297 + the XX show-once panel */}
+      {/* PAIR A NEW BRIDGE — N:263–297 + the XX show-once panel + BP2 click path */}
       <section className="mt-16">
         <MonoSectionLabel>Pair a new Bridge</MonoSectionLabel>
         <p className="mt-4 text-base text-stone-500 leading-relaxed">
-          Name the machine, generate its token, and start the daemon there with two
-          environment variables. The token shows once; Atlas stores only its hash.
+          Two paths to pair a machine — choose the one that fits.
         </p>
-        <PairingForm atlasUrl={atlasUrl} />
+
+        {/* BP2 click-to-pair story — the primary path for interactive machines */}
+        <div className="mt-7 rounded-2xl border border-stone-200/80 bg-white/70 p-5">
+          <div className="font-mono text-[10px] uppercase tracking-widest text-stone-500">
+            Click-to-pair · for machines with a browser
+          </div>
+          <p className="mt-3 text-sm text-stone-700 leading-relaxed">
+            Run{" "}
+            <span className="font-mono text-xs text-stone-900">atlas-bridge pair</span>{" "}
+            on the machine — it opens this browser to an approve screen, you click approve,
+            and the token is delivered directly. You never copy a secret.
+          </p>
+          <div className="mt-4 font-mono text-[10px] uppercase tracking-widest text-stone-400">
+            Atlas CLI initiates · loopback callback · token delivered once
+          </div>
+        </div>
+
+        {/* Manual paste-token path — retained verbatim (ADR-0004 §4) for headless */}
+        <div className="mt-7">
+          <div className="font-mono text-[10px] uppercase tracking-widest text-stone-500 mb-4">
+            Manual token · for headless or remote machines
+          </div>
+          <PairingForm atlasUrl={atlasUrl} />
+        </div>
       </section>
 
       {/* RUN CAP — PRD #8, the Owner's machine-load dial */}
@@ -400,7 +422,7 @@ export default async function BridgesPage() {
         </div>
       </section>
 
-      {/* HOW PAIRING WORKS — N:301–332, honest recipe */}
+      {/* HOW PAIRING WORKS — N:301–332, honest recipe — updated for both paths (BP2) */}
       <section className="mt-16">
         <MonoSectionLabel>How pairing works</MonoSectionLabel>
         <div className="mt-5">
@@ -408,14 +430,23 @@ export default async function BridgesPage() {
             narrow
             steps={[
               {
-                body: "Generate a token above and copy it — it shows exactly once.",
-              },
-              {
+                title: "Click-to-pair",
                 body: (
                   <>
-                    On the machine that hosts your Bridge, start the daemon from the Atlas
-                    repo:{" "}
-                    <span className="font-mono text-sm text-stone-700">
+                    Run{" "}
+                    <span className="font-mono text-xs text-stone-700">atlas-bridge pair</span>{" "}
+                    on the machine. It opens the approve screen here; click Approve and the
+                    token is delivered over loopback. You never copy a secret.
+                  </>
+                ),
+              },
+              {
+                title: "Manual token",
+                body: (
+                  <>
+                    For headless machines: name the machine in the panel above, generate a
+                    token, then start the daemon with{" "}
+                    <span className="font-mono text-xs text-stone-700">
                       ATLAS_URL=… ATLAS_BRIDGE_TOKEN=… node packages/bridge/src/index.ts
                     </span>
                     .
@@ -423,7 +454,7 @@ export default async function BridgesPage() {
                 ),
               },
               {
-                body: "Atlas detects the heartbeat. The new Bridge appears in the list above with a green pulse.",
+                body: "Atlas detects the first heartbeat. The machine appears in the list above with a green pulse.",
               },
             ]}
           />
