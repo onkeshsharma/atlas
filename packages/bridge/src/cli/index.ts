@@ -35,6 +35,10 @@ Options:
   --version  Print version and exit
   --help     Print this help and exit
 
+start flags:
+  --detached   Spawn the daemon in the background (no console window) and return
+  --foreground Run in the foreground (default; used internally by --detached child)
+
 pair options:
   --name <machine>   Name for this bridge (default: hostname)
   --url <atlas-url>  Atlas URL (default: ATLAS_URL env or config file)
@@ -76,7 +80,8 @@ switch (command) {
 
   case "start": {
     const { runStart } = await import("./start.ts");
-    await runStart();
+    // Pass argv slice so start can detect --detached / --foreground flags.
+    await runStart({ argv: args });
     break;
   }
 

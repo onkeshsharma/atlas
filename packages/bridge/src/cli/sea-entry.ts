@@ -30,6 +30,10 @@ Commands:
   status    Print machine's-eye status line (online/offline, paired-as, engine)
   doctor    Run local preflight checks and print results
 
+start flags:
+  --detached   Spawn the daemon in the background (no console window) and return
+  --foreground Run in the foreground (default; used internally by --detached child)
+
 Options:
   --version  Print version and exit
   --help     Print this help and exit
@@ -75,7 +79,8 @@ Env vars (override config file):
 
     case "start": {
       const { runStart } = await import("./start.ts");
-      await runStart();
+      // Pass argv slice so start can detect --detached / --foreground flags.
+      await runStart({ argv: args });
       break;
     }
 

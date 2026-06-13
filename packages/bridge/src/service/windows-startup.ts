@@ -28,8 +28,8 @@ export function buildRunValue(config: ServiceConfig): {
   const keyPath = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 
   // Build the command string that Windows will run at login.
+  // --detached re-spawns as windowsHide:true so no console flashes at login.
   // Wrap the executable path in quotes to handle spaces.
-  const parts: string[] = [`"${config.executablePath}"`, "start"];
   if (config.bridgeHome) {
     // Inject ATLAS_BRIDGE_HOME via a cmd wrapper so env is set before start.
     // Windows Run key values are raw command strings; wrap in cmd /C with set.
@@ -38,14 +38,14 @@ export function buildRunValue(config: ServiceConfig): {
     return {
       keyPath,
       valueName: config.label,
-      valueData: `${envPrefix}"${config.executablePath}" start${envSuffix}`,
+      valueData: `${envPrefix}"${config.executablePath}" start --detached${envSuffix}`,
     };
   }
 
   return {
     keyPath,
     valueName: config.label,
-    valueData: parts.join(" "),
+    valueData: `"${config.executablePath}" start --detached`,
   };
 }
 
