@@ -24,5 +24,8 @@
     "postject": "1.0.0-alpha.6",
     "typescript": "^5",
     "vitest": "^4.1.8"
+  },
+  "dependencies": {
+    "systray": "^1.0.5"
   }
 }
