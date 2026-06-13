@@ -40,11 +40,25 @@ type Drop = {
 /** the REAL v2 history — master plan §8, newest first. */
 const DROPS: Drop[] = [
   {
+    anchor: "Bridge",
+    id: "bridge-installable",
+    date: "shipped June 13, 2026",
+    title: "The Bridge becomes a thing you install.",
+    current: true,
+    intro:
+      "The local orchestrator stops being a repo you clone and becomes a daemon you install once and forget — one command to pair, a quiet menubar presence, and the cockpit stays the one place anything rich lives.",
+    shipped: [
+      "atlas-bridge — one CLI to pair, start, stop, and check the daemon, over a config file instead of environment variables",
+      "Click-to-pair — approve the machine in Atlas and the token lands on the daemon automatically; no copy-pasting a secret",
+      "A packaged background service that starts on login, with a minimal menubar: connection status, a stop switch, and a link back to Atlas",
+      "Everything rich — live runs, the diff, the doctor — stays in the cockpit, never duplicated on the machine",
+    ],
+  },
+  {
     anchor: "M16",
     id: "m16",
     date: "shipped June 12, 2026",
     title: "How you actually ship.",
-    current: true,
     intro:
       "The last surface: Insights. Throughput, time-to-ship, and the tickets quietly going stale — every number derived live from the record, every gap named instead of faked.",
     shipped: [
