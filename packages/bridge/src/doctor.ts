@@ -21,16 +21,32 @@ export type ExecProbe = (
   args: string[],
 ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
 
-/** spawn with Windows npm-shim tolerance (claude is a .cmd on win32). */
+/**
+ * BP3 — DEP0190 fix: shell:false everywhere; on Windows use cmd.exe /C.
+ *
+ * Node 24 emits DEP0190 when `shell:true` is combined with a separate args
+ * array (the args are concatenated, not escaped — security + deprecation).
+ * Fix: shell:false everywhere. On Windows, npm-installed bins are .cmd batch
+ * wrappers that require cmd.exe to run; we invoke them as:
+ *   spawn('cmd.exe', ['/C', cmd, ...args], { shell: false })
+ * This is semantically equivalent and suppresses DEP0190.
+ * On non-Windows (and for .exe suffixed commands on Windows), shell:false
+ * with direct args is always safe.
+ */
 export function execProbe(cmd: string, args: string[]): Promise<{
   exitCode: number;
   stdout: string;
   stderr: string;
 }> {
+  const isWin = process.platform === "win32";
+  // On Windows non-exe commands need cmd.exe /C to run npm-installed .cmd shims.
+  const spawnCmd = isWin && !cmd.endsWith(".exe") ? "cmd.exe" : cmd;
+  const spawnArgs = isWin && !cmd.endsWith(".exe") ? ["/C", cmd, ...args] : args;
+
   return new Promise((resolve) => {
-    const child = spawn(cmd, args, {
+    const child = spawn(spawnCmd, spawnArgs, {
       stdio: ["ignore", "pipe", "pipe"],
-      shell: process.platform === "win32",
+      shell: false,
     });
     let stdout = "";
     let stderr = "";
