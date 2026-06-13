@@ -93,11 +93,15 @@ test.describe.serial("owner arc: sign-up → welcome → setup → sign-out → 
     await expect(page.getByRole("heading", { name: /Welcome, E2E\./ })).toBeVisible();
     await captureAcrossViewports(page, "welcome");
 
-    // ── setup wizard renders with honest pending Bridge states ──
+    // ── setup wizard renders the REAL instance-served install one-liner ──
+    // (BPI/#25: the old "token preview · atlas.dev" placeholder was replaced
+    // with the InstallOneLiner — OS tabs + origin-interpolated command + the
+    // honest unsigned-binary note. No fake token.)
     await page.goto("/setup");
     await expect(page.getByRole("heading", { name: "Install your Bridge." })).toBeVisible();
     await expect(page.getByText("Waiting for first heartbeat")).toBeVisible();
-    await expect(page.getByText("token preview")).toBeVisible();
+    await expect(page.getByText(/install\.(ps1|sh)/)).toBeVisible();
+    await expect(page.getByText("not yet code-signed")).toBeVisible();
     await captureAcrossViewports(page, "setup");
 
     // ── sign-out actually clears the session ──
