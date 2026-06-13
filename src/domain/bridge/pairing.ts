@@ -4,6 +4,12 @@
  * `scripts/pair-bridge.mjs` (charter item 3 — the script's M9 logic
  * rewritten here, both callers share it).
  *
+ * BP2 — adds `validateCallbackUrl` (the loopback-only security gate for
+ * ADR-0004 §4's click-to-pair flow) and `validatePairState` (guards the
+ * state nonce). Both are pure and tested in tests/bp2-pairing-pure.test.ts.
+ * The click path and the paste path BOTH mint through `pairBridge` — no
+ * fork, no duplicate logic.
+ *
  * Token story (ADR-0002 §1 / HANDOFF-M9): the bearer token is generated
  * server-side, shown ONCE, and only its sha-256 hex is stored. Pairing
  * an existing name ROTATES that bridge's token (and clears revocation);
@@ -50,6 +56,47 @@ export function validateBridgeName(raw: string): BridgeNameValidation {
     return { ok: false, message: "letters, digits, dots, dashes and spaces only" };
   }
   return { ok: true, name };
+}
+
+/** ADR-0004 §4 loopback-only gate — the cb must be 127.0.0.1 or localhost. */
+export type CallbackValidation =
+  | { ok: true; url: URL }
+  | { ok: false; message: string };
+
+/**
+ * Validates a callback URL for the click-to-pair flow (ADR-0004 §4).
+ * Hard security gate: any non-loopback host is REJECTED — this keeps the
+ * token delivery on the same machine as the browser. The daemon's listener
+ * binds on 127.0.0.1 only (ADR-0004 §5: no inbound ports in general).
+ */
+export function validateCallbackUrl(raw: string): CallbackValidation {
+  if (!raw) return { ok: false, message: "callback URL is required" };
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return { ok: false, message: "callback URL is not a valid URL" };
+  }
+  if (url.protocol !== "http:") {
+    return { ok: false, message: "callback URL must use http (loopback only)" };
+  }
+  const host = url.hostname.toLowerCase();
+  if (host !== "127.0.0.1" && host !== "localhost") {
+    return { ok: false, message: "callback URL must be a loopback address (127.0.0.1 or localhost)" };
+  }
+  return { ok: true, url };
+}
+
+/** ADR-0004 §4 — the state nonce must be present and non-empty. */
+export type StateValidation =
+  | { ok: true; state: string }
+  | { ok: false; message: string };
+
+export function validatePairState(raw: string | null | undefined): StateValidation {
+  const s = (raw ?? "").trim();
+  if (!s) return { ok: false, message: "state nonce is required" };
+  if (s.length > 512) return { ok: false, message: "state nonce too long" };
+  return { ok: true, state: s };
 }
 
 /**
