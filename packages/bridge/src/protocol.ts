@@ -170,6 +170,49 @@ export type HelperResultBody =
       suggestedTerms?: Array<{ term: string; uses: number }>;
     };
 
+/**
+ * Validate an untrusted `submit_result` payload (ADR-0006) into a
+ * HelperResultBody. Returns null on any shape mismatch so the MCP tool can
+ * reject it and the Engine retries BEFORE the turn ends — the helper Run only
+ * succeeds by submitting a well-formed deliverable. Mirrors the defensive
+ * style of `parseNeedsInputAnswer`.
+ */
+export function parseHelperResultBody(value: unknown): HelperResultBody | null {
+  if (!isRecord(value)) return null;
+  switch (value.kind) {
+    case "enrich-ticket":
+      // enrichment is opaque to the Bridge (Atlas validates against
+      // TicketEnrichment) — require only that it is present.
+      if (!("enrichment" in value) || value.enrichment === undefined) return null;
+      return { kind: "enrich-ticket", enrichment: value.enrichment };
+    case "draft-brief":
+      if (typeof value.body !== "string" || value.body.length === 0) return null;
+      return { kind: "draft-brief", body: value.body };
+    case "ingest-project": {
+      if (!("summary" in value) || value.summary === undefined) return null;
+      let suggestedTerms: Array<{ term: string; uses: number }> | undefined;
+      if (value.suggestedTerms !== undefined) {
+        if (!Array.isArray(value.suggestedTerms)) return null;
+        const terms: Array<{ term: string; uses: number }> = [];
+        for (const t of value.suggestedTerms) {
+          if (!isRecord(t) || typeof t.term !== "string" || typeof t.uses !== "number") {
+            return null;
+          }
+          terms.push({ term: t.term, uses: t.uses });
+        }
+        suggestedTerms = terms;
+      }
+      return {
+        kind: "ingest-project",
+        summary: value.summary,
+        ...(suggestedTerms ? { suggestedTerms } : {}),
+      };
+    }
+    default:
+      return null;
+  }
+}
+
 /** M17 — per-run resource sample (CPU / memory / disk). */
 export type ResourceSample = {
   /** 0–100 CPU %. */
