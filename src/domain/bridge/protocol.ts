@@ -230,6 +230,16 @@ export function parseBridgeHelperResult(value: unknown): BridgeHelperResultBody 
   }
 }
 
+/**
+ * M17 — per-run resource sample carried in the heartbeat body.
+ * Mirrors packages/bridge/src/protocol.ts ResourceSample.
+ */
+export type BridgeResourceSample = {
+  cpuPct: number;
+  memBytes: number;
+  diskBytes: number;
+};
+
 /** Bridge → Atlas: POST /api/bridge/heartbeat body. */
 export type BridgeHeartbeatBody = {
   version: string;
@@ -243,7 +253,22 @@ export type BridgeHeartbeatBody = {
    */
   cap?: number;
   capabilities?: Record<string, unknown>;
+  /**
+   * M17 — per-run resource telemetry (CPU / memory / disk).
+   * Rides the heartbeat ONLY (ADR-0002 hard wall: NEVER feed_events).
+   * Keyed by runId; absent when no runs are active or the daemon is old.
+   */
+  resources?: Record<string, BridgeResourceSample>;
 };
+
+function isResourceSample(v: unknown): v is BridgeResourceSample {
+  if (!isRecord(v)) return false;
+  return (
+    typeof v.cpuPct === "number" &&
+    typeof v.memBytes === "number" &&
+    typeof v.diskBytes === "number"
+  );
+}
 
 export function parseBridgeHeartbeat(value: unknown): BridgeHeartbeatBody | null {
   if (!isRecord(value)) return null;
@@ -256,12 +281,21 @@ export function parseBridgeHeartbeat(value: unknown): BridgeHeartbeatBody | null
     return null;
   }
   if (value.capabilities !== undefined && !isRecord(value.capabilities)) return null;
+  // M17 — optional resources map; malformed entries are skipped (non-fatal).
+  let resources: Record<string, BridgeResourceSample> | undefined;
+  if (isRecord(value.resources)) {
+    resources = {};
+    for (const [runId, sample] of Object.entries(value.resources)) {
+      if (isResourceSample(sample)) resources[runId] = sample;
+    }
+  }
   return {
     version: value.version,
     engine: value.engine,
     busyRunIds: value.busyRunIds as string[],
     cap: value.cap as number | undefined,
     capabilities: value.capabilities as Record<string, unknown> | undefined,
+    resources,
   };
 }
 

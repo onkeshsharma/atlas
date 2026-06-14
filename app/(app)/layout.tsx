@@ -80,6 +80,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         // M7 — Projects is real (charter §4: this line only; M8 claims Board).
         { key: "projects", label: "Projects", initial: "P", href: "/projects" },
         { key: "settings", label: "Settings", initial: "S", href: "/settings" }, // M10 — real (charter §2: this line only)
+        // M17 — Activity Monitor (Owner-only operational surface). Nav decision:
+        // a dedicated nav item is warranted because the monitor is the ONLY place
+        // to see per-session resource telemetry + act on runaway/stuck sessions;
+        // reaching it only via Today would bury the runaway signal below the fold.
+        { key: "activity", label: "Activity", initial: "A", href: "/activity" },
       ];
 
   const initial =

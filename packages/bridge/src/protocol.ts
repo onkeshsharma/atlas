@@ -169,6 +169,16 @@ export type HelperResultBody =
       suggestedTerms?: Array<{ term: string; uses: number }>;
     };
 
+/** M17 — per-run resource sample (CPU / memory / disk). */
+export type ResourceSample = {
+  /** 0–100 CPU %. */
+  cpuPct: number;
+  /** resident memory bytes. */
+  memBytes: number;
+  /** worktree directory bytes. */
+  diskBytes: number;
+};
+
 export type HeartbeatBody = {
   version: string;
   engine: "real" | "fake";
@@ -176,6 +186,12 @@ export type HeartbeatBody = {
   /** M10 — the cap this daemon currently holds, echoed for the N page. */
   cap?: number;
   capabilities?: Record<string, unknown>;
+  /**
+   * M17 — per-run resource telemetry. Rides the heartbeat ONLY
+   * (ADR-0002 hard wall: resources NEVER go to feed_events).
+   * Keyed by runId; omitted when no runs are active.
+   */
+  resources?: Record<string, ResourceSample>;
 };
 
 // ── M10 doctor (mirrors src/domain/bridge/doctor.ts) ──

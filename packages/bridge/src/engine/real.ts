@@ -73,6 +73,8 @@ export function realEngineAdapter(): EngineAdapter {
       });
       let answerSink: ((answer: NeedsInputAnswer) => void) | null = null;
       let cancelSink: (() => void) | null = null;
+      // M17 — exposed for resource sampling (NON-FATAL: may be undefined).
+      let enginePid: number | undefined;
 
       const brief =
         args.order.briefBody ??
@@ -150,6 +152,8 @@ export function realEngineAdapter(): EngineAdapter {
         });
 
         resolveStarted();
+        // M17 — capture PID for resource sampling (best-effort).
+        enginePid = supervised.child.pid;
 
         // open the session with the brief as the first user turn.
         supervised.child.stdin.write(
@@ -228,6 +232,10 @@ export function realEngineAdapter(): EngineAdapter {
           void started.then(() => cancelSink?.());
         },
         done: sessionPromise,
+        // M17 — resource sampling PID (set after session starts).
+        get pid() {
+          return enginePid;
+        },
       };
     },
   };

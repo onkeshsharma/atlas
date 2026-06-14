@@ -186,6 +186,11 @@ export function fakeEngineAdapter(): EngineAdapter {
           supervised.kill();
         },
         done,
+        // M17 — expose PID for resource sampling (NON-FATAL: may be
+        // undefined if the process exits before we read it).
+        get pid() {
+          return supervised.child.pid;
+        },
       };
     },
   };

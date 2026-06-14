@@ -29,6 +29,13 @@ export type EngineSession = {
   cancel: () => void;
   /** resolves exactly once with the session's outcome. */
   done: Promise<EngineOutcome>;
+  /**
+   * M17 — the Engine child process PID for resource sampling. Optional:
+   * undefined when the engine doesn't expose one (real engine), or when
+   * the process hasn't started yet. NEVER use for steering — only for
+   * resource metrics.
+   */
+  pid?: number;
 };
 
 export type EngineStartArgs = {
