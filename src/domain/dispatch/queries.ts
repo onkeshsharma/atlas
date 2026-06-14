@@ -94,7 +94,7 @@ export type WorkOrder = {
   lane: RunLane;
   helperKind: RunHelperKind | null;
   queuePosition: number | null;
-  project: { id: string; name: string; slug: string; localPath: string | null };
+  project: { id: string; name: string; slug: string; localPath: string | null; repoUrl: string | null };
   ticket: {
     id: string;
     ref: string;
@@ -113,6 +113,7 @@ function toWorkOrder(row: {
   projectName: string;
   projectSlug: string;
   localPath: string | null;
+  repoUrl: string | null;
   ticketId: string | null;
   ticketRef: string | null;
   ticketTitle: string | null;
@@ -134,6 +135,7 @@ function toWorkOrder(row: {
       name: row.projectName,
       slug: row.projectSlug,
       localPath: row.localPath,
+      repoUrl: row.repoUrl,
     },
     ticket:
       row.ticketId && row.ticketRef && row.ticketTitle !== null
@@ -157,6 +159,7 @@ const workOrderSelection = {
   projectName: projects.name,
   projectSlug: projects.slug,
   localPath: projects.localPath,
+  repoUrl: projects.repoUrl,
   ticketId: tickets.id,
   ticketRef: tickets.ref,
   ticketTitle: tickets.title,

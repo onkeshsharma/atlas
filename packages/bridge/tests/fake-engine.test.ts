@@ -34,7 +34,7 @@ function order(overrides: Partial<WorkOrder> = {}): WorkOrder {
     lane: "owner",
     helperKind: null,
     queuePosition: 1,
-    project: { id: "p1", name: "fixture", slug: "fixture", localPath: null },
+    project: { id: "p1", name: "fixture", slug: "fixture", localPath: null, repoUrl: null },
     ticket: {
       id: "t1",
       ref: "T-900",

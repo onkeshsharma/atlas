@@ -44,7 +44,7 @@ export function IngestForm() {
             or connected pre-Engine, so the side note says what actually
             happens (honesty law, M5/M6 precedent). */}
         <span className="italic font-sans text-sm text-stone-500">
-          nothing is cloned yet · the Engine reads it once your Bridge pairs
+          a URL is cloned to your Bridge on the first run · a local path is read in place
         </span>
       </div>
     </form>

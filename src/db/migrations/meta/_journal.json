@@ -71,6 +71,13 @@
       "when": 1781226386276,
       "tag": "0009_yellow_magik",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781417786067,
+      "tag": "0010_steep_lily_hollister",
+      "breakpoints": true
     }
   ]
 }

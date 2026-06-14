@@ -52,7 +52,7 @@ function order(runId: string): WorkOrder {
     lane: "owner",
     helperKind: null,
     queuePosition: null,
-    project: { id: "p1", name: "fixture", slug: "fixture", localPath: repoDir },
+    project: { id: "p1", name: "fixture", slug: "fixture", localPath: repoDir, repoUrl: null },
     ticket: {
       id: "t1",
       ref: "T-950",

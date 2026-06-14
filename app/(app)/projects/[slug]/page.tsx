@@ -495,6 +495,22 @@ export default async function ProjectLandingPage({
               </div>
             </section>
 
+            {/* M18 — repo source honest status (charter §7) */}
+            {(project.repoUrl || project.localPath) && (
+              <section>
+                <MonoSectionLabel>Repo</MonoSectionLabel>
+                <div className="mt-3 font-mono text-[10px] uppercase tracking-widest text-stone-500">
+                  {project.repoUrl && project.localPath ? (
+                    <span>cloned at {project.localPath}</span>
+                  ) : project.repoUrl && !project.localPath ? (
+                    <span>will clone on the first run</span>
+                  ) : (
+                    <span>local checkout · {project.localPath}</span>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* Members (O:392–417) — M11 seam closure (HANDOFF-M7 note):
                 real per-project roster + derived presence + the restored
                 "manage members →". O:413 "2 active now" → "active today"
