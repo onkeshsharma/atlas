@@ -10,6 +10,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/src/db/client";
 import { bridgeFromRequest } from "@/src/domain/bridge/auth";
 import { parseBridgeHeartbeat } from "@/src/domain/bridge/protocol";
+import { sweepAfk } from "@/src/domain/athena/run-resolver";
 import { runCap } from "@/src/domain/settings/instance";
 
 export const runtime = "nodejs";
@@ -40,6 +41,11 @@ export async function POST(req: Request) {
     set last_heartbeat_at = now(), capabilities = ${capabilities}::jsonb
     where id = ${bridge.id}
   `);
+
+  // ADR-0006 §4 — AFK fallback sweep: auto-answer pending Asks via Athena
+  // (immediately under AFK Mode, or past the fallback window when off). The
+  // heartbeat is the natural cadence; failures must NEVER fail the heartbeat.
+  await sweepAfk().catch(() => {});
 
   return Response.json({ ok: true, cap: await runCap() });
 }

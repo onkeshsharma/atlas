@@ -103,6 +103,11 @@ export const runs = pgTable("runs", {
   mergeSha: text("merge_sha"),
   /** answered-question history — array of { question, answer } in the M6 jsonb shapes. */
   questionHistory: jsonb("question_history"),
+  /**
+   * ADR-0006 §4 — when Athena last attempted this Run's Ask. Set once (answer
+   * OR abstain) so the AFK fallback sweep never re-attempts the same Ask.
+   */
+  athenaAttemptedAt: timestamp("athena_attempted_at", { withTimezone: true }),
   seeded: boolean("seeded").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

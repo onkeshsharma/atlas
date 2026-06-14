@@ -28,9 +28,11 @@ import { bridgeViews } from "@/src/domain/bridge/queries";
 import { projectRows } from "@/src/domain/cockpit/queries";
 import { latestCursor } from "@/src/domain/live/broker";
 import { sidebarCollapsed } from "@/src/domain/preferences/sidebar";
+import { afkMode } from "@/src/domain/settings/instance";
 import { shortAgo } from "@/src/lib/format";
 
 import { pinProjectAction, unpinProjectAction } from "./actions";
+import { AfkPrefControl } from "./afk-pref-control";
 import { SidebarPrefControl } from "./sidebar-pref-control";
 
 export const dynamic = "force-dynamic";
@@ -68,9 +70,10 @@ function ShortcutRow({
 
 export default async function PreferencesPage() {
   const user = await requireOwner();
-  const [rows, collapsed, bridges, cursor] = await Promise.all([
+  const [rows, collapsed, afk, bridges, cursor] = await Promise.all([
     projectRows(),
     sidebarCollapsed(user.id),
+    afkMode(),
     bridgeViews(),
     latestCursor(),
   ]);
@@ -150,6 +153,20 @@ export default async function PreferencesPage() {
         </p>
         <div className="mt-7">
           <SidebarPrefControl collapsed={collapsed} />
+        </div>
+      </section>
+
+      {/* Section: AFK Mode — ADR-0006 §4, Athena answers Asks while you're away */}
+      <section className="mt-16 pb-14 border-b border-stone-200">
+        <MonoSectionLabel>AFK Mode</MonoSectionLabel>
+        <p className="mt-4 text-base text-stone-500 leading-relaxed">
+          When a Run needs a decision and you&apos;re away, <span className="font-medium text-stone-700">Athena</span> —
+          the decision delegate — answers on your behalf so work keeps moving. Every Athena
+          decision is recorded in the feed. With AFK off, Asks wait for you, and Athena only
+          steps in as a fallback after 10 minutes unanswered.
+        </p>
+        <div className="mt-7">
+          <AfkPrefControl enabled={afk} />
         </div>
       </section>
 

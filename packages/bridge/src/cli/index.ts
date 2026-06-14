@@ -103,6 +103,14 @@ switch (command) {
     break;
   }
 
+  case "__mcp": {
+    // internal (ADR-0006): the stdio MCP server Claude spawns; relays to the
+    // daemon over loopback IPC. Not user-facing — omitted from --help.
+    const { runMcpChild } = await import("../engine/mcp/child.ts");
+    await runMcpChild();
+    break;
+  }
+
   default: {
     console.error(`Unknown command: ${command}`);
     console.error(`Run "atlas-bridge --help" for usage.`);

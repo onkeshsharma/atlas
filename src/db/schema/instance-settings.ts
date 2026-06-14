@@ -9,7 +9,7 @@
  * when the row hasn't been created yet (honest zero-config start).
  * The Owner-facing dial surface is M10's settings shell.
  */
-import { check, integer, pgTable, smallint, timestamp } from "drizzle-orm/pg-core";
+import { boolean, check, integer, pgTable, smallint, timestamp } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const instanceSettings = pgTable(
@@ -19,6 +19,12 @@ export const instanceSettings = pgTable(
     id: smallint("id").primaryKey().default(1),
     /** how many Engine sessions the Bridge may run at once (PRD #8). */
     runCap: integer("run_cap").notNull().default(2),
+    /**
+     * AFK Mode (ADR-0006 §4): when on, a Run's Ask is auto-answered by Athena
+     * instead of waiting for the Owner. Instance-level (one Owner), so the
+     * token-authed bridge routes can read it without a user session.
+     */
+    afkMode: boolean("afk_mode").notNull().default(false),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("instance_settings_single_row", sql`${t.id} = 1`)],

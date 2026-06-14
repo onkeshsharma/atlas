@@ -9,12 +9,20 @@ import { revalidatePath } from "next/cache";
 import { requireOwner, requireUser } from "@/src/domain/auth/guard";
 import { setSidebarCollapsed } from "@/src/domain/preferences/sidebar";
 import { setProjectPinned } from "@/src/domain/project/pin";
+import { setAfkMode } from "@/src/domain/settings/instance";
 
 /** §2.1 — the persisted shell-density preference (expanded ⇄ collapsed). */
 export async function setSidebarPrefAction(value: string): Promise<void> {
   const user = await requireUser();
   await setSidebarCollapsed(user.id, value === "collapsed");
   revalidatePath("/", "layout");
+}
+
+/** ADR-0006 §4 — AFK Mode: when on, Athena answers Runs' Asks for you. */
+export async function setAfkModeAction(value: string): Promise<void> {
+  await requireOwner();
+  await setAfkMode(value === "on");
+  revalidatePath("/settings");
 }
 
 export async function pinProjectAction(formData: FormData): Promise<void> {
