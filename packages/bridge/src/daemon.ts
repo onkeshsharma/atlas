@@ -17,6 +17,7 @@ import { BRIDGE_VERSION } from "./config.ts";
 import { runDoctor } from "./doctor.ts";
 import type { EngineAdapter } from "./engine/types.ts";
 import { parseBridgeEvent, type RunLane } from "./protocol.ts";
+import { ResourceSampler } from "./resources.ts";
 import { executeRun, type RunExecution } from "./runner.ts";
 import { nextToStart, type SchedulableRun } from "./scheduler.ts";
 import { executeShip } from "./ship.ts";
@@ -54,6 +55,10 @@ export class Daemon {
   private lastCursor: number | null = null;
   private queued = new Map<string, SchedulableRun>();
   private running = new Map<string, RunExecution>();
+  /** M17 — per-run resource sampler (cheap, non-fatal). */
+  private readonly sampler = new ResourceSampler();
+  /** M17 — latest resource snapshot, refreshed each heartbeat. */
+  private lastResources = new Map<string, import("./resources.ts").ResourceSample>();
   /** Session B — ship executions in flight. Git ops, not Engine
    * sessions: they never consume cap slots (the worktree already
    * holds the work; shipping is seconds, runs are minutes). */
@@ -402,10 +407,15 @@ export class Daemon {
         log: this.log,
       });
       this.running.set(pick.runId, execution);
+      // M17 — register for resource sampling; PID may not be set yet
+      // (the engine child spawns asynchronously); sampler.updatePid() is
+      // called in the heartbeat loop once the session is underway.
+      this.sampler.register(pick.runId, null, execution.worktreePath);
       void execution.done
         .catch((err) => this.log(`run ${pick.runId}: executor error — ${String(err)}`))
         .finally(() => {
           this.running.delete(pick.runId);
+          this.sampler.unregister(pick.runId); // M17
           this.tick();
         });
     }
@@ -478,6 +488,33 @@ export class Daemon {
   private async heartbeat(): Promise<void> {
     if (this.stopped) return;
     try {
+      // M17 — refresh PIDs (they're set only after the engine child spawns)
+      // and sample resources while the heartbeat composes. Cheap + non-fatal:
+      // any failure leaves the previous snapshot in place.
+      for (const [runId, execution] of this.running) {
+        const pid = execution.getPid();
+        if (pid !== null) this.sampler.updatePid(runId, pid);
+      }
+      // Sample with a short window (~500ms) so the heartbeat doesn't block
+      // excessively. The window is bounded to half the heartbeat interval.
+      const windowMs = Math.min(500, Math.floor(this.opts.heartbeatMs / 2));
+      try {
+        const snapshot = await this.sampler.sampleAll(windowMs);
+        if (snapshot.size > 0) this.lastResources = snapshot;
+      } catch {
+        // sampling failure is non-fatal — use previous snapshot.
+      }
+
+      // Serialize the resource snapshot keyed by runId.
+      const resources: Record<string, { cpuPct: number; memBytes: number; diskBytes: number }> = {};
+      for (const [runId, sample] of this.lastResources) {
+        resources[runId] = {
+          cpuPct: Math.round(sample.cpuPct * 10) / 10, // 1 dp
+          memBytes: sample.memBytes,
+          diskBytes: sample.diskBytes,
+        };
+      }
+
       const cap = await this.opts.client.heartbeat({
         version: BRIDGE_VERSION,
         engine: this.opts.engine.flavor,
@@ -486,6 +523,9 @@ export class Daemon {
         // edit actually reached this machine ("daemon confirmed cap N").
         cap: this.cap,
         capabilities: { node: process.version, platform: process.platform },
+        // M17 — per-run resource telemetry (resources ride the heartbeat,
+        // NEVER feed_events — ADR-0002 + charter hard wall).
+        resources: Object.keys(resources).length > 0 ? resources : undefined,
       });
       if (cap !== null) this.cap = cap;
     } catch (err) {

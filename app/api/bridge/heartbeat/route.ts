@@ -31,6 +31,9 @@ export async function POST(req: Request) {
     busyRunIds: body.busyRunIds,
     ...(body.cap !== undefined ? { cap: body.cap } : {}),
     ...(body.capabilities ?? {}),
+    // M17 — per-run resource telemetry stored alongside capabilities.
+    // Rides the heartbeat column; NEVER written to feed_events.
+    ...(body.resources !== undefined ? { resources: body.resources } : {}),
   });
   await db.execute(sql`
     update bridges

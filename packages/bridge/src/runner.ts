@@ -37,6 +37,11 @@ export type RunExecution = {
   answer: (answer: NeedsInputAnswer) => void;
   cancel: () => void;
   done: Promise<void>;
+  /** M17 — the Engine child PID (available after claim; null before start
+   *  or when the engine doesn't expose one). For resource sampling only. */
+  getPid: () => number | null;
+  /** M17 — the claimed worktree path (null for helper/no-repo runs). */
+  worktreePath: string | null;
 };
 
 export type RunnerDeps = {
@@ -55,6 +60,8 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
   let session: EngineSession | null = null;
   let cancelled = false;
   let pendingAnswer: NeedsInputAnswer | null = null;
+  // M17 — tracked for resource sampling.
+  let claimedWorktreePath: string | null = null;
 
   const done = (async () => {
     const order = await deps.client.workOrder(runId);
@@ -102,6 +109,7 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
       try {
         const created = await createRunWorktree({ repoDir, runId, dataDir: deps.dataDir });
         worktree = created.path;
+        claimedWorktreePath = worktree; // M17
       } catch (err) {
         await deps.client.transition(runId, {
           to: "failed",
@@ -202,5 +210,12 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
       session?.cancel();
     },
     done,
+    // M17 — resource sampling accessors (non-fatal: may return null).
+    getPid() {
+      return session?.pid ?? null;
+    },
+    get worktreePath() {
+      return claimedWorktreePath;
+    },
   };
 }
