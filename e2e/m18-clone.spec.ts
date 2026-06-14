@@ -231,15 +231,13 @@ test.describe.serial("M18 — clone-on-dispatch", () => {
       .returning({ id: tickets.id, ref: tickets.ref });
 
     // skip the Brief helper by inserting a brief directly so dispatch goes
-    // straight to the owner run (the same pattern m9b-ship uses)
-    const [brief] = await db
-      .insert(briefs)
-      .values({
-        ticketId: ticket.id,
-        body: "Dispatch directly — m18 clone test brief.",
-        source: "owner",
-      })
-      .returning({ id: briefs.id });
+    // straight to the owner run (the same pattern m9b-ship uses).
+    // Cleanup is in afterAll (cleanupE2ERows deletes briefs before tickets).
+    await db.insert(briefs).values({
+      ticketId: ticket.id,
+      body: "Dispatch directly — m18 clone test brief.",
+      source: "owner",
+    });
 
     // Navigate to the ticket and dispatch the owner run
     await page.goto(`/tickets/${ticket.ref}`);
