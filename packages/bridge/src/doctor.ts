@@ -47,6 +47,7 @@ export function execProbe(cmd: string, args: string[]): Promise<{
     const child = spawn(spawnCmd, spawnArgs, {
       stdio: ["ignore", "pipe", "pipe"],
       shell: false,
+      windowsHide: true,
     });
     let stdout = "";
     let stderr = "";

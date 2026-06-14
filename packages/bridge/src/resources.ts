@@ -45,7 +45,7 @@ async function getCpuSnapshot(pid: number): Promise<CpuSnapshot | null> {
       const { execSync } = await import("node:child_process");
       const out = execSync(
         `wmic process where ProcessId=${pid} get KernelModeTime,UserModeTime /format:csv`,
-        { timeout: 2_000, stdio: ["ignore", "pipe", "ignore"] },
+        { timeout: 2_000, stdio: ["ignore", "pipe", "ignore"], windowsHide: true },
       ).toString();
       const lines = out.trim().split("\n").filter((l) => l.trim() && !l.startsWith("Node"));
       const parts = lines[0]?.split(",");
@@ -78,7 +78,7 @@ async function getMemBytes(pid: number): Promise<number> {
       const { execSync } = await import("node:child_process");
       const out = execSync(
         `wmic process where ProcessId=${pid} get WorkingSetSize /format:csv`,
-        { timeout: 2_000, stdio: ["ignore", "pipe", "ignore"] },
+        { timeout: 2_000, stdio: ["ignore", "pipe", "ignore"], windowsHide: true },
       ).toString();
       const lines = out.trim().split("\n").filter((l) => l.trim() && !l.startsWith("Node"));
       const val = Number(lines[0]?.split(",")[1]);

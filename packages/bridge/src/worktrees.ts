@@ -22,6 +22,8 @@ export function gitExec(args: string[], options: { cwd?: string } = {}): Promise
     const child = spawn("git", args, {
       cwd: options.cwd,
       stdio: ["ignore", "pipe", "pipe"],
+      // Windows: without this every git invocation flashes a console window.
+      windowsHide: true,
     });
     let stdout = "";
     let stderr = "";

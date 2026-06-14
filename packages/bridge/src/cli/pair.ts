@@ -79,7 +79,7 @@ export async function openBrowserDefault(url: string): Promise<boolean> {
     } else {
       cmd = `xdg-open "${url}"`;
     }
-    exec(cmd, (err) => resolve(!err));
+    exec(cmd, { windowsHide: true }, (err) => resolve(!err));
   });
 }
 

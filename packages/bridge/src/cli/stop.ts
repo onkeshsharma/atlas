@@ -73,7 +73,7 @@ async function defaultKill(pid: number): Promise<boolean> {
     // Mirrors the kill-e2e-server.mjs lesson: SIGTERM is ignored on win32.
     const { exec } = await import("node:child_process");
     return new Promise((resolve) => {
-      exec(`taskkill /F /PID ${pid}`, (err) => resolve(!err));
+      exec(`taskkill /F /PID ${pid}`, { windowsHide: true }, (err) => resolve(!err));
     });
   } else {
     try {

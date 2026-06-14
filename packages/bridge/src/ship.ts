@@ -46,7 +46,11 @@ export type GhExecFn = (args: string[], options?: { cwd?: string }) => Promise<G
 
 export function ghExec(args: string[], options: { cwd?: string } = {}): Promise<GitResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn("gh", args, { cwd: options.cwd, stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn("gh", args, {
+      cwd: options.cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (b: Buffer) => (stdout += b.toString("utf8")));
