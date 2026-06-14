@@ -74,6 +74,10 @@ export default defineConfig({
       // disjoint distDirs (Next 16 per-distDir dev lock) as well as ports.
       ATLAS_E2E_DISTDIR: process.env.ATLAS_E2E_DISTDIR ?? ".next-e2e",
       CRON_SECRET: process.env.CRON_SECRET,
+      // ADR-0006 §4 — Athena's LLM seam is faked in e2e (deterministic,
+      // never spends real tokens — the engine's fake-only wall extends to
+      // the delegate). The AFK sweep then auto-answers via the stub.
+      ATLAS_ATHENA_FAKE: "1",
       ...(process.env.DATABASE_URL
         ? { DATABASE_URL: process.env.DATABASE_URL }
         : {}),
