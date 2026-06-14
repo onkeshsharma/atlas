@@ -37,6 +37,23 @@ describe("StdoutBatcher", () => {
     expect(sent.flat().map((c) => c.content).join("")).toBe("0123456789ABCtail");
   });
 
+  it("M18 — startSeq offsets numbering so it never collides with clone-progress chunks", async () => {
+    // the runner posts clone progress as seq 1,2 directly; the batcher
+    // takes over with startSeq:2 so the first engine chunk is seq 3 (a
+    // seq-1 collision would be a silent no-op at the idempotent ingest).
+    const sent: StdoutChunk[][] = [];
+    const batcher = new StdoutBatcher({
+      flushMs: 60_000,
+      startSeq: 2,
+      send: (c) => void sent.push(c),
+    });
+    batcher.push("engine line one\n");
+    await batcher.flush();
+    batcher.push("engine line two\n");
+    await batcher.stop();
+    expect(sent.flat().map((c) => c.seq)).toEqual([3, 4]);
+  });
+
   it("re-queues failed sends ahead of newer chunks (order preserved)", async () => {
     const sent: StdoutChunk[][] = [];
     let failNext = true;

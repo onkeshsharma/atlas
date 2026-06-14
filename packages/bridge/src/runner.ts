@@ -93,6 +93,10 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
 
     // resolve repoDir — may require a clone (M18).
     let repoDir = order.project.localPath;
+    // M18 — seqs the clone progress consumed directly; the engine's batcher
+    // must start above these or its first chunks collide and get dropped
+    // (stdout ingest is idempotent on (run_id, seq)).
+    let stdoutSeqBase = 0;
 
     if (wantsWorktree && !repoDir && order.project.repoUrl) {
       const repoUrl = order.project.repoUrl;
@@ -115,6 +119,7 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
       void deps.client.postStdout(runId, [
         { seq: 2, content: res.cloned ? "Cloned.\n" : "Using existing checkout.\n" },
       ]).catch(() => {});
+      stdoutSeqBase = 2;
       // report back: persist local_path (best-effort, non-fatal — the run proceeds even
       // if the write fails, as the next dispatch will reuse the existing checkout).
       void deps.client.setProjectLocalPath(order.project.id, repoDir).catch((err) => {
@@ -158,6 +163,7 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
     const batcher = new StdoutBatcher({
       flushMs: STDOUT_FLUSH_MS,
       send: (chunks) => deps.client.postStdout(runId, chunks),
+      startSeq: stdoutSeqBase,
     });
     batcher.start();
 
