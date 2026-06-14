@@ -116,8 +116,19 @@ try {
     exit 1
 }
 
-Write-Host "`nAtlas Bridge installed successfully."
+# ── 6. Start the daemon now (detached/windowless) so install ends CONNECTED ──
+Write-Host "`nStep 5/5 — starting the bridge in the background..."
+try {
+    & $exePath start --detached
+    Start-Sleep -Seconds 3
+    & $exePath status
+} catch {
+    Write-Host "  Could not auto-start — run it yourself: & `"$exePath`" start" -ForegroundColor Yellow
+}
+
+Write-Host "`nAtlas Bridge installed and connected."
 Write-Host "  Binary    : $exePath"
-Write-Host "  Auto-start: registered (will start at next login)"
-Write-Host "  To start now: & `"$exePath`" start"
-Write-Host "  To check status: & `"$exePath`" status"
+Write-Host "  Running   : in the background (no window) — a tray icon appears near the clock"
+Write-Host "  Auto-start: registered (relaunches at every login)"
+Write-Host "  To stop   : & `"$exePath`" stop"
+Write-Host "  To check  : & `"$exePath`" status"

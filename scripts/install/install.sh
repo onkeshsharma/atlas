@@ -200,9 +200,20 @@ if ! atlas-bridge pair --url "$ATLAS_URL"; then
   exit 1
 fi
 
+# ── 6. Start the daemon now (detached) so install ends CONNECTED ──
 echo ""
-echo "Atlas Bridge installed successfully."
+echo "Step 5/5 — starting the bridge in the background..."
+if "$BINARY" start --detached; then
+  sleep 3
+  "$BINARY" status || true
+else
+  echo "  Could not auto-start — run it yourself: $BINARY start" >&2
+fi
+
+echo ""
+echo "Atlas Bridge installed and connected."
 echo "  Binary       : $BINARY"
-echo "  Auto-start   : registered (will start at next login)"
-echo "  To check status: atlas-bridge status"
-echo "  To run doctor  : atlas-bridge doctor"
+echo "  Running      : in the background — a tray/menu-bar icon appears"
+echo "  Auto-start   : registered (relaunches at every login)"
+echo "  To stop      : $BINARY stop"
+echo "  To check     : $BINARY status"
