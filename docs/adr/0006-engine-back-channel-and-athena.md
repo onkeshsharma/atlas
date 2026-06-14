@@ -70,7 +70,10 @@ enforceable** ("describe, don't do"): an ingest Run cannot succeed *except* by c
 
 ### 4. The resolver is the Owner — or Athena under AFK
 The ask channel is resolver-agnostic (the engine never knows who answered), so "who
-answers" is a Bridge-side policy:
+answers" is a policy decision. **Placement: Atlas-side** (refined during build) — Atlas
+holds the AFK toggle (an Owner setting) and all the Ask context (Brief, Ticket,
+transcript, diff), and Athena's answer returns through the EXISTING `run-answered` path
+with `answeredBy="Athena"`, so the Bridge needs no change. The policy:
 - **Owner** (default): the Ask surfaces as `needs-input`; the Owner replies.
 - **Athena** (the AFK decision delegate): under a global **AFK Mode** toggle, every Ask is
   auto-answered by Athena so Runs keep moving with zero human latency. Athena is also a
