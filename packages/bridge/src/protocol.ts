@@ -31,6 +31,7 @@ export const FAILURE_KINDS = [
   "engine-crash",
   "engine-timeout",
   "no-repo",
+  "clone-failed", // the Bridge couldn't clone the repo — git error or dest conflict
   "worktree-failed",
   "bridge-lost",
   "conflict",
@@ -274,7 +275,7 @@ export type WorkOrder = {
   lane: RunLane;
   helperKind: HelperKind | null;
   queuePosition: number | null;
-  project: { id: string; name: string; slug: string; localPath: string | null };
+  project: { id: string; name: string; slug: string; localPath: string | null; repoUrl: string | null };
   ticket: {
     id: string;
     ref: string;
@@ -296,5 +297,9 @@ export function parseWorkOrder(value: unknown): WorkOrder | null {
   if (typeof value.project.name !== "string" || typeof value.project.id !== "string") return null;
   if (value.ticket !== null && !isRecord(value.ticket)) return null;
   if (value.briefBody !== null && typeof value.briefBody !== "string") return null;
+  // M18 — repoUrl may be absent from pre-M18 server responses; tolerate.
+  if ('repoUrl' in value.project) {
+    if (value.project.repoUrl !== null && typeof value.project.repoUrl !== 'string') return null;
+  }
   return value as unknown as WorkOrder;
 }

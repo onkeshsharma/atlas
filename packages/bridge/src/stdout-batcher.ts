@@ -11,7 +11,7 @@
 import type { StdoutChunk } from "./protocol.ts";
 
 export class StdoutBatcher {
-  private seq = 0;
+  private seq: number;
   private buffer = "";
   private pending: StdoutChunk[] = [];
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -24,10 +24,19 @@ export class StdoutBatcher {
     flushMs: number;
     maxChars?: number;
     send: (chunks: StdoutChunk[]) => Promise<void> | void;
+    /**
+     * M18 — seqs already consumed for this run before the batcher took over
+     * (e.g. clone-progress chunks the runner posts directly). The first
+     * batched chunk is `startSeq + 1`, so it never collides with those —
+     * stdout ingest is idempotent on (run_id, seq), so a collision would
+     * silently DROP the engine's first output.
+     */
+    startSeq?: number;
   }) {
     this.flushMs = opts.flushMs;
     this.maxChars = opts.maxChars ?? 8_192;
     this.send = opts.send;
+    this.seq = opts.startSeq ?? 0;
   }
 
   start(): void {

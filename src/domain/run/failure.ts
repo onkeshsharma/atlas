@@ -12,6 +12,7 @@ export const FAILURE_KINDS = [
   "engine-crash", //    the Engine process exited non-zero / died
   "engine-timeout", //  the Engine hit the Bridge's wall clock
   "no-repo", //         the project has no local_path on this machine
+  "clone-failed", //    the Bridge couldn't clone the repo — git error or dest conflict
   "worktree-failed", // git worktree add failed (disk, locks, repo state)
   "bridge-lost", //     the daemon restarted under the run (orphan sweep)
   "conflict", //        merge conflict at ship time (PRD #23 — Session B)
@@ -31,6 +32,7 @@ export const FAILURE_GUIDANCE: Record<FailureKind, string> = {
   "engine-crash": "The Engine died mid-run. The stdout tail below shows its last words.",
   "engine-timeout": "The Engine ran past the time wall. Consider a narrower Brief.",
   "no-repo": "This project has no local path on the Bridge's machine — pair one before dispatching.",
+  "clone-failed": "The Bridge couldn't clone the repository — check the URL and your git credentials. The stdout tail shows git's words.",
   "worktree-failed": "The Bridge couldn't create the run's worktree. Check the repo's state on disk.",
   "bridge-lost": "The Bridge restarted underneath this run. Nothing shipped; dispatch again.",
   conflict: "The merge conflicts with what landed since. Send it back to the Engine to resolve.",

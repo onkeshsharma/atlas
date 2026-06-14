@@ -78,6 +78,8 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   "member-added", //     a roster row landed — project access granted (PRD #38)
   "member-removed", //   access removed (payload.scope: project | instance)
   "profile-changed", //  an identity field changed (M10's closing note)
+  // M18 — Atlas linked a local checkout to a project (clone landed / path set).
+  "project-linked",
 ]);
 
 export const feedEvents = pgTable("feed_events", {

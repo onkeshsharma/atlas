@@ -19,7 +19,7 @@ export type FakeRun = {
   lane: "owner" | "helper";
   helperKind: "enrich-ticket" | "draft-brief" | "ingest-project" | null;
   queuePosition: number | null;
-  project: { id: string; name: string; slug: string; localPath: string | null };
+  project: { id: string; name: string; slug: string; localPath: string | null; repoUrl: string | null };
   ticket: {
     id: string;
     ref: string;
@@ -56,6 +56,7 @@ export class FakeAtlas {
   cap = 2;
   runs = new Map<string, FakeRun>();
   heartbeats: unknown[] = [];
+  localPathReports: Array<{ projectId: string; localPath: string }> = [];
   private outbox: OutboxRow[] = [];
   private cursor = 0;
   private server: Server | null = null;
@@ -85,7 +86,7 @@ export class FakeAtlas {
       queuePosition: input.queuePosition ?? n,
       project:
         input.project ??
-        ({ id: "p1", name: "fixture", slug: "fixture", localPath: input.localPath ?? null }),
+        ({ id: "p1", name: "fixture", slug: "fixture", localPath: input.localPath ?? null, repoUrl: null }),
       ticket:
         input.ticket !== undefined
           ? input.ticket
@@ -259,6 +260,26 @@ export class FakeAtlas {
       return;
     }
 
+    // POST /api/bridge/projects/:id/local-path
+    const projectMatch = /^\/api\/bridge\/projects\/([^/]+)\/local-path$/.exec(url.pathname);
+    if (projectMatch && req.method === "POST") {
+      const b = (await readBody()) as { localPath?: string } | null;
+      const localPath = b?.localPath;
+      if (typeof localPath !== "string" || localPath === "") {
+        res.writeHead(400).end("Missing localPath");
+        return;
+      }
+      this.localPathReports.push({ projectId: projectMatch[1], localPath });
+      // update the project in any run that has this project id
+      for (const run of this.runs.values()) {
+        if (run.project.id === projectMatch[1]) {
+          run.project = { ...run.project, localPath };
+        }
+      }
+      json(200, { ok: true });
+      return;
+    }
+
     // /api/bridge/runs/:id[/…]
     const match = /^\/api\/bridge\/runs\/([^/]+)(?:\/([a-z-]+))?$/.exec(url.pathname);
     if (!match) {
@@ -371,6 +392,7 @@ export class FakeAtlas {
     res.writeHead(404).end();
   }
 }
+
 
 /** poll until the predicate holds (the daemon is asynchronous end-to-end). */
 export async function waitFor(

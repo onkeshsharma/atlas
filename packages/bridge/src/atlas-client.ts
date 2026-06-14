@@ -126,4 +126,16 @@ export class AtlasClient {
         : null;
     return typeof cap === "number" ? cap : null;
   }
+
+  /** M18 — report the resolved local checkout path back to Atlas. */
+  async setProjectLocalPath(projectId: string, localPath: string): Promise<boolean> {
+    const { status } = await this.request(
+      "POST",
+      `/api/bridge/projects/${projectId}/local-path`,
+      { localPath },
+    );
+    if (status === 200) return true;
+    if (status === 404 || status === 409) return false;
+    throw new Error(`setProjectLocalPath returned ${status}`);
+  }
 }

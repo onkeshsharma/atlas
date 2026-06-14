@@ -95,6 +95,7 @@ export const KIND_FAMILY: Record<FeedEventKind, AuditFamily> = {
   "invite-declined": "invite",
   "member-added": "invite",
   "member-removed": "danger", // TT:144's "Removed Sam from marketing-site"
+  "project-linked": "settings", // M18 — clone resolved; bookkeeping → settings family
 };
 
 // ── the composed event ─────────────────────────────────────────────────

@@ -21,6 +21,7 @@ import type { AtlasClient } from "./atlas-client.ts";
 import type { EngineAdapter, EngineSession } from "./engine/types.ts";
 import type { NeedsInputAnswer, WorkOrder } from "./protocol.ts";
 import { StdoutBatcher } from "./stdout-batcher.ts";
+import { ensureClonedRepo, resolveProjectsHome } from "./clone.ts";
 import {
   captureDiffPatch,
   captureDiffStats,
@@ -74,8 +75,11 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
     await mkdir(sandbox, { recursive: true });
 
     const wantsWorktree = needsWorktree(order);
-    const repoDir = order.project.localPath;
-    const plannedWorktree = wantsWorktree && repoDir ? runWorktreePath(deps.dataDir, runId) : null;
+    // M18 — a URL-only project will have a repoDir AFTER clone, so compute
+    // willHaveRepo before claim so the worktree path is deterministic.
+    const willHaveRepo = !!(order.project.localPath || order.project.repoUrl);
+    const plannedWorktree =
+      wantsWorktree && willHaveRepo ? runWorktreePath(deps.dataDir, runId) : null;
 
     const claimed = await deps.client.claim(runId, {
       worktreePath: plannedWorktree,
@@ -87,6 +91,42 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
     }
     deps.log(`run ${order.ref}: claimed (${order.lane}${order.helperKind ? `/${order.helperKind}` : ""})`);
 
+    // resolve repoDir — may require a clone (M18).
+    let repoDir = order.project.localPath;
+    // M18 — seqs the clone progress consumed directly; the engine's batcher
+    // must start above these or its first chunks collide and get dropped
+    // (stdout ingest is idempotent on (run_id, seq)).
+    let stdoutSeqBase = 0;
+
+    if (wantsWorktree && !repoDir && order.project.repoUrl) {
+      const repoUrl = order.project.repoUrl;
+      const slug = order.project.slug;
+      const projectsHome = resolveProjectsHome();
+      const dest = `${projectsHome}/${slug}`;
+      // stream honest progress so the run page shows it immediately.
+      void deps.client.postStdout(runId, [{ seq: 1, content: `Cloning ${repoUrl} into ${dest}…\n` }]).catch(() => {});
+      const res = await ensureClonedRepo({ repoUrl, slug, projectsHome });
+      if (!res.ok) {
+        await deps.client.transition(runId, {
+          to: "failed",
+          failureKind: "clone-failed",
+          failureDetail: res.detail,
+        });
+        await rm(sandbox, { recursive: true, force: true }).catch(() => {});
+        return;
+      }
+      repoDir = res.path;
+      void deps.client.postStdout(runId, [
+        { seq: 2, content: res.cloned ? "Cloned.\n" : "Using existing checkout.\n" },
+      ]).catch(() => {});
+      stdoutSeqBase = 2;
+      // report back: persist local_path (best-effort, non-fatal — the run proceeds even
+      // if the write fails, as the next dispatch will reuse the existing checkout).
+      void deps.client.setProjectLocalPath(order.project.id, repoDir).catch((err) => {
+        deps.log(`run ${order.ref}: setProjectLocalPath failed (non-fatal) — ${String(err)}`);
+      });
+    }
+
     const prune = async () => {
       if (plannedWorktree && repoDir) {
         await removeRunWorktree({ repoDir, runId, dataDir: deps.dataDir });
@@ -94,7 +134,7 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
       await rm(sandbox, { recursive: true, force: true }).catch(() => {});
     };
 
-    // honest pre-engine failures
+    // honest pre-engine failures — genuine no-source case (neither localPath NOR repoUrl).
     if (wantsWorktree && !repoDir) {
       await deps.client.transition(runId, {
         to: "failed",
@@ -123,6 +163,7 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
     const batcher = new StdoutBatcher({
       flushMs: STDOUT_FLUSH_MS,
       send: (chunks) => deps.client.postStdout(runId, chunks),
+      startSeq: stdoutSeqBase,
     });
     batcher.start();
 
