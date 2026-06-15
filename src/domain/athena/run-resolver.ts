@@ -9,12 +9,13 @@ import { db } from "@/src/db/client";
 import { briefs, projects, runs, tickets } from "@/src/db/schema";
 import { sql } from "drizzle-orm";
 
-import { afkFallbackMinutes, afkLevel } from "../settings/instance";
+import { afkFallbackMinutes, afkLevel, athenaLocation } from "../settings/instance";
 import { parseRunDiffStats } from "../run/diff-stats";
 import { parseNeedsInputQuestion } from "../run/needs-input";
 import { answerRun } from "../run/bridge-writers";
 import { stdoutTail } from "../run/stdout";
 import { athenaComplete } from "./complete";
+import { buildAthenaPrompt, gateAthenaVerdict } from "./decide";
 import { resolveRunWithAthena, type AthenaResolveDeps, type AthenaResolveOutcome } from "./resolve";
 import type { AthenaAsk, AthenaComplete, AthenaContext } from "./types";
 
@@ -123,15 +124,79 @@ export async function resolveRunWithAthenaReal(
 }
 
 /**
- * AFK fallback sweep (heartbeat-driven, ADR-0007 §4). Resolves never-attempted
- * needs-input Runs by AFK level: **on/ultra → immediately**; **off → only those
- * idle past the configurable fallback window** (0 minutes = never). Ultra lifts
- * the high-stakes rail for the consults it triggers. Capped per pass; failures
- * are swallowed so a heartbeat never fails because of Athena.
+ * Bridge-tier dispatch (ADR-0007 §2): build the prompt Atlas-side and emit a
+ * `consult-requested` command row — the daemon runs the consult ON the Run's
+ * bridge (repo-aware in the worktree) and posts the verdict to /consult-result.
+ * One-shot: mark attempted first so the sweep never re-dispatches the same Ask.
+ */
+export async function dispatchConsult(runId: string): Promise<"dispatched" | "skipped"> {
+  const loaded = await loadAsk(runId);
+  if (!loaded) return "skipped";
+  await markAttempted(runId);
+  const prompt = buildAthenaPrompt(loaded.ask, loaded.context);
+  const [run] = await db
+    .select({
+      ref: runs.ref,
+      title: runs.title,
+      projectId: runs.projectId,
+      ticketId: runs.ticketId,
+      worktree: runs.worktreePath,
+    })
+    .from(runs)
+    .where(eq(runs.id, runId));
+  if (!run) return "skipped";
+  const payload = JSON.stringify({ prompt, repoAware: !!run.worktree });
+  await db.execute(sql`
+    insert into feed_events (kind, actor, summary, project_id, ticket_id, run_id, payload, seeded)
+    values ('consult-requested', 'Athena', ${`${run.ref} — ${run.title}`},
+            ${run.projectId}, ${run.ticketId}, ${runId}, ${payload}::jsonb, false)
+  `);
+  return "dispatched";
+}
+
+/**
+ * Apply a bridge consult's raw verdict (ADR-0007 §2): gate it through the one
+ * decision brain and answer as Athena, or escalate to the Owner. The run was
+ * already marked attempted at dispatch, so this never re-marks.
+ */
+export async function resolveConsultResult(
+  runId: string,
+  rawVerdict: string,
+): Promise<AthenaResolveOutcome> {
+  const loaded = await loadAsk(runId);
+  if (!loaded) return { status: "skipped", reason: "no-pending-ask" };
+  const ultra = (await afkLevel()) === "ultra";
+  const verdict = gateAthenaVerdict(rawVerdict, { ask: loaded.ask, ultra });
+  if (!verdict.answered) {
+    return { status: "escalated", reason: verdict.reason, confidence: verdict.confidence };
+  }
+  const r = await answerRun({
+    runId,
+    answer: {
+      ...(verdict.choice ? { choice: verdict.choice } : {}),
+      ...(verdict.text ? { text: verdict.text } : {}),
+      answeredBy: "Athena",
+      answeredAt: new Date().toISOString(),
+      ...(verdict.rationale ? { rationale: verdict.rationale } : {}),
+      confidence: verdict.confidence,
+    },
+    actor: "Athena",
+  });
+  return r.ok
+    ? { status: "answered", confidence: verdict.confidence }
+    : { status: "skipped", reason: "run-moved" };
+}
+
+/**
+ * AFK sweep (heartbeat-driven, ADR-0007). Resolves never-attempted needs-input
+ * Runs by AFK level: **on/ultra → immediately**; **off → only those idle past
+ * the configurable fallback window** (0 = never). Routes by location: cloud →
+ * answer in-process; bridge → emit a consult-ask command (the daemon answers
+ * via /consult-result). Capped; failures swallowed so a heartbeat never fails.
  */
 export async function sweepAfk(
   override: Partial<Pick<AthenaResolveDeps, "complete">> & { nowMs?: number; limit?: number } = {},
-): Promise<AthenaResolveOutcome[]> {
+): Promise<Array<AthenaResolveOutcome | { status: "dispatched" }>> {
   const level = await afkLevel();
   const ultra = level === "ultra";
   const nowMs = override.nowMs ?? Date.now();
@@ -145,6 +210,7 @@ export async function sweepAfk(
     cutoff = new Date(nowMs); // on / ultra → immediate
   }
 
+  const location = await athenaLocation();
   const candidates = await db
     .select({ id: runs.id })
     .from(runs)
@@ -158,15 +224,19 @@ export async function sweepAfk(
     .orderBy(asc(runs.updatedAt))
     .limit(override.limit ?? SWEEP_BATCH);
 
-  const outcomes: AthenaResolveOutcome[] = [];
+  const outcomes: Array<AthenaResolveOutcome | { status: "dispatched" }> = [];
   for (const c of candidates) {
     try {
-      outcomes.push(
-        await resolveRunWithAthenaReal(c.id, {
-          ultra,
-          ...(override.complete ? { complete: override.complete } : {}),
-        }),
-      );
+      if (location === "bridge") {
+        if ((await dispatchConsult(c.id)) === "dispatched") outcomes.push({ status: "dispatched" });
+      } else {
+        outcomes.push(
+          await resolveRunWithAthenaReal(c.id, {
+            ultra,
+            ...(override.complete ? { complete: override.complete } : {}),
+          }),
+        );
+      }
     } catch {
       // never let one bad Ask abort the sweep / fail the heartbeat.
     }

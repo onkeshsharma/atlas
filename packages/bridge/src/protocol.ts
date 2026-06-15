@@ -108,6 +108,15 @@ export type BridgeEvent =
       bridgeId: string;
       projects: Array<{ slug: string; localPath: string }>;
       keepWorktreeRunIds: string[];
+    }
+  // ADR-0007 Phase 2 — run an Athena consult through `claude` (in the run's
+  // worktree when repoAware) and POST the raw verdict to /consult-result.
+  | {
+      type: "consult-ask";
+      cursor: number;
+      runId: string;
+      prompt: { system: string; user: string };
+      repoAware: boolean;
     };
 
 export function parseBridgeEvent(value: unknown): BridgeEvent | null {
@@ -136,6 +145,12 @@ export function parseBridgeEvent(value: unknown): BridgeEvent | null {
     case "run-answered":
       if (!parseNeedsInputAnswer(value.answer)) return null;
       return value as BridgeEvent;
+    case "consult-ask": {
+      const p = value.prompt;
+      if (!isRecord(p) || typeof p.system !== "string" || typeof p.user !== "string") return null;
+      if (typeof value.repoAware !== "boolean") return null;
+      return value as BridgeEvent;
+    }
     default:
       return null;
   }

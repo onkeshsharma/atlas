@@ -8,14 +8,19 @@
  * unscoped — its selection is exercised in the Playwright e2e against the
  * disposable e2e branch, so it never mutates seeded rows). Self-cleaning (marker).
  */
-import { eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/src/db/client";
 import { feedEvents, projects, runs } from "@/src/db/schema";
 import { fakeAthenaComplete } from "@/src/domain/athena/complete";
-import { resolveRunWithAthenaReal } from "@/src/domain/athena/run-resolver";
+import {
+  dispatchConsult,
+  resolveConsultResult,
+  resolveRunWithAthenaReal,
+} from "@/src/domain/athena/run-resolver";
 import { parseNeedsInputAnswer } from "@/src/domain/run/needs-input";
+import { setAfkLevel } from "@/src/domain/settings/instance";
 import type { AthenaComplete } from "@/src/domain/athena/types";
 
 const MARK = `IT-AFK-${Date.now()}`;
@@ -63,6 +68,7 @@ afterAll(async () => {
   await db.delete(feedEvents).where(like(feedEvents.summary, `%${MARK}%`));
   if (runIds.length) await db.delete(runs).where(inArray(runs.id, runIds));
   await db.delete(projects).where(eq(projects.id, projectId));
+  await setAfkLevel("off"); // tests toggled instance AFK — restore dev default
 });
 
 describe("resolveRunWithAthenaReal (real DB bindings)", () => {
@@ -134,6 +140,64 @@ describe("resolveRunWithAthenaReal (real DB bindings)", () => {
     expect(ultra.status).toBe("answered");
     const [r2] = await db.select().from(runs).where(eq(runs.id, b));
     expect(r2.state).toBe("running");
+  });
+
+  it("bridge tier: dispatchConsult emits a consult-requested command (prompt + repoAware) and marks attempted", async () => {
+    const [row] = await db
+      .insert(runs)
+      .values({
+        ref: `${MARK}-C1`,
+        projectId,
+        title: `${MARK} C1`,
+        state: "needs-input",
+        lane: "owner",
+        worktreePath: "C:/tmp/wt",
+        question: {
+          kind: "question",
+          prompt: "Which migration path?",
+          options: ["a", "b"],
+          raisedAt: new Date().toISOString(),
+        },
+      })
+      .returning({ id: runs.id });
+    runIds.push(row.id);
+
+    expect(await dispatchConsult(row.id)).toBe("dispatched");
+    const [run] = await db.select().from(runs).where(eq(runs.id, row.id));
+    expect(run.athenaAttemptedAt).not.toBeNull();
+
+    const [feed] = await db
+      .select()
+      .from(feedEvents)
+      .where(and(eq(feedEvents.runId, row.id), eq(feedEvents.kind, "consult-requested")));
+    const payload = feed.payload as { prompt?: { user: string }; repoAware?: boolean };
+    expect(payload.repoAware).toBe(true);
+    expect(payload.prompt?.user).toContain("Which migration path?");
+  });
+
+  it("bridge tier: resolveConsultResult gates a confident verdict → answers as Athena", async () => {
+    const id = await seedNeedsInput({ ref: `${MARK}-C2`, options: ["migrate", "drop"] });
+    const out = await resolveConsultResult(
+      id,
+      JSON.stringify({ choice: "migrate", confidence: 0.9, rationale: "reversible" }),
+    );
+    expect(out.status).toBe("answered");
+    const [run] = await db.select().from(runs).where(eq(runs.id, id));
+    expect(run.state).toBe("running");
+    expect(parseNeedsInputAnswer(run.answer)?.answeredBy).toBe("Athena");
+    expect(parseNeedsInputAnswer(run.answer)?.choice).toBe("migrate");
+  });
+
+  it("bridge tier: resolveConsultResult escalates a high-stakes verdict (rail), leaves needs-input", async () => {
+    await setAfkLevel("on"); // ensure NOT ultra, so the rail holds
+    const id = await seedNeedsInput({ ref: `${MARK}-C3`, options: ["yes", "no"] });
+    const out = await resolveConsultResult(
+      id,
+      JSON.stringify({ choice: "yes", confidence: 0.95, stakes: "high", rationale: "irreversible" }),
+    );
+    expect(out).toMatchObject({ status: "escalated", reason: "high-stakes" });
+    const [run] = await db.select().from(runs).where(eq(runs.id, id));
+    expect(run.state).toBe("needs-input");
   });
 
   it("is a no-op once the Run has left needs-input (one shot per Ask)", async () => {

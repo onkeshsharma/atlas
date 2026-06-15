@@ -113,9 +113,7 @@ export async function decideWithAthena(input: {
   /** ADR-0007 §4 — Ultra Athena lifts the high-stakes/human-only rail. */
   ultra?: boolean;
 }): Promise<AthenaVerdict> {
-  const minConfidence = input.minConfidence ?? ATHENA_MIN_CONFIDENCE;
   const prompt = buildAthenaPrompt(input.ask, input.context);
-
   let raw: string;
   try {
     raw = await input.complete(prompt);
@@ -127,7 +125,24 @@ export async function decideWithAthena(input: {
       rationale: `Athena call failed: ${String(err)}`,
     };
   }
+  return gateAthenaVerdict(raw, {
+    ask: input.ask,
+    ...(input.ultra ? { ultra: true } : {}),
+    ...(input.minConfidence !== undefined ? { minConfidence: input.minConfidence } : {}),
+  });
+}
 
+/**
+ * Gate a raw model verdict into an AthenaVerdict: parse → option check →
+ * high-stakes rail (ADR-0007 §4) → confidence threshold. The single decision
+ * brain shared by the cloud path (decideWithAthena) and the bridge consult
+ * (the consult-result route hands the raw text straight here — Phase 2).
+ */
+export function gateAthenaVerdict(
+  raw: string,
+  input: { ask: AthenaAsk; ultra?: boolean; minConfidence?: number },
+): AthenaVerdict {
+  const minConfidence = input.minConfidence ?? ATHENA_MIN_CONFIDENCE;
   const parsed = parseAthenaResponse(raw);
   if (!parsed) {
     return {
@@ -148,9 +163,8 @@ export async function decideWithAthena(input: {
     };
   }
 
-  // ADR-0007 §4 safety rail: a human-only Ask (Engine-flagged) or a self-judged
-  // high-stakes call escalates to the Owner regardless of confidence — UNLESS
-  // Ultra Athena lifts the rail.
+  // safety rail: human-only (Engine-flagged) or self-judged high-stakes escalates
+  // to the Owner regardless of confidence — UNLESS Ultra Athena lifts the rail.
   if (!input.ultra && (input.ask.humanOnly || parsed.stakes === "high")) {
     return {
       answered: false,

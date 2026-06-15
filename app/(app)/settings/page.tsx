@@ -28,7 +28,12 @@ import { bridgeViews } from "@/src/domain/bridge/queries";
 import { projectRows } from "@/src/domain/cockpit/queries";
 import { latestCursor } from "@/src/domain/live/broker";
 import { sidebarCollapsed } from "@/src/domain/preferences/sidebar";
-import { afkFallbackMinutes, afkLevel, athenaApiKeyIsSet } from "@/src/domain/settings/instance";
+import {
+  afkFallbackMinutes,
+  afkLevel,
+  athenaApiKeyIsSet,
+  athenaLocation,
+} from "@/src/domain/settings/instance";
 import { secretsAvailable } from "@/src/lib/secret";
 import { shortAgo } from "@/src/lib/format";
 
@@ -72,11 +77,12 @@ function ShortcutRow({
 
 export default async function PreferencesPage() {
   const user = await requireOwner();
-  const [rows, collapsed, afkLvl, afkDelay, keyIsSet, bridges, cursor] = await Promise.all([
+  const [rows, collapsed, afkLvl, afkDelay, afkLoc, keyIsSet, bridges, cursor] = await Promise.all([
     projectRows(),
     sidebarCollapsed(user.id),
     afkLevel(),
     afkFallbackMinutes(),
+    athenaLocation(),
     athenaApiKeyIsSet(),
     bridgeViews(),
     latestCursor(),
@@ -173,7 +179,7 @@ export default async function PreferencesPage() {
           you, with Athena as a fallback after the delay you set.
         </p>
         <div className="mt-7">
-          <AfkPrefControl level={afkLvl} fallbackMinutes={afkDelay} />
+          <AfkPrefControl level={afkLvl} fallbackMinutes={afkDelay} location={afkLoc} />
         </div>
         <div className="mt-9">
           <p className="font-mono text-[10px] uppercase tracking-widest text-stone-400">

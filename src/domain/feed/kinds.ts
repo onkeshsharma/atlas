@@ -64,6 +64,7 @@ export const KIND_WORD: Record<FeedEventKind, string> = {
   "member-removed": "removed",
   "profile-changed": "changed",
   "project-linked": "linked", // M18 — clone resolved; §1.1 bookkeeping
+  "consult-requested": "consulting", // ADR-0007 Phase 2 — command row, not user-facing
 };
 
 export const KIND_CONNECTOR: Partial<Record<FeedEventKind, string>> = {
@@ -117,6 +118,7 @@ export const KIND_TONE: Record<FeedEventKind, DotTone> = {
   "member-removed": "rose",
   "profile-changed": "stone",
   "project-linked": "stone", // M18 — bookkeeping — neutral
+  "consult-requested": "stone", // ADR-0007 Phase 2 — command row
 };
 
 /** colored kind word in inbox sentences (Z:407–413 shape, canon palette). */
@@ -158,6 +160,7 @@ export const KIND_WORD_CLASS: Record<FeedEventKind, string> = {
   "member-removed": "text-rose-600",
   "profile-changed": "text-stone-700",
   "project-linked": "text-stone-700", // M18
+  "consult-requested": "text-stone-700", // ADR-0007 Phase 2 — command row
 };
 
 /** display text — dashes read as spaces. */

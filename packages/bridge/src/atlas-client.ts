@@ -108,6 +108,16 @@ export class AtlasClient {
     throw new Error(`helper-result returned ${status}`);
   }
 
+  /** ADR-0007 Phase 2 — post an Athena consult's raw verdict; Atlas gates + answers. */
+  async postConsultResult(runId: string, verdict: string): Promise<void> {
+    const { status } = await this.request(
+      "POST",
+      `/api/bridge/runs/${runId}/consult-result`,
+      { verdict },
+    );
+    if (status !== 200) throw new Error(`consult-result returned ${status}`);
+  }
+
   /** M10 — the doctor verdict post; false = not claimed (revoked mid-run). */
   async postDoctor(result: BridgeDoctorResult): Promise<boolean> {
     const { status } = await this.request("POST", "/api/bridge/doctor", result);

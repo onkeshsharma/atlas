@@ -38,6 +38,16 @@ export type BridgeEvent =
       bridgeId: string;
       projects: Array<{ slug: string; localPath: string }>;
       keepWorktreeRunIds: string[];
+    }
+  // ADR-0007 Phase 2 — Athena bridge consult: the daemon runs the prompt
+  // through `claude` (in the Run's worktree when repoAware) and posts the raw
+  // verdict to /consult-result. Atlas parses + gates it (one decision brain).
+  | {
+      type: "consult-ask";
+      cursor: number;
+      runId: string;
+      prompt: { system: string; user: string };
+      repoAware: boolean;
     };
 
 export type BridgeEventType = BridgeEvent["type"];
@@ -48,6 +58,7 @@ export const BRIDGE_EVENT_TYPES = [
   "run-answered",
   "run-ship",
   "bridge-doctor",
+  "consult-ask",
 ] as const satisfies readonly BridgeEventType[];
 
 /** one SSE frame — id: carries the outbox cursor for Last-Event-ID resume. */
@@ -86,6 +97,12 @@ export function parseBridgeEvent(value: unknown): BridgeEvent | null {
     case "run-answered":
       if (!parseNeedsInputAnswer(value.answer)) return null;
       return value as BridgeEvent;
+    case "consult-ask": {
+      const p = value.prompt;
+      if (!isRecord(p) || typeof p.system !== "string" || typeof p.user !== "string") return null;
+      if (typeof value.repoAware !== "boolean") return null;
+      return value as BridgeEvent;
+    }
     default:
       return null;
   }
