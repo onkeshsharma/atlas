@@ -65,16 +65,23 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await db.delete(feedEvents).where(like(feedEvents.summary, `%${MARK}%`));
-  // Phase 4 — the resolve/dispatch paths now write memory + spend; clean both.
-  if (runIds.length) {
-    await db.delete(athenaMemory).where(inArray(athenaMemory.runId, runIds));
-    await db.delete(athenaSpend).where(inArray(athenaSpend.runId, runIds));
-    await db.delete(runs).where(inArray(runs.id, runIds));
+  // Row cleanup (FK-safe order) is wrapped so a throw can't skip the instance-
+  // config restores in `finally` — leaving AFK on / a cap set poisons every
+  // later run on this shared DB (the trap that bit the prod verify test).
+  try {
+    await db.delete(feedEvents).where(like(feedEvents.summary, `%${MARK}%`));
+    // Phase 4 — the resolve/dispatch paths now write memory + spend; clean both.
+    if (runIds.length) {
+      await db.delete(athenaMemory).where(inArray(athenaMemory.runId, runIds));
+      await db.delete(athenaSpend).where(inArray(athenaSpend.runId, runIds));
+      await db.delete(runs).where(inArray(runs.id, runIds));
+    }
+    await db.delete(projects).where(eq(projects.id, projectId));
+  } finally {
+    // instance-config restores MUST always run (best-effort, never mask a throw above).
+    await setAfkLevel("off").catch(() => {}); // restore dev default
+    await setAthenaDailyEscalationCap(0).catch(() => {}); // restore unlimited
   }
-  await db.delete(projects).where(eq(projects.id, projectId));
-  await setAfkLevel("off"); // tests toggled instance AFK — restore dev default
-  await setAthenaDailyEscalationCap(0); // restore unlimited (budget tests set it)
 });
 
 describe("resolveRunWithAthenaReal (real DB bindings)", () => {
