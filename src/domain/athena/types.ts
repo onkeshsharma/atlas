@@ -13,6 +13,11 @@ export type AthenaAsk = {
   question: string;
   /** discrete choices, when the Ask offered them. */
   options?: string[];
+  /**
+   * ADR-0007 §4 — the Engine flagged this Ask high-stakes/irreversible
+   * (human-only). Athena must escalate it to the Owner unless under Ultra.
+   */
+  humanOnly?: boolean;
 };
 
 /** curated context Athena reasons over — all sourced from Atlas's DB. */
@@ -45,7 +50,7 @@ export type AthenaVerdict =
     }
   | {
       answered: false;
-      reason: "low-confidence" | "abstained" | "unparseable";
+      reason: "low-confidence" | "abstained" | "unparseable" | "high-stakes";
       confidence: number;
       rationale: string;
     };

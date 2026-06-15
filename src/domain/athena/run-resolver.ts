@@ -9,7 +9,7 @@ import { db } from "@/src/db/client";
 import { briefs, projects, runs, tickets } from "@/src/db/schema";
 import { sql } from "drizzle-orm";
 
-import { afkMode } from "../settings/instance";
+import { afkFallbackMinutes, afkLevel } from "../settings/instance";
 import { parseRunDiffStats } from "../run/diff-stats";
 import { parseNeedsInputQuestion } from "../run/needs-input";
 import { answerRun } from "../run/bridge-writers";
@@ -18,8 +18,6 @@ import { athenaComplete } from "./complete";
 import { resolveRunWithAthena, type AthenaResolveDeps, type AthenaResolveOutcome } from "./resolve";
 import type { AthenaAsk, AthenaComplete, AthenaContext } from "./types";
 
-/** how long an unanswered Ask waits before Athena takes it when AFK is OFF. */
-export const AFK_FALLBACK_MS = Number(process.env.ATLAS_AFK_FALLBACK_MS ?? 10 * 60_000);
 const TRANSCRIPT_TAIL_LINES = 40;
 const SWEEP_BATCH = 5;
 
@@ -70,9 +68,16 @@ async function loadAsk(
     ? `${diff.filesChanged} file(s), +${diff.insertions}/-${diff.deletions}`
     : undefined;
 
+  // human-only flag (ADR-0007 §4): the Engine may stamp it on the question jsonb
+  // (parseNeedsInputQuestion drops unknown fields, so read it from the raw row).
+  const humanOnly =
+    typeof row.question === "object" &&
+    row.question !== null &&
+    (row.question as Record<string, unknown>).humanOnly === true;
   const ask: AthenaAsk = {
     question: q.prompt,
     ...(q.options && q.options.length ? { options: q.options } : {}),
+    ...(humanOnly ? { humanOnly: true } : {}),
   };
   const context: AthenaContext = {
     projectName: row.projectName,
@@ -92,12 +97,17 @@ async function markAttempted(runId: string): Promise<void> {
   );
 }
 
-/** Production resolve: real bindings; `complete` overridable for tests. */
-export function resolveRunWithAthenaReal(
+/**
+ * Production resolve: real bindings; `complete`/`ultra` overridable for tests.
+ * When `ultra` isn't supplied it's derived from the live AFK level (Ultra
+ * Athena lifts the high-stakes rail).
+ */
+export async function resolveRunWithAthenaReal(
   runId: string,
-  override: Partial<Pick<AthenaResolveDeps, "complete" | "now" | "minConfidence">> = {},
+  override: Partial<Pick<AthenaResolveDeps, "complete" | "now" | "minConfidence" | "ultra">> = {},
 ): Promise<AthenaResolveOutcome> {
   const complete: AthenaComplete = override.complete ?? athenaComplete();
+  const ultra = override.ultra ?? (await afkLevel()) === "ultra";
   return resolveRunWithAthena(runId, {
     loadAsk,
     complete,
@@ -108,21 +118,32 @@ export function resolveRunWithAthenaReal(
     markAttempted,
     ...(override.now ? { now: override.now } : {}),
     ...(override.minConfidence !== undefined ? { minConfidence: override.minConfidence } : {}),
+    ...(ultra ? { ultra: true } : {}),
   });
 }
 
 /**
- * AFK fallback sweep (heartbeat-driven). Resolves never-attempted needs-input
- * Runs: when AFK is ON, immediately; when OFF, only those idle past the
- * fallback window. Capped per pass; failures are swallowed so a heartbeat never
- * fails because of Athena.
+ * AFK fallback sweep (heartbeat-driven, ADR-0007 §4). Resolves never-attempted
+ * needs-input Runs by AFK level: **on/ultra → immediately**; **off → only those
+ * idle past the configurable fallback window** (0 minutes = never). Ultra lifts
+ * the high-stakes rail for the consults it triggers. Capped per pass; failures
+ * are swallowed so a heartbeat never fails because of Athena.
  */
 export async function sweepAfk(
   override: Partial<Pick<AthenaResolveDeps, "complete">> & { nowMs?: number; limit?: number } = {},
 ): Promise<AthenaResolveOutcome[]> {
-  const afk = await afkMode();
+  const level = await afkLevel();
+  const ultra = level === "ultra";
   const nowMs = override.nowMs ?? Date.now();
-  const cutoff = new Date(afk ? nowMs : nowMs - AFK_FALLBACK_MS);
+
+  let cutoff: Date;
+  if (level === "off") {
+    const minutes = await afkFallbackMinutes();
+    if (minutes <= 0) return []; // 0 = never auto-take-over while AFK is off
+    cutoff = new Date(nowMs - minutes * 60_000);
+  } else {
+    cutoff = new Date(nowMs); // on / ultra → immediate
+  }
 
   const candidates = await db
     .select({ id: runs.id })
@@ -141,7 +162,10 @@ export async function sweepAfk(
   for (const c of candidates) {
     try {
       outcomes.push(
-        await resolveRunWithAthenaReal(c.id, override.complete ? { complete: override.complete } : {}),
+        await resolveRunWithAthenaReal(c.id, {
+          ultra,
+          ...(override.complete ? { complete: override.complete } : {}),
+        }),
       );
     } catch {
       // never let one bad Ask abort the sweep / fail the heartbeat.

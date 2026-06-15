@@ -24,6 +24,9 @@ export type AthenaAnswer = {
   choice?: string;
   answeredBy: string;
   answeredAt: string;
+  /** ADR-0007 — Athena's reasoning + confidence, recorded for the audit. */
+  rationale?: string;
+  confidence?: number;
 };
 
 export type AthenaResolveDeps = {
@@ -38,6 +41,8 @@ export type AthenaResolveDeps = {
   /** injected clock (server-side Date in prod). */
   now?: () => string;
   minConfidence?: number;
+  /** ADR-0007 §4 — Ultra Athena: lift the high-stakes/human-only rail. */
+  ultra?: boolean;
 };
 
 export type AthenaResolveOutcome =
@@ -61,6 +66,7 @@ export async function resolveRunWithAthena(
     context: loaded.context,
     complete: deps.complete,
     ...(deps.minConfidence !== undefined ? { minConfidence: deps.minConfidence } : {}),
+    ...(deps.ultra ? { ultra: true } : {}),
   });
 
   if (!verdict.answered) {
@@ -74,6 +80,8 @@ export async function resolveRunWithAthena(
     ...(verdict.text ? { text: verdict.text } : {}),
     answeredBy: ATHENA_ACTOR,
     answeredAt: now(),
+    ...(verdict.rationale ? { rationale: verdict.rationale } : {}),
+    confidence: verdict.confidence,
   });
 
   return applied

@@ -28,11 +28,13 @@ import { bridgeViews } from "@/src/domain/bridge/queries";
 import { projectRows } from "@/src/domain/cockpit/queries";
 import { latestCursor } from "@/src/domain/live/broker";
 import { sidebarCollapsed } from "@/src/domain/preferences/sidebar";
-import { afkMode } from "@/src/domain/settings/instance";
+import { afkFallbackMinutes, afkLevel, athenaApiKeyIsSet } from "@/src/domain/settings/instance";
+import { secretsAvailable } from "@/src/lib/secret";
 import { shortAgo } from "@/src/lib/format";
 
 import { pinProjectAction, unpinProjectAction } from "./actions";
 import { AfkPrefControl } from "./afk-pref-control";
+import { AthenaKeyControl } from "./athena-key-control";
 import { SidebarPrefControl } from "./sidebar-pref-control";
 
 export const dynamic = "force-dynamic";
@@ -70,13 +72,16 @@ function ShortcutRow({
 
 export default async function PreferencesPage() {
   const user = await requireOwner();
-  const [rows, collapsed, afk, bridges, cursor] = await Promise.all([
+  const [rows, collapsed, afkLvl, afkDelay, keyIsSet, bridges, cursor] = await Promise.all([
     projectRows(),
     sidebarCollapsed(user.id),
-    afkMode(),
+    afkLevel(),
+    afkFallbackMinutes(),
+    athenaApiKeyIsSet(),
     bridgeViews(),
     latestCursor(),
   ]);
+  const keyStorageAvailable = secretsAvailable();
   const pinned = rows.filter((p) => p.pinned);
   const unpinned = rows.filter((p) => !p.pinned);
   const healthyBridge = bridges.find((b) => b.health === "healthy");
@@ -161,12 +166,22 @@ export default async function PreferencesPage() {
         <MonoSectionLabel>AFK Mode</MonoSectionLabel>
         <p className="mt-4 text-base text-stone-500 leading-relaxed">
           When a Run needs a decision and you&apos;re away, <span className="font-medium text-stone-700">Athena</span> —
-          the decision delegate — answers on your behalf so work keeps moving. Every Athena
-          decision is recorded in the feed. With AFK off, Asks wait for you, and Athena only
-          steps in as a fallback after 10 minutes unanswered.
+          the decision delegate — answers on your behalf so work keeps moving, and every
+          decision is recorded in the feed. <span className="font-medium text-stone-700">On</span> keeps a
+          safety rail (high-stakes Asks still come to you); <span className="font-medium text-stone-700">Ultra</span> drops
+          the rail (Athena answers everything). <span className="font-medium text-stone-700">Off</span> sends Asks to
+          you, with Athena as a fallback after the delay you set.
         </p>
         <div className="mt-7">
-          <AfkPrefControl enabled={afk} />
+          <AfkPrefControl level={afkLvl} fallbackMinutes={afkDelay} />
+        </div>
+        <div className="mt-9">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
+            Anthropic key (cloud tier)
+          </p>
+          <div className="mt-4">
+            <AthenaKeyControl isSet={keyIsSet} available={keyStorageAvailable} />
+          </div>
         </div>
       </section>
 

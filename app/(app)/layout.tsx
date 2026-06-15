@@ -19,6 +19,9 @@ import { bridgePresence } from "@/src/domain/bridge/status";
 import { collabUnreadCount } from "@/src/domain/collab/queries";
 import { unreadCount } from "@/src/domain/feed/queries";
 import { sidebarCollapsed } from "@/src/domain/preferences/sidebar";
+import { afkLevel } from "@/src/domain/settings/instance";
+import { athenaDecisionCount } from "@/src/domain/athena/activity";
+import { AfkChip } from "@/src/components/shell/AfkChip";
 import { AppSidebar } from "@/src/components/shell/AppSidebar";
 import { PaletteMount } from "@/src/components/search/PaletteMount";
 import type { SidebarItem } from "@/src/components/kit";
@@ -45,6 +48,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     sidebarCollapsed(user.id),
     bridgePresence(),
   ]);
+
+  // ADR-0007 §6 — the AFK active chip (Owner only; only when AFK isn't off).
+  const afkLvl = isCollab ? "off" : await afkLevel();
+  let afkCount = 0;
+  if (afkLvl !== "off") {
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    afkCount = await athenaDecisionCount(since.getTime());
+  }
 
   const items: SidebarItem[] = isCollab
     ? [
@@ -134,6 +146,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         }
       />
       {children}
+      {afkLvl !== "off" && <AfkChip level={afkLvl} count={afkCount} />}
       {/* M12 — the global ⌘K palette, mounted ONCE (charter §2: this line
           only; no Search nav item — no variant draws one, the palette is
           the entry). Owner-only until M13 re-derives Collaborator nav. */}
