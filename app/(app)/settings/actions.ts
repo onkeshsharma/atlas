@@ -11,10 +11,13 @@ import { setSidebarCollapsed } from "@/src/domain/preferences/sidebar";
 import { setProjectPinned } from "@/src/domain/project/pin";
 import {
   AFK_LEVELS,
+  ATHENA_LOCATIONS,
   setAfkFallbackMinutes,
   setAfkLevel,
   setAthenaApiKey,
+  setAthenaLocation,
   type AfkLevel,
+  type AthenaLocation,
 } from "@/src/domain/settings/instance";
 
 /** §2.1 — the persisted shell-density preference (expanded ⇄ collapsed). */
@@ -38,6 +41,14 @@ export async function setAfkDelayAction(value: string): Promise<void> {
   const minutes = Number.parseInt(value, 10);
   if (Number.isNaN(minutes)) return;
   await setAfkFallbackMinutes(minutes);
+  revalidatePath("/settings");
+}
+
+/** ADR-0007 §2 — where Athena consults run: cloud | bridge. */
+export async function setAthenaLocationAction(value: string): Promise<void> {
+  await requireOwner();
+  if (!(ATHENA_LOCATIONS as readonly string[]).includes(value)) return;
+  await setAthenaLocation(value as AthenaLocation);
   revalidatePath("/settings");
 }
 

@@ -58,6 +58,28 @@ export function rowToBridgeEvents(row: FeedEvent, forBridgeId?: string): BridgeE
         ? [{ type: "run-answered", cursor: row.id, runId: row.runId, answer }]
         : [];
     }
+    case "consult-requested": {
+      // ADR-0007 Phase 2 — Atlas asked for a bridge consult; the prompt +
+      // repoAware ride the row payload (dispatchConsult wrote them).
+      const prompt = payload?.prompt;
+      if (
+        typeof prompt !== "object" ||
+        prompt === null ||
+        typeof (prompt as Record<string, unknown>).system !== "string" ||
+        typeof (prompt as Record<string, unknown>).user !== "string"
+      ) {
+        return [];
+      }
+      return [
+        {
+          type: "consult-ask",
+          cursor: row.id,
+          runId: row.runId,
+          prompt: prompt as { system: string; user: string },
+          repoAware: payload?.repoAware === true,
+        },
+      ];
+    }
     default:
       return [];
   }

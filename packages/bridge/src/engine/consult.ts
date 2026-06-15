@@ -94,3 +94,27 @@ export async function runConsult(args: RunConsultArgs): Promise<string> {
     await rm(sandbox, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+/**
+ * Deterministic consult verdict for suites/e2e (the fake engine spends no real
+ * tokens — charter wall). Mirrors Atlas's fake delegate: picks the first offered
+ * option, else a generic answer; always high-confidence + low-stakes.
+ */
+export function fakeConsultVerdict(prompt: { system: string; user: string }): string {
+  const m = prompt.user.match(/^Options: (.+)$/m);
+  if (m) {
+    const first = m[1].split(",")[0].trim().replace(/^"|"$/g, "");
+    return JSON.stringify({
+      choice: first,
+      confidence: 0.95,
+      stakes: "low",
+      rationale: "AFK bridge consult (fake)",
+    });
+  }
+  return JSON.stringify({
+    answer: "proceed",
+    confidence: 0.95,
+    stakes: "low",
+    rationale: "AFK bridge consult (fake)",
+  });
+}

@@ -6,9 +6,9 @@
 import { useState, useTransition } from "react";
 
 import { SegmentedControl } from "@/src/components/kit";
-import type { AfkLevel } from "@/src/domain/settings/instance";
+import type { AfkLevel, AthenaLocation } from "@/src/domain/settings/instance";
 
-import { setAfkDelayAction, setAfkLevelAction } from "./actions";
+import { setAfkDelayAction, setAfkLevelAction, setAthenaLocationAction } from "./actions";
 
 const DELAY_OPTIONS = [
   { value: "0", label: "Never" },
@@ -21,12 +21,15 @@ const DELAY_OPTIONS = [
 export function AfkPrefControl({
   level,
   fallbackMinutes,
+  location,
 }: {
   level: AfkLevel;
   fallbackMinutes: number;
+  location: AthenaLocation;
 }) {
   const [value, setValue] = useState<AfkLevel>(level);
   const [delay, setDelay] = useState(String(fallbackMinutes));
+  const [loc, setLoc] = useState<AthenaLocation>(location);
   const [pending, startTransition] = useTransition();
 
   return (
@@ -73,6 +76,29 @@ export function AfkPrefControl({
               startTransition(() => setAfkDelayAction(v));
             }}
           />
+        </div>
+      )}
+
+      {value !== "off" && (
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-stone-500">
+            Athena runs on
+          </span>
+          <SegmentedControl
+            size="compact"
+            options={[
+              { value: "cloud", label: "Cloud" },
+              { value: "bridge", label: "Bridge" },
+            ]}
+            value={loc}
+            onChange={(v) => {
+              setLoc(v as AthenaLocation);
+              startTransition(() => setAthenaLocationAction(v));
+            }}
+          />
+          <span className="font-mono text-[9px] uppercase tracking-widest text-stone-400">
+            {loc === "bridge" ? "reads the code · no key" : "Atlas API · needs key"}
+          </span>
         </div>
       )}
     </div>

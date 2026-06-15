@@ -99,6 +99,13 @@
       "when": 1781495217285,
       "tag": "0013_unknown_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1781499405271,
+      "tag": "0014_loud_kang",
+      "breakpoints": true
     }
   ]
 }

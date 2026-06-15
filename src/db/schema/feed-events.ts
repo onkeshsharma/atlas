@@ -80,6 +80,10 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   "profile-changed", //  an identity field changed (M10's closing note)
   // M18 — Atlas linked a local checkout to a project (clone landed / path set).
   "project-linked",
+  // ADR-0007 Phase 2 — Atlas asks the Bridge to run an Athena consult. The row
+  // IS the daemon's `consult-ask` command (the ship-requested idiom; payload
+  // carries the Atlas-built prompt + repoAware). Not a user-facing feed entry.
+  "consult-requested",
 ]);
 
 export const feedEvents = pgTable("feed_events", {

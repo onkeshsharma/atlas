@@ -74,6 +74,7 @@ export const KIND_FAMILY: Record<FeedEventKind, AuditFamily> = {
   started: "result",
   "needs-input": "result",
   answered: "result",
+  "consult-requested": "result", // ADR-0007 Phase 2 — Athena consult command
   "review-ready": "result",
   failed: "result",
   cancelled: "result",

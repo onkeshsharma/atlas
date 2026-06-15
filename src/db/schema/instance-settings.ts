@@ -40,6 +40,11 @@ export const instanceSettings = pgTable(
      * (src/lib/secret.ts). Null = use the env var. Never the plaintext.
      */
     athenaApiKeyEnc: text("athena_api_key_enc"),
+    /**
+     * ADR-0007 §2 (Phase 2) — where Athena consults run: 'cloud' (Atlas API
+     * call) or 'bridge' (a repo-aware consult on the Run's bridge, no key).
+     */
+    athenaLocation: text("athena_location").notNull().default("cloud"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("instance_settings_single_row", sql`${t.id} = 1`)],

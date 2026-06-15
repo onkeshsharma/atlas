@@ -86,6 +86,28 @@ export async function setAfkFallbackMinutes(minutes: number): Promise<void> {
 }
 
 /**
+ * Where Athena consults run (ADR-0007 §2): 'cloud' (Atlas API call) or 'bridge'
+ * (a repo-aware consult on the Run's bridge — no Atlas key). Owner-selectable.
+ */
+export type AthenaLocation = "cloud" | "bridge";
+export const ATHENA_LOCATIONS: readonly AthenaLocation[] = ["cloud", "bridge"];
+
+export async function athenaLocation(): Promise<AthenaLocation> {
+  const rows = await db
+    .select({ loc: instanceSettings.athenaLocation })
+    .from(instanceSettings);
+  return rows[0]?.loc === "bridge" ? "bridge" : "cloud";
+}
+
+export async function setAthenaLocation(loc: AthenaLocation): Promise<void> {
+  await db.execute(sql`
+    insert into instance_settings (id, athena_location, updated_at)
+    values (1, ${loc}, now())
+    on conflict (id) do update set athena_location = ${loc}, updated_at = now()
+  `);
+}
+
+/**
  * The cloud-tier Anthropic key (ADR-0007 §3), decrypted — or null to fall back
  * to the env var. Stored AES-256-GCM-encrypted; never returned in plaintext to
  * any UI (only `athenaApiKeyIsSet` is surfaced).

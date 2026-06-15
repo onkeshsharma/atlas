@@ -30,6 +30,9 @@ import {
   userPreferences,
 } from "../src/db/schema";
 
+const BRIDGE_TITLE = `E2E bridge consult ${Date.now()}`;
+const BRIDGE_QUESTION = "Which storage backend for the cache?";
+
 const REPO_ROOT = join(__dirname, "..");
 const E2E_PORT = Number(process.env.ATLAS_E2E_PORT ?? 3100);
 const ATLAS_URL = `http://localhost:${E2E_PORT}`;
@@ -104,8 +107,11 @@ test.beforeAll(async () => {
   // AFK is instance-global — make sure no leftover state from another run.
   await db
     .insert(instanceSettings)
-    .values({ id: 1, afkMode: false })
-    .onConflictDoUpdate({ target: instanceSettings.id, set: { afkMode: false } });
+    .values({ id: 1, afkMode: false, afkLevel: "off", athenaLocation: "cloud" })
+    .onConflictDoUpdate({
+      target: instanceSettings.id,
+      set: { afkMode: false, afkLevel: "off", athenaLocation: "cloud" },
+    });
 
   repoDir = mkdtempSync(join(tmpdir(), "afk-e2e-repo-"));
   dataDir = mkdtempSync(join(tmpdir(), "afk-e2e-bridge-"));
@@ -164,8 +170,11 @@ test.afterAll(async () => {
   await new Promise((r) => setTimeout(r, 500));
   await db
     .insert(instanceSettings)
-    .values({ id: 1, afkMode: false })
-    .onConflictDoUpdate({ target: instanceSettings.id, set: { afkMode: false } });
+    .values({ id: 1, afkMode: false, afkLevel: "off", athenaLocation: "cloud" })
+    .onConflictDoUpdate({
+      target: instanceSettings.id,
+      set: { afkMode: false, afkLevel: "off", athenaLocation: "cloud" },
+    });
   await cleanupE2ERows();
   rmSync(dataDir, { recursive: true, force: true });
   rmSync(repoDir, { recursive: true, force: true });
@@ -254,5 +263,69 @@ test.describe.serial("ADR-0006 — AFK Mode: Athena answers while you're away", 
       .where(and(eq(feedEvents.runId, ownerRunId), eq(feedEvents.kind, "answered")));
     expect(answered).toHaveLength(1);
     expect(answered[0].actor).toBe("Athena");
+  });
+
+  test("bridge tier: Athena consults ON the bridge (fake) and answers — no human", async ({
+    page,
+  }) => {
+    test.setTimeout(300_000);
+    await signIn(page);
+
+    // AFK on + location = bridge (the consult runs on the daemon, not Atlas).
+    await db
+      .insert(instanceSettings)
+      .values({ id: 1, afkLevel: "on", afkMode: true, athenaLocation: "bridge" })
+      .onConflictDoUpdate({
+        target: instanceSettings.id,
+        set: { afkLevel: "on", afkMode: true, athenaLocation: "bridge" },
+      });
+
+    const body = [
+      "The cache needs a storage decision.",
+      "",
+      "@fake:line analyzing the ticket",
+      `@fake:ask {"kind":"question","prompt":"${BRIDGE_QUESTION}"}`,
+      "@fake:line proceeding with the answer",
+      "@fake:write e2e-bridge.md the cache change",
+    ].join("\n");
+    const [ticket] = await db
+      .insert(tickets)
+      .values({ ref: `E2EBR-${RUN}`, projectId, title: BRIDGE_TITLE, body, state: "approved", reporter: "you" })
+      .returning({ id: tickets.id, ref: tickets.ref });
+
+    await page.goto(`/tickets/${ticket.ref}`);
+    const dispatchCta = page.getByRole("button", { name: /dispatch to ai/i });
+    await expect(dispatchCta).toBeEnabled();
+    await dispatchCta.click();
+    await expect(page.getByText("drafted by Engine")).toBeVisible({ timeout: 90_000 });
+    await dispatchCta.click();
+
+    let ownerRun: { id: string } | undefined;
+    await expect(async () => {
+      const [r] = await db
+        .select({ id: runs.id })
+        .from(runs)
+        .where(and(eq(runs.ticketId, ticket.id), eq(runs.lane, "owner")));
+      expect(r).toBeTruthy();
+      ownerRun = r;
+    }).toPass({ timeout: 60_000 });
+    const ownerRunId = ownerRun!.id;
+
+    // the proof: a consult-requested command was emitted (bridge path), and the
+    // Run reached review-ready answered by Athena — with NO human answer.
+    await expect(async () => {
+      const [r] = await db
+        .select({ state: runs.state, answer: runs.answer })
+        .from(runs)
+        .where(eq(runs.id, ownerRunId));
+      expect((r.answer as { answeredBy?: string } | null)?.answeredBy).toBe("Athena");
+      expect(r.state).toBe("review-ready");
+    }).toPass({ timeout: 180_000 });
+
+    const consult = await db
+      .select({ id: feedEvents.id })
+      .from(feedEvents)
+      .where(and(eq(feedEvents.runId, ownerRunId), eq(feedEvents.kind, "consult-requested")));
+    expect(consult.length).toBeGreaterThan(0); // the bridge consult was dispatched
   });
 });

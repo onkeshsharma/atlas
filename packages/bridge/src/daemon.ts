@@ -17,6 +17,7 @@ import { BRIDGE_VERSION } from "./config.ts";
 import { runDoctor } from "./doctor.ts";
 import type { EngineAdapter } from "./engine/types.ts";
 import { parseBridgeEvent, type RunLane } from "./protocol.ts";
+import { fakeConsultVerdict, runConsult } from "./engine/consult.ts";
 import { ResourceSampler } from "./resources.ts";
 import { executeRun, type RunExecution } from "./runner.ts";
 import { nextToStart, type SchedulableRun } from "./scheduler.ts";
@@ -220,6 +221,9 @@ export class Daemon {
     // M10 — bridge-doctor command fields.
     projects?: Array<{ slug: string; localPath: string }>;
     keepWorktreeRunIds?: string[];
+    // ADR-0007 Phase 2 — consult-ask command fields.
+    prompt?: { system: string; user: string };
+    repoAware?: boolean;
   }): void {
     // M10 — the doctor command addresses the bridge, not a run.
     if (event.type === "bridge-doctor") {
@@ -264,7 +268,52 @@ export class Daemon {
         this.startShip(event.runId);
         return;
       }
+      case "consult-ask": {
+        if (event.prompt) {
+          this.startConsult({
+            runId: event.runId,
+            prompt: event.prompt,
+            repoAware: event.repoAware ?? false,
+          });
+        }
+        return;
+      }
     }
+  }
+
+  /**
+   * ADR-0007 Phase 2 — Athena bridge consult: run the Atlas-built prompt through
+   * `claude` (in the run's worktree when repoAware, using the bridge's own auth),
+   * then POST the raw verdict to /consult-result for Atlas to gate + answer.
+   * Fire-and-forget; failures are logged, never fatal. Fake engine → fake verdict
+   * (suites/e2e spend no tokens).
+   */
+  private startConsult(event: {
+    runId: string;
+    prompt: { system: string; user: string };
+    repoAware: boolean;
+  }): void {
+    if (this.stopped) return;
+    const worktree = event.repoAware
+      ? (this.running.get(event.runId)?.worktreePath ?? undefined)
+      : undefined;
+    void (async () => {
+      try {
+        const verdict =
+          this.opts.engine.flavor === "fake"
+            ? fakeConsultVerdict(event.prompt)
+            : await runConsult({
+                systemPrompt: event.prompt.system,
+                userPrompt: event.prompt.user,
+                worktree,
+                timeoutMs: this.opts.engineTimeoutMs,
+              });
+        await this.opts.client.postConsultResult(event.runId, verdict);
+        this.log(`consult ${event.runId}: verdict posted${worktree ? " (repo-aware)" : ""}`);
+      } catch (err) {
+        this.log(`consult ${event.runId}: failed — ${String(err)}`);
+      }
+    })();
   }
 
   /**
