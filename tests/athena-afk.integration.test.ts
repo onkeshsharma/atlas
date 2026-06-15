@@ -12,7 +12,7 @@ import { and, eq, inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/src/db/client";
-import { feedEvents, projects, runs } from "@/src/db/schema";
+import { athenaMemory, athenaSpend, feedEvents, projects, runs } from "@/src/db/schema";
 import { fakeAthenaComplete } from "@/src/domain/athena/complete";
 import {
   dispatchConsult,
@@ -20,7 +20,7 @@ import {
   resolveRunWithAthenaReal,
 } from "@/src/domain/athena/run-resolver";
 import { parseNeedsInputAnswer } from "@/src/domain/run/needs-input";
-import { setAfkLevel } from "@/src/domain/settings/instance";
+import { setAfkLevel, setAthenaDailyEscalationCap } from "@/src/domain/settings/instance";
 import type { AthenaComplete } from "@/src/domain/athena/types";
 
 const MARK = `IT-AFK-${Date.now()}`;
@@ -66,9 +66,15 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await db.delete(feedEvents).where(like(feedEvents.summary, `%${MARK}%`));
-  if (runIds.length) await db.delete(runs).where(inArray(runs.id, runIds));
+  // Phase 4 — the resolve/dispatch paths now write memory + spend; clean both.
+  if (runIds.length) {
+    await db.delete(athenaMemory).where(inArray(athenaMemory.runId, runIds));
+    await db.delete(athenaSpend).where(inArray(athenaSpend.runId, runIds));
+    await db.delete(runs).where(inArray(runs.id, runIds));
+  }
   await db.delete(projects).where(eq(projects.id, projectId));
   await setAfkLevel("off"); // tests toggled instance AFK — restore dev default
+  await setAthenaDailyEscalationCap(0); // restore unlimited (budget tests set it)
 });
 
 describe("resolveRunWithAthenaReal (real DB bindings)", () => {
@@ -207,5 +213,80 @@ describe("resolveRunWithAthenaReal (real DB bindings)", () => {
     // run is now `running` — a second pass finds nothing pending
     const second = await resolveRunWithAthenaReal(runId, { complete: fakeAthenaComplete() });
     expect(second).toEqual({ status: "skipped", reason: "no-pending-ask" });
+  });
+});
+
+describe("Phase 4 — learning + budget (real DB bindings)", () => {
+  it("learning: a resolved decision is recorded into memory (source athena)", async () => {
+    const id = await seedNeedsInput({ ref: `${MARK}-MEM`, options: ["migrate", "drop"] });
+    await resolveConsultResult(
+      id,
+      JSON.stringify({ choice: "migrate", confidence: 0.9, rationale: "reversible" }),
+    );
+    const mem = await db.select().from(athenaMemory).where(eq(athenaMemory.runId, id));
+    expect(mem).toHaveLength(1);
+    expect(mem[0].source).toBe("athena");
+    expect(mem[0].answerChoice).toBe("migrate");
+  });
+
+  it("budget: dispatchConsult meters a repo spend", async () => {
+    const [row] = await db
+      .insert(runs)
+      .values({
+        ref: `${MARK}-SP`,
+        projectId,
+        title: `${MARK} SP`,
+        state: "needs-input",
+        lane: "owner",
+        worktreePath: "C:/tmp/wt",
+        question: {
+          kind: "question",
+          prompt: "Spend metering path?",
+          options: ["a", "b"],
+          raisedAt: new Date().toISOString(),
+        },
+      })
+      .returning({ id: runs.id });
+    runIds.push(row.id);
+    expect(await dispatchConsult(row.id)).toBe("dispatched");
+    const spend = await db.select().from(athenaSpend).where(eq(athenaSpend.runId, row.id));
+    expect(spend).toHaveLength(1);
+    expect(spend[0].tier).toBe("repo");
+  });
+
+  it("budget: dispatchConsult fails safe to the Owner when the cap is spent", async () => {
+    // there is already ≥1 spend row in the rolling 24h (the test above); cap=1.
+    await setAthenaDailyEscalationCap(1);
+    const [row] = await db
+      .insert(runs)
+      .values({
+        ref: `${MARK}-CAP`,
+        projectId,
+        title: `${MARK} CAP`,
+        state: "needs-input",
+        lane: "owner",
+        worktreePath: "C:/tmp/wt",
+        question: {
+          kind: "question",
+          prompt: "Over-budget path?",
+          options: ["a", "b"],
+          raisedAt: new Date().toISOString(),
+        },
+      })
+      .returning({ id: runs.id });
+    runIds.push(row.id);
+
+    expect(await dispatchConsult(row.id)).toBe("skipped");
+    // no consult-requested command emitted …
+    const feed = await db
+      .select()
+      .from(feedEvents)
+      .where(and(eq(feedEvents.runId, row.id), eq(feedEvents.kind, "consult-requested")));
+    expect(feed).toHaveLength(0);
+    // … but the one shot is consumed → it's handed to the Owner (still needs-input).
+    const [run] = await db.select().from(runs).where(eq(runs.id, row.id));
+    expect(run.athenaAttemptedAt).not.toBeNull();
+    expect(run.state).toBe("needs-input");
+    await setAthenaDailyEscalationCap(0);
   });
 });

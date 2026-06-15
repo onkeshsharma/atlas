@@ -14,7 +14,9 @@ import { eq } from "drizzle-orm";
 import { db } from "@/src/db/client";
 import { runs } from "@/src/db/schema";
 
+import { recordDecision } from "../athena/memory";
 import { answerRun } from "../run/bridge-writers";
+import { parseNeedsInputQuestion } from "../run/needs-input";
 import { ACTIVE_STATES } from "../run/states";
 import { applyRunTransition } from "../run/transitions";
 import { applyTicketTransition } from "../ticket/mutations";
@@ -29,7 +31,14 @@ export async function executeLiveCommand(
   actor: string,
 ): Promise<ExecuteResult> {
   const [run] = await db
-    .select({ id: runs.id, state: runs.state, ticketId: runs.ticketId, lane: runs.lane })
+    .select({
+      id: runs.id,
+      state: runs.state,
+      ticketId: runs.ticketId,
+      lane: runs.lane,
+      projectId: runs.projectId,
+      question: runs.question,
+    })
     .from(runs)
     .where(eq(runs.id, command.runId))
     .limit(1);
@@ -70,6 +79,22 @@ export async function executeLiveCommand(
         actor,
       });
       if (!answered.ok) return { ok: false, reason: "not-claimed" };
+      // ADR-0007 §7 — learn from the Owner's decision (weighted highest at
+      // retrieval). Best-effort: a memory write must never fail the answer.
+      const q = parseNeedsInputQuestion(run.question);
+      if (q) {
+        await recordDecision({
+          runId: run.id,
+          projectId: run.projectId,
+          question: q.prompt,
+          options: q.options ?? null,
+          choice: command.answer.choice ?? null,
+          text: command.answer.text ?? null,
+          source: "owner",
+          confidence: command.answer.confidence ?? null,
+          rationale: command.answer.rationale ?? null,
+        }).catch(() => {});
+      }
       return { ok: true };
     }
   }

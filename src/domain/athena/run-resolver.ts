@@ -14,9 +14,11 @@ import { parseRunDiffStats } from "../run/diff-stats";
 import { parseNeedsInputQuestion } from "../run/needs-input";
 import { answerRun } from "../run/bridge-writers";
 import { stdoutTail } from "../run/stdout";
+import { recordSpend, withinBudget } from "./budget";
 import { athenaComplete } from "./complete";
 import { runCouncil } from "./council";
 import { buildAthenaPrompt, gateAthenaVerdict } from "./decide";
+import { recordDecision, retrieveSimilar } from "./memory";
 import { resolveRunWithAthena, type AthenaResolveDeps, type AthenaResolveOutcome } from "./resolve";
 import type { AthenaAsk, AthenaComplete, AthenaContext } from "./types";
 
@@ -70,6 +72,9 @@ async function loadAsk(
     ? `${diff.filesChanged} file(s), +${diff.insertions}/-${diff.deletions}`
     : undefined;
 
+  // ADR-0007 §7 — inject the most similar past decisions as precedent (best-effort).
+  const priorDecisions = await retrieveSimilar(q.prompt).catch(() => []);
+
   // human-only flag (ADR-0007 §4): the Engine may stamp it on the question jsonb
   // (parseNeedsInputQuestion drops unknown fields, so read it from the raw row).
   const humanOnly =
@@ -89,6 +94,7 @@ async function loadAsk(
     ...(brief ? { brief } : {}),
     ...(recentTranscript ? { recentTranscript } : {}),
     ...(diffSummary ? { diffSummary } : {}),
+    ...(priorDecisions.length ? { priorDecisions } : {}),
   };
   return { ask, context };
 }
@@ -115,14 +121,31 @@ export async function resolveRunWithAthenaReal(
   const size = await athenaCouncilSize();
   const council =
     override.council ??
-    ((ask, context) => runCouncil({ ask, context, complete, size, ...(ultra ? { ultra: true } : {}) }));
+    (async (ask: AthenaAsk, context: AthenaContext) => {
+      // metered: convening the Council is an expensive rung (ADR-0007 §7).
+      await recordSpend("council", runId).catch(() => {});
+      return runCouncil({ ask, context, complete, size, ...(ultra ? { ultra: true } : {}) });
+    });
   return resolveRunWithAthena(runId, {
     loadAsk,
     complete,
     council,
+    budgetOk: () => withinBudget(),
     answer: async (rid, ans) => {
       const r = await answerRun({ runId: rid, answer: ans, actor: ans.answeredBy });
       return r.ok;
+    },
+    remember: async (d) => {
+      await recordDecision({
+        runId,
+        question: d.ask.question,
+        options: d.ask.options ?? null,
+        choice: d.choice ?? null,
+        text: d.text ?? null,
+        source: "athena",
+        confidence: d.confidence,
+        rationale: d.rationale ?? null,
+      });
     },
     markAttempted,
     ...(override.now ? { now: override.now } : {}),
@@ -136,10 +159,17 @@ export async function resolveRunWithAthenaReal(
  * `consult-requested` command row — the daemon runs the consult ON the Run's
  * bridge (repo-aware in the worktree) and posts the verdict to /consult-result.
  * One-shot: mark attempted first so the sweep never re-dispatches the same Ask.
+ * A bridge consult is repo-aware (expensive), so it's gated + metered on the
+ * budget (ADR-0007 §7): on cap, hand the Ask to the Owner instead of dispatching.
  */
 export async function dispatchConsult(runId: string): Promise<"dispatched" | "skipped"> {
   const loaded = await loadAsk(runId);
   if (!loaded) return "skipped";
+  // budget gate: fail safe to the Owner when the daily escalation cap is spent.
+  if (!(await withinBudget())) {
+    await markAttempted(runId); // one shot consumed → it's the Owner's now
+    return "skipped";
+  }
   await markAttempted(runId);
   const prompt = buildAthenaPrompt(loaded.ask, loaded.context);
   const [run] = await db
@@ -159,6 +189,7 @@ export async function dispatchConsult(runId: string): Promise<"dispatched" | "sk
     values ('consult-requested', 'Athena', ${`${run.ref} — ${run.title}`},
             ${run.projectId}, ${run.ticketId}, ${runId}, ${payload}::jsonb, false)
   `);
+  await recordSpend("repo", runId).catch(() => {}); // metered: repo-aware consult
   return "dispatched";
 }
 
@@ -190,6 +221,19 @@ export async function resolveConsultResult(
     },
     actor: "Athena",
   });
+  if (r.ok) {
+    // ADR-0007 §7 — learn from the bridge consult's answer too (best-effort).
+    await recordDecision({
+      runId,
+      question: loaded.ask.question,
+      options: loaded.ask.options ?? null,
+      choice: verdict.choice ?? null,
+      text: verdict.text ?? null,
+      source: "athena",
+      confidence: verdict.confidence,
+      rationale: verdict.rationale ?? null,
+    }).catch(() => {});
+  }
   return r.ok
     ? { status: "answered", confidence: verdict.confidence }
     : { status: "skipped", reason: "run-moved" };
