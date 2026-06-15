@@ -45,6 +45,11 @@ export const instanceSettings = pgTable(
      * call) or 'bridge' (a repo-aware consult on the Run's bridge, no key).
      */
     athenaLocation: text("athena_location").notNull().default("cloud"),
+    /**
+     * ADR-0007 §5 (Phase 3) — the Council size: N lens-diverse delegates that
+     * vote when a single consult wasn't confident. Odd; default 3.
+     */
+    athenaCouncilSize: integer("athena_council_size").notNull().default(3),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("instance_settings_single_row", sql`${t.id} = 1`)],

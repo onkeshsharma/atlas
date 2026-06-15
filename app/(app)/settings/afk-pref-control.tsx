@@ -8,7 +8,12 @@ import { useState, useTransition } from "react";
 import { SegmentedControl } from "@/src/components/kit";
 import type { AfkLevel, AthenaLocation } from "@/src/domain/settings/instance";
 
-import { setAfkDelayAction, setAfkLevelAction, setAthenaLocationAction } from "./actions";
+import {
+  setAfkDelayAction,
+  setAfkLevelAction,
+  setAthenaCouncilSizeAction,
+  setAthenaLocationAction,
+} from "./actions";
 
 const DELAY_OPTIONS = [
   { value: "0", label: "Never" },
@@ -18,18 +23,28 @@ const DELAY_OPTIONS = [
   { value: "60", label: "60m" },
 ];
 
+const COUNCIL_OPTIONS = [
+  { value: "1", label: "1" },
+  { value: "3", label: "3" },
+  { value: "5", label: "5" },
+  { value: "7", label: "7" },
+];
+
 export function AfkPrefControl({
   level,
   fallbackMinutes,
   location,
+  councilSize,
 }: {
   level: AfkLevel;
   fallbackMinutes: number;
   location: AthenaLocation;
+  councilSize: number;
 }) {
   const [value, setValue] = useState<AfkLevel>(level);
   const [delay, setDelay] = useState(String(fallbackMinutes));
   const [loc, setLoc] = useState<AthenaLocation>(location);
+  const [council, setCouncil] = useState(String(councilSize));
   const [pending, startTransition] = useTransition();
 
   return (
@@ -98,6 +113,26 @@ export function AfkPrefControl({
           />
           <span className="font-mono text-[9px] uppercase tracking-widest text-stone-400">
             {loc === "bridge" ? "reads the code · no key" : "Atlas API · needs key"}
+          </span>
+        </div>
+      )}
+
+      {value !== "off" && (
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-stone-500">
+            Council size
+          </span>
+          <SegmentedControl
+            size="micro"
+            options={COUNCIL_OPTIONS}
+            value={council}
+            onChange={(v) => {
+              setCouncil(v);
+              startTransition(() => setAthenaCouncilSizeAction(v));
+            }}
+          />
+          <span className="font-mono text-[9px] uppercase tracking-widest text-stone-400">
+            {council === "1" ? "single delegate" : `${council} lenses vote · majority answers`}
           </span>
         </div>
       )}

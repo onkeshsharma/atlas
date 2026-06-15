@@ -76,4 +76,64 @@ describe("resolveRunWithAthena", () => {
       confidence: 0.85,
     });
   });
+
+  // ADR-0007 §5 — the Council escalation path (resolve wiring).
+  it("convenes the Council when the single consult is low-confidence, and answers on its verdict", async () => {
+    const council = vi.fn(async () => ({
+      answered: true as const,
+      choice: "migrate",
+      confidence: 0.88,
+      rationale: "council majority",
+    }));
+    const d = deps({
+      // low confidence + choice in options → not high-stakes → escalate to council
+      complete: vi.fn(async () => JSON.stringify({ choice: "migrate", confidence: 0.3, rationale: "unsure" })),
+      council,
+    });
+    const out = await resolveRunWithAthena("run-c1", d);
+
+    expect(council).toHaveBeenCalledWith(
+      expect.objectContaining({ question: "migrate or drop?" }),
+      ctx,
+    );
+    expect(d.answer).toHaveBeenCalledWith(
+      "run-c1",
+      expect.objectContaining({
+        choice: "migrate",
+        answeredBy: "Athena",
+        rationale: "council majority",
+        confidence: 0.88,
+      }),
+    );
+    expect(out).toEqual({ status: "answered", confidence: 0.88 });
+  });
+
+  it("does NOT convene the Council on the high-stakes rail (Owner only)", async () => {
+    const council = vi.fn();
+    const d = deps({
+      loadAsk: vi.fn(async () => ({ ask: { question: "ship to prod?", options: ["yes", "no"] }, context: ctx })),
+      complete: vi.fn(async () =>
+        JSON.stringify({ choice: "yes", confidence: 0.95, stakes: "high", rationale: "irreversible" }),
+      ),
+      council,
+    });
+    const out = await resolveRunWithAthena("run-c2", d);
+
+    expect(council).not.toHaveBeenCalled();
+    expect(d.answer).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ status: "escalated", reason: "high-stakes" });
+  });
+
+  it("escalates to the Owner when the Council also can't reach consensus", async () => {
+    const council = vi.fn(async () => ({ answered: false as const }));
+    const d = deps({
+      complete: vi.fn(async () => JSON.stringify({ choice: "migrate", confidence: 0.3, rationale: "unsure" })),
+      council,
+    });
+    const out = await resolveRunWithAthena("run-c3", d);
+
+    expect(council).toHaveBeenCalled();
+    expect(d.answer).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ status: "escalated" });
+  });
 });

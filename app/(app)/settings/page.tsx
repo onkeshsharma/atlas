@@ -32,6 +32,7 @@ import {
   afkFallbackMinutes,
   afkLevel,
   athenaApiKeyIsSet,
+  athenaCouncilSize,
   athenaLocation,
 } from "@/src/domain/settings/instance";
 import { secretsAvailable } from "@/src/lib/secret";
@@ -77,16 +78,18 @@ function ShortcutRow({
 
 export default async function PreferencesPage() {
   const user = await requireOwner();
-  const [rows, collapsed, afkLvl, afkDelay, afkLoc, keyIsSet, bridges, cursor] = await Promise.all([
-    projectRows(),
-    sidebarCollapsed(user.id),
-    afkLevel(),
-    afkFallbackMinutes(),
-    athenaLocation(),
-    athenaApiKeyIsSet(),
-    bridgeViews(),
-    latestCursor(),
-  ]);
+  const [rows, collapsed, afkLvl, afkDelay, afkLoc, councilSize, keyIsSet, bridges, cursor] =
+    await Promise.all([
+      projectRows(),
+      sidebarCollapsed(user.id),
+      afkLevel(),
+      afkFallbackMinutes(),
+      athenaLocation(),
+      athenaCouncilSize(),
+      athenaApiKeyIsSet(),
+      bridgeViews(),
+      latestCursor(),
+    ]);
   const keyStorageAvailable = secretsAvailable();
   const pinned = rows.filter((p) => p.pinned);
   const unpinned = rows.filter((p) => !p.pinned);
@@ -179,7 +182,12 @@ export default async function PreferencesPage() {
           you, with Athena as a fallback after the delay you set.
         </p>
         <div className="mt-7">
-          <AfkPrefControl level={afkLvl} fallbackMinutes={afkDelay} location={afkLoc} />
+          <AfkPrefControl
+            level={afkLvl}
+            fallbackMinutes={afkDelay}
+            location={afkLoc}
+            councilSize={councilSize}
+          />
         </div>
         <div className="mt-9">
           <p className="font-mono text-[10px] uppercase tracking-widest text-stone-400">

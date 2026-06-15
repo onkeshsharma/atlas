@@ -1,0 +1,1 @@
+ALTER TABLE "instance_settings" ADD COLUMN "athena_council_size" integer DEFAULT 3 NOT NULL;
