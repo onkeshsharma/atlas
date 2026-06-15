@@ -9,7 +9,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { inventorySkills, parseSkillFrontmatter, skillsUsedInFrame } from "../src/skills.ts";
+import { constitutionHash, inventorySkills, parseSkillFrontmatter, skillsUsedInFrame } from "../src/skills.ts";
 
 describe("parseSkillFrontmatter", () => {
   it("reads name + description and defaults invocability to true", () => {
@@ -95,5 +95,25 @@ describe("inventorySkills", () => {
   it("returns [] for a project with no .claude/skills", async () => {
     const root = await mkdtemp(join(tmpdir(), "atlas-noskills-"));
     expect(await inventorySkills(root)).toEqual([]);
+  });
+});
+
+describe("constitutionHash", () => {
+  it("is empty for a project with no constitution, stable when unchanged, and changes on edit", async () => {
+    const root = await mkdtemp(join(tmpdir(), "atlas-consth-"));
+    expect(await constitutionHash(root)).toBe(""); // no CLAUDE.md / skills
+
+    await writeFile(join(root, "CLAUDE.md"), "# Guide\nDo the thing.");
+    const h1 = await constitutionHash(root);
+    expect(h1).toMatch(/^[0-9a-f]{64}$/);
+    expect(await constitutionHash(root)).toBe(h1); // stable
+
+    await mkdir(join(root, ".claude", "skills", "grill"), { recursive: true });
+    await writeFile(join(root, ".claude", "skills", "grill", "SKILL.md"), "---\nname: grill\n---\n");
+    const h2 = await constitutionHash(root);
+    expect(h2).not.toBe(h1); // adding a skill changes the hash
+
+    await writeFile(join(root, "CLAUDE.md"), "# Guide\nDo the OTHER thing.");
+    expect(await constitutionHash(root)).not.toBe(h2); // editing CLAUDE.md changes it
   });
 });

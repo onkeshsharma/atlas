@@ -14,6 +14,7 @@ import type {
   WorkOrder,
 } from "./protocol.ts";
 import { parseSyncResponse, parseWorkOrder } from "./protocol.ts";
+import type { SkillInfo } from "./skills.ts";
 
 export class TokenRejectedError extends Error {
   constructor() {
@@ -153,5 +154,23 @@ export class AtlasClient {
     if (status === 200) return true;
     if (status === 404 || status === 409) return false;
     throw new Error(`setProjectLocalPath returned ${status}`);
+  }
+
+  /**
+   * ADR-0008 Phase 2 — report the project's harvested capabilities facet (the
+   * skill inventory) + the constitution hash (freshness) from the live worktree.
+   */
+  async postProjectBrain(
+    projectId: string,
+    body: { skills: SkillInfo[]; constitutionHash: string },
+  ): Promise<boolean> {
+    const { status } = await this.request(
+      "POST",
+      `/api/bridge/projects/${projectId}/brain`,
+      body,
+    );
+    if (status === 200) return true;
+    if (status === 404 || status === 409) return false;
+    throw new Error(`postProjectBrain returned ${status}`);
   }
 }
