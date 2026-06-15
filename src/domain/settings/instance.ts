@@ -107,6 +107,26 @@ export async function setAthenaLocation(loc: AthenaLocation): Promise<void> {
   `);
 }
 
+/** ADR-0007 §5 — the Council size (lens-diverse delegates). Odd, default 3. */
+export const DEFAULT_COUNCIL_SIZE = 3;
+
+export async function athenaCouncilSize(): Promise<number> {
+  const rows = await db
+    .select({ n: instanceSettings.athenaCouncilSize })
+    .from(instanceSettings);
+  return rows[0]?.n ?? DEFAULT_COUNCIL_SIZE;
+}
+
+export async function setAthenaCouncilSize(size: number): Promise<void> {
+  let v = Math.max(1, Math.min(7, Math.floor(size)));
+  if (v % 2 === 0) v -= 1; // keep it odd for clean majorities
+  await db.execute(sql`
+    insert into instance_settings (id, athena_council_size, updated_at)
+    values (1, ${v}, now())
+    on conflict (id) do update set athena_council_size = ${v}, updated_at = now()
+  `);
+}
+
 /**
  * The cloud-tier Anthropic key (ADR-0007 §3), decrypted — or null to fall back
  * to the env var. Stored AES-256-GCM-encrypted; never returned in plaintext to

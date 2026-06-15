@@ -9,12 +9,13 @@ import { db } from "@/src/db/client";
 import { briefs, projects, runs, tickets } from "@/src/db/schema";
 import { sql } from "drizzle-orm";
 
-import { afkFallbackMinutes, afkLevel, athenaLocation } from "../settings/instance";
+import { afkFallbackMinutes, afkLevel, athenaCouncilSize, athenaLocation } from "../settings/instance";
 import { parseRunDiffStats } from "../run/diff-stats";
 import { parseNeedsInputQuestion } from "../run/needs-input";
 import { answerRun } from "../run/bridge-writers";
 import { stdoutTail } from "../run/stdout";
 import { athenaComplete } from "./complete";
+import { runCouncil } from "./council";
 import { buildAthenaPrompt, gateAthenaVerdict } from "./decide";
 import { resolveRunWithAthena, type AthenaResolveDeps, type AthenaResolveOutcome } from "./resolve";
 import type { AthenaAsk, AthenaComplete, AthenaContext } from "./types";
@@ -105,13 +106,20 @@ async function markAttempted(runId: string): Promise<void> {
  */
 export async function resolveRunWithAthenaReal(
   runId: string,
-  override: Partial<Pick<AthenaResolveDeps, "complete" | "now" | "minConfidence" | "ultra">> = {},
+  override: Partial<
+    Pick<AthenaResolveDeps, "complete" | "now" | "minConfidence" | "ultra" | "council">
+  > = {},
 ): Promise<AthenaResolveOutcome> {
   const complete: AthenaComplete = override.complete ?? athenaComplete();
   const ultra = override.ultra ?? (await afkLevel()) === "ultra";
+  const size = await athenaCouncilSize();
+  const council =
+    override.council ??
+    ((ask, context) => runCouncil({ ask, context, complete, size, ...(ultra ? { ultra: true } : {}) }));
   return resolveRunWithAthena(runId, {
     loadAsk,
     complete,
+    council,
     answer: async (rid, ans) => {
       const r = await answerRun({ runId: rid, answer: ans, actor: ans.answeredBy });
       return r.ok;

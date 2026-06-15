@@ -15,6 +15,7 @@ import {
   setAfkFallbackMinutes,
   setAfkLevel,
   setAthenaApiKey,
+  setAthenaCouncilSize,
   setAthenaLocation,
   type AfkLevel,
   type AthenaLocation,
@@ -49,6 +50,15 @@ export async function setAthenaLocationAction(value: string): Promise<void> {
   await requireOwner();
   if (!(ATHENA_LOCATIONS as readonly string[]).includes(value)) return;
   await setAthenaLocation(value as AthenaLocation);
+  revalidatePath("/settings");
+}
+
+/** ADR-0007 §5 — the Council size (lens-diverse delegates; clamped odd 1–7). */
+export async function setAthenaCouncilSizeAction(value: string): Promise<void> {
+  await requireOwner();
+  const size = Number.parseInt(value, 10);
+  if (Number.isNaN(size)) return;
+  await setAthenaCouncilSize(size);
   revalidatePath("/settings");
 }
 

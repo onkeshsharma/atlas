@@ -43,6 +43,17 @@ export type AthenaResolveDeps = {
   minConfidence?: number;
   /** ADR-0007 §4 — Ultra Athena: lift the high-stakes/human-only rail. */
   ultra?: boolean;
+  /**
+   * ADR-0007 §5 — the Council: convened when a single consult wasn't confident
+   * (not on the high-stakes rail). Majority answers; a split returns unanswered.
+   */
+  council?: (
+    ask: AthenaAsk,
+    context: AthenaContext,
+  ) => Promise<
+    | { answered: true; choice?: string; text?: string; confidence: number; rationale: string }
+    | { answered: false }
+  >;
 };
 
 export type AthenaResolveOutcome =
@@ -61,13 +72,29 @@ export async function resolveRunWithAthena(
   // immediate AFK trigger can't both answer the same Ask.
   await deps.markAttempted(runId);
 
-  const verdict = await decideWithAthena({
+  let verdict = await decideWithAthena({
     ask: loaded.ask,
     context: loaded.context,
     complete: deps.complete,
     ...(deps.minConfidence !== undefined ? { minConfidence: deps.minConfidence } : {}),
     ...(deps.ultra ? { ultra: true } : {}),
   });
+
+  // ADR-0007 §5 — a single consult that wasn't confident escalates to the
+  // Council (NOT high-stakes, which is the Owner's rail). Majority answers; a
+  // split leaves the verdict unanswered → Owner.
+  if (!verdict.answered && verdict.reason !== "high-stakes" && deps.council) {
+    const cv = await deps.council(loaded.ask, loaded.context);
+    if (cv.answered) {
+      verdict = {
+        answered: true,
+        ...(cv.choice ? { choice: cv.choice } : {}),
+        ...(cv.text ? { text: cv.text } : {}),
+        confidence: cv.confidence,
+        rationale: cv.rationale,
+      };
+    }
+  }
 
   if (!verdict.answered) {
     // abstain → the Ask stays in needs-input for the Owner (audited as attempted).
