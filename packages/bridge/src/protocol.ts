@@ -49,6 +49,11 @@ export type NeedsInputQuestion = {
   prompt: string;
   options?: string[];
   context?: string;
+  /**
+   * ADR-0007 §4 — the Engine flagged this Ask high-stakes/irreversible. Athena
+   * escalates it to the Owner unless under Ultra. Mirrors the app-side field.
+   */
+  humanOnly?: boolean;
   raisedAt: string;
 };
 

@@ -25,6 +25,17 @@ describe("mcp ipc — child ↔ daemon round-trip", () => {
     client.close();
   });
 
+  it("relays the human-only flag through to the daemon handler (ADR-0007 §4)", async () => {
+    const onAsk = vi.fn(async () => ({ choice: "no" }));
+    server = createRunIpcServer({ token: "th", onAsk, onResult: () => {} });
+    const client = connectIpc({ port: await server.port, token: "th" });
+
+    await client.ask({ question: "drop prod?", options: ["yes", "no"], humanOnly: true });
+
+    expect(onAsk).toHaveBeenCalledWith({ question: "drop prod?", options: ["yes", "no"], humanOnly: true });
+    client.close();
+  });
+
   it("relays submit_result and acks; captures the body", async () => {
     let captured: HelperResultBody | null = null;
     server = createRunIpcServer({

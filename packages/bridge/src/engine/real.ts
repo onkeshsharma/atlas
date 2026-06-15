@@ -115,11 +115,12 @@ export function realEngineAdapter(): EngineAdapter {
         // capture the deliverable. Closes over this Run only.
         const ipc = createRunIpcServer({
           token,
-          onAsk: ({ question, options }) => {
+          onAsk: ({ question, options, humanOnly }) => {
             args.onQuestion({
               kind: "question",
               prompt: question,
               ...(options && options.length ? { options } : {}),
+              ...(humanOnly ? { humanOnly: true } : {}),
               raisedAt: new Date().toISOString(),
             } satisfies NeedsInputQuestion);
             if (queuedAnswer) {

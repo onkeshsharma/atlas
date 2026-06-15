@@ -123,9 +123,13 @@ describe("resolveRunWithAthenaReal (real DB bindings)", () => {
     const feed = await db
       .select()
       .from(feedEvents)
-      .where(eq(feedEvents.runId, runId))
-      .then((rows) => rows.filter((r) => r.kind === "answered"));
-    expect(feed).toHaveLength(0); // no answer written
+      .where(eq(feedEvents.runId, runId));
+    expect(feed.filter((r) => r.kind === "answered")).toHaveLength(0); // no answer written
+    // ADR-0007 §6 — Athena tried and handed back → the inbox escalation signal.
+    const esc = feed.filter((r) => r.kind === "athena-escalated");
+    expect(esc).toHaveLength(1);
+    expect(esc[0].actor).toBe("Athena");
+    expect((esc[0].payload as { reason?: string }).reason).toBe("low-confidence");
   });
 
   it("answers a free-text Ask (no options) with Athena's text", async () => {
@@ -211,6 +215,12 @@ describe("resolveRunWithAthenaReal (real DB bindings)", () => {
     expect(out).toMatchObject({ status: "escalated", reason: "high-stakes" });
     const [run] = await db.select().from(runs).where(eq(runs.id, id));
     expect(run.state).toBe("needs-input");
+    // ADR-0007 §6 — the bridge escalation also raises the inbox signal.
+    const esc = (await db.select().from(feedEvents).where(eq(feedEvents.runId, id))).filter(
+      (r) => r.kind === "athena-escalated",
+    );
+    expect(esc).toHaveLength(1);
+    expect((esc[0].payload as { reason?: string }).reason).toBe("high-stakes");
   });
 
   it("is a no-op once the Run has left needs-input (one shot per Ask)", async () => {

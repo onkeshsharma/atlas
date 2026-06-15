@@ -106,6 +106,28 @@ async function markAttempted(runId: string): Promise<void> {
 }
 
 /**
+ * ADR-0007 §6 — emit the "Athena handed this back" feed signal. Fires only when
+ * Athena ATTEMPTED and escalated (high-stakes rail, low confidence, abstain, or
+ * budget) — the decisions worth interrupting the Owner for. Surfaces in the inbox
+ * and is the feed event the email notifier keys off (Increment 2). Informational:
+ * it does NOT transition the Run (it stays needs-input for the Owner). Best-effort.
+ */
+async function emitAthenaEscalation(runId: string, reason: string, confidence: number): Promise<void> {
+  const [run] = await db
+    .select({ ref: runs.ref, title: runs.title, projectId: runs.projectId, ticketId: runs.ticketId })
+    .from(runs)
+    .where(eq(runs.id, runId));
+  if (!run) return;
+  const payload = JSON.stringify({ reason, confidence });
+  await db.execute(sql`
+    insert into feed_events (kind, actor, summary, project_id, ticket_id, run_id, ticket_ref, payload, seeded)
+    values ('athena-escalated', 'Athena', ${`${run.ref} — ${run.title}`},
+            ${run.projectId}, ${run.ticketId}, ${runId},
+            (select t.ref from tickets t where t.id = ${run.ticketId}), ${payload}::jsonb, false)
+  `);
+}
+
+/**
  * Production resolve: real bindings; `complete`/`ultra` overridable for tests.
  * When `ultra` isn't supplied it's derived from the live AFK level (Ultra
  * Athena lifts the high-stakes rail).
@@ -126,7 +148,7 @@ export async function resolveRunWithAthenaReal(
       await recordSpend("council", runId).catch(() => {});
       return runCouncil({ ask, context, complete, size, ...(ultra ? { ultra: true } : {}) });
     });
-  return resolveRunWithAthena(runId, {
+  const outcome = await resolveRunWithAthena(runId, {
     loadAsk,
     complete,
     council,
@@ -152,6 +174,10 @@ export async function resolveRunWithAthenaReal(
     ...(override.minConfidence !== undefined ? { minConfidence: override.minConfidence } : {}),
     ...(ultra ? { ultra: true } : {}),
   });
+  if (outcome.status === "escalated") {
+    await emitAthenaEscalation(runId, outcome.reason, outcome.confidence).catch(() => {});
+  }
+  return outcome;
 }
 
 /**
@@ -207,6 +233,7 @@ export async function resolveConsultResult(
   const ultra = (await afkLevel()) === "ultra";
   const verdict = gateAthenaVerdict(rawVerdict, { ask: loaded.ask, ultra });
   if (!verdict.answered) {
+    await emitAthenaEscalation(runId, verdict.reason, verdict.confidence).catch(() => {});
     return { status: "escalated", reason: verdict.reason, confidence: verdict.confidence };
   }
   const r = await answerRun({

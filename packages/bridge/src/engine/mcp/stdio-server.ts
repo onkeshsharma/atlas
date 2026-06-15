@@ -27,7 +27,7 @@ export type McpStdioServerOptions = {
   /** write one JSON-RPC message (the caller appends the newline / framing). */
   send: (message: Record<string, unknown>) => void;
   /** raise the Ask and resolve when the Owner/Athena answers (may take minutes). */
-  askOwner: (args: { question: string; options?: string[] }) => Promise<AskResolution>;
+  askOwner: (args: { question: string; options?: string[]; humanOnly?: boolean }) => Promise<AskResolution>;
   /** persist the validated helper deliverable. */
   submitResult: (body: HelperResultBody) => Promise<void>;
   /** server identity (defaults are fine; overridable for tests). */
@@ -51,6 +51,13 @@ const TOOLS = [
           type: "array",
           items: { type: "string" },
           description: "Optional discrete choices the Owner can pick from.",
+        },
+        human_only: {
+          type: "boolean",
+          description:
+            "Set true when this decision is high-stakes or irreversible and MUST be made by " +
+            "the human Owner — Athena (the AFK delegate) will not auto-answer it, even on a " +
+            "confident guess. Use for destructive, security, or one-way-door choices.",
         },
       },
       required: ["question"],
@@ -102,7 +109,8 @@ export function createMcpStdioServer(opts: McpStdioServerOptions): McpStdioServe
         return;
       }
       const options = Array.isArray(args.options) ? args.options.map(String) : undefined;
-      const answer = await opts.askOwner({ question, options });
+      const humanOnly = args.human_only === true;
+      const answer = await opts.askOwner({ question, options, ...(humanOnly ? { humanOnly } : {}) });
       reply(id, textResult(answer.choice ?? answer.text ?? ""));
       return;
     }
