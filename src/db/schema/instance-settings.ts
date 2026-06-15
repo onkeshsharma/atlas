@@ -9,7 +9,7 @@
  * when the row hasn't been created yet (honest zero-config start).
  * The Owner-facing dial surface is M10's settings shell.
  */
-import { boolean, check, integer, pgTable, smallint, timestamp } from "drizzle-orm/pg-core";
+import { boolean, check, integer, pgTable, smallint, text, timestamp } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const instanceSettings = pgTable(
@@ -23,8 +23,18 @@ export const instanceSettings = pgTable(
      * AFK Mode (ADR-0006 §4): when on, a Run's Ask is auto-answered by Athena
      * instead of waiting for the Owner. Instance-level (one Owner), so the
      * token-authed bridge routes can read it without a user session.
+     * Kept in sync with `afkLevel` (= level !== 'off') for back-compat with the
+     * v0.1 deployed reader.
      */
     afkMode: boolean("afk_mode").notNull().default(false),
+    /**
+     * ADR-0007 §4 — the three-level AFK dial: 'off' | 'on' | 'ultra'.
+     * 'on' keeps the safety rail (human-only Asks escalate); 'ultra' drops the
+     * rail (Athena answers everything; the machine-safety floor still holds).
+     */
+    afkLevel: text("afk_level").notNull().default("off"),
+    /** ADR-0007 §4 — minutes an unanswered Ask waits before Athena's fallback (AFK off). */
+    afkFallbackMinutes: integer("afk_fallback_minutes").notNull().default(10),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("instance_settings_single_row", sql`${t.id} = 1`)],

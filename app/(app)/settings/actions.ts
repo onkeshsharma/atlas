@@ -9,7 +9,12 @@ import { revalidatePath } from "next/cache";
 import { requireOwner, requireUser } from "@/src/domain/auth/guard";
 import { setSidebarCollapsed } from "@/src/domain/preferences/sidebar";
 import { setProjectPinned } from "@/src/domain/project/pin";
-import { setAfkMode } from "@/src/domain/settings/instance";
+import {
+  AFK_LEVELS,
+  setAfkFallbackMinutes,
+  setAfkLevel,
+  type AfkLevel,
+} from "@/src/domain/settings/instance";
 
 /** §2.1 — the persisted shell-density preference (expanded ⇄ collapsed). */
 export async function setSidebarPrefAction(value: string): Promise<void> {
@@ -18,10 +23,20 @@ export async function setSidebarPrefAction(value: string): Promise<void> {
   revalidatePath("/", "layout");
 }
 
-/** ADR-0006 §4 — AFK Mode: when on, Athena answers Runs' Asks for you. */
-export async function setAfkModeAction(value: string): Promise<void> {
+/** ADR-0007 §4 — AFK dial: off | on | ultra. */
+export async function setAfkLevelAction(value: string): Promise<void> {
   await requireOwner();
-  await setAfkMode(value === "on");
+  if (!(AFK_LEVELS as readonly string[]).includes(value)) return;
+  await setAfkLevel(value as AfkLevel);
+  revalidatePath("/", "layout"); // the shell chip reflects the level everywhere
+}
+
+/** ADR-0007 §4 — how long an unanswered Ask waits before Athena's fallback (AFK off). */
+export async function setAfkDelayAction(value: string): Promise<void> {
+  await requireOwner();
+  const minutes = Number.parseInt(value, 10);
+  if (Number.isNaN(minutes)) return;
+  await setAfkFallbackMinutes(minutes);
   revalidatePath("/settings");
 }
 

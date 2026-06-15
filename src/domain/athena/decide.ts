@@ -21,11 +21,13 @@ const SYSTEM = [
   "Principles:",
   "- Prefer the safe, reversible, convention-following option.",
   "- If the decision is destructive, irreversible, high-stakes, or genuinely ambiguous,",
-  "  set a LOW confidence so it escalates to the human. Abstaining is correct, not a failure.",
+  '  mark "stakes": "high" AND set a LOW confidence so it escalates to the human.',
+  "  Abstaining is correct, not a failure.",
   "- If options were given, your choice MUST be exactly one of them.",
   "",
   'Respond with ONLY a JSON object: {"choice": <one of the options, or null>,',
   '"answer": <free-text answer when no options, else null>, "confidence": <0..1>,',
+  '"stakes": "low" | "high" (high = destructive / irreversible / high-stakes),',
   '"rationale": <one or two sentences>}. No prose outside the JSON.',
 ].join("\n");
 
@@ -52,6 +54,7 @@ type ParsedAthena = {
   text?: string;
   confidence: number;
   rationale: string;
+  stakes?: "low" | "high";
 };
 
 /**
@@ -74,7 +77,8 @@ export function parseAthenaResponse(raw: string): ParsedAthena | null {
     typeof obj.choice === "string" && obj.choice.length > 0 ? obj.choice : undefined;
   const text = typeof obj.answer === "string" && obj.answer.length > 0 ? obj.answer : undefined;
   if (choice === undefined && text === undefined) return null;
-  return { choice, text, confidence, rationale };
+  const stakes = obj.stakes === "high" ? "high" : obj.stakes === "low" ? "low" : undefined;
+  return { choice, text, confidence, rationale, ...(stakes ? { stakes } : {}) };
 }
 
 function extractFirstJsonObject(raw: string): string | null {
@@ -106,6 +110,8 @@ export async function decideWithAthena(input: {
   context: AthenaContext;
   complete: AthenaComplete;
   minConfidence?: number;
+  /** ADR-0007 §4 — Ultra Athena lifts the high-stakes/human-only rail. */
+  ultra?: boolean;
 }): Promise<AthenaVerdict> {
   const minConfidence = input.minConfidence ?? ATHENA_MIN_CONFIDENCE;
   const prompt = buildAthenaPrompt(input.ask, input.context);
@@ -139,6 +145,20 @@ export async function decideWithAthena(input: {
       reason: "abstained",
       confidence: parsed.confidence,
       rationale: `Proposed "${parsed.choice}", not among the offered options`,
+    };
+  }
+
+  // ADR-0007 §4 safety rail: a human-only Ask (Engine-flagged) or a self-judged
+  // high-stakes call escalates to the Owner regardless of confidence — UNLESS
+  // Ultra Athena lifts the rail.
+  if (!input.ultra && (input.ask.humanOnly || parsed.stakes === "high")) {
+    return {
+      answered: false,
+      reason: "high-stakes",
+      confidence: parsed.confidence,
+      rationale:
+        parsed.rationale ||
+        (input.ask.humanOnly ? "flagged human-only by the Engine" : "high-stakes decision"),
     };
   }
 

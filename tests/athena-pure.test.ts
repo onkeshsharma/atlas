@@ -140,4 +140,33 @@ describe("decideWithAthena", () => {
     expect(ATHENA_MIN_CONFIDENCE).toBeGreaterThan(0);
     expect(ATHENA_MIN_CONFIDENCE).toBeLessThan(1);
   });
+
+  // ADR-0007 §4 — the safety rail
+  it("escalates a self-judged high-stakes call regardless of confidence", async () => {
+    const v = await decideWithAthena({
+      ask: { question: "drop the column?", options: ["yes", "no"] },
+      context: ctx,
+      complete: reply({ choice: "yes", confidence: 0.95, stakes: "high", rationale: "irreversible" }),
+    });
+    expect(v).toMatchObject({ answered: false, reason: "high-stakes" });
+  });
+
+  it("escalates an Engine-flagged human-only Ask even when confident + low-stakes", async () => {
+    const v = await decideWithAthena({
+      ask: { question: "ship to prod?", options: ["yes", "no"], humanOnly: true },
+      context: ctx,
+      complete: reply({ choice: "yes", confidence: 0.99, stakes: "low", rationale: "looks fine" }),
+    });
+    expect(v).toMatchObject({ answered: false, reason: "high-stakes" });
+  });
+
+  it("Ultra Athena bypasses the rail — answers a high-stakes / human-only Ask", async () => {
+    const v = await decideWithAthena({
+      ask: { question: "drop the column?", options: ["yes", "no"], humanOnly: true },
+      context: ctx,
+      ultra: true,
+      complete: reply({ choice: "yes", confidence: 0.95, stakes: "high", rationale: "owner trusts me" }),
+    });
+    expect(v).toMatchObject({ answered: true, choice: "yes" });
+  });
 });

@@ -28,19 +28,58 @@ export async function setRunCap(cap: number): Promise<void> {
 }
 
 /**
- * AFK Mode (ADR-0006 §4). When on, a Run's Ask is auto-answered by Athena.
- * Zero-config: defaults to false when no row exists.
+ * AFK level (ADR-0007 §4) — the three-level dial.
+ *  - off:   Asks go to the Owner (Athena fallback after the timeout).
+ *  - on:    Athena answers, but the safety rail holds (human-only → Owner).
+ *  - ultra: Athena answers everything (rail off; machine-safety floor stays).
  */
-export async function afkMode(): Promise<boolean> {
-  const rows = await db.select({ afk: instanceSettings.afkMode }).from(instanceSettings);
-  return rows[0]?.afk ?? false;
+export type AfkLevel = "off" | "on" | "ultra";
+export const AFK_LEVELS: readonly AfkLevel[] = ["off", "on", "ultra"];
+export const DEFAULT_AFK_FALLBACK_MINUTES = 10;
+
+export async function afkLevel(): Promise<AfkLevel> {
+  const rows = await db.select({ level: instanceSettings.afkLevel }).from(instanceSettings);
+  const v = rows[0]?.level;
+  return (AFK_LEVELS as readonly string[]).includes(v ?? "") ? (v as AfkLevel) : "off";
 }
 
-/** upsert the single row (id = 1). */
-export async function setAfkMode(on: boolean): Promise<void> {
+/**
+ * AFK Mode (ADR-0006 §4) — kept as a boolean derive (level !== 'off') for any
+ * caller that only needs "is AFK active". New code should prefer `afkLevel()`.
+ */
+export async function afkMode(): Promise<boolean> {
+  return (await afkLevel()) !== "off";
+}
+
+/** upsert the single row (id = 1) — writes BOTH columns so the v0.1 boolean reader stays correct. */
+export async function setAfkLevel(level: AfkLevel): Promise<void> {
+  const on = level !== "off";
   await db.execute(sql`
-    insert into instance_settings (id, afk_mode, updated_at)
-    values (1, ${on}, now())
-    on conflict (id) do update set afk_mode = ${on}, updated_at = now()
+    insert into instance_settings (id, afk_level, afk_mode, updated_at)
+    values (1, ${level}, ${on}, now())
+    on conflict (id) do update set afk_level = ${level}, afk_mode = ${on}, updated_at = now()
+  `);
+}
+
+/** back-compat shim — maps the old boolean setter onto the level dial. */
+export async function setAfkMode(on: boolean): Promise<void> {
+  await setAfkLevel(on ? "on" : "off");
+}
+
+/** minutes an unanswered Ask waits before Athena's fallback (AFK off). */
+export async function afkFallbackMinutes(): Promise<number> {
+  const rows = await db
+    .select({ m: instanceSettings.afkFallbackMinutes })
+    .from(instanceSettings);
+  return rows[0]?.m ?? DEFAULT_AFK_FALLBACK_MINUTES;
+}
+
+/** upsert the single row (id = 1). 0 = never (Athena never auto-takes-over when AFK off). */
+export async function setAfkFallbackMinutes(minutes: number): Promise<void> {
+  const value = Math.max(0, Math.floor(minutes));
+  await db.execute(sql`
+    insert into instance_settings (id, afk_fallback_minutes, updated_at)
+    values (1, ${value}, now())
+    on conflict (id) do update set afk_fallback_minutes = ${value}, updated_at = now()
   `);
 }

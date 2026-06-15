@@ -38,6 +38,8 @@ export type AthenaResolveDeps = {
   /** injected clock (server-side Date in prod). */
   now?: () => string;
   minConfidence?: number;
+  /** ADR-0007 §4 — Ultra Athena: lift the high-stakes/human-only rail. */
+  ultra?: boolean;
 };
 
 export type AthenaResolveOutcome =
@@ -61,6 +63,7 @@ export async function resolveRunWithAthena(
     context: loaded.context,
     complete: deps.complete,
     ...(deps.minConfidence !== undefined ? { minConfidence: deps.minConfidence } : {}),
+    ...(deps.ultra ? { ultra: true } : {}),
   });
 
   if (!verdict.answered) {

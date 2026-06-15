@@ -25,7 +25,11 @@ const runIds: string[] = [];
 const lowConf: AthenaComplete = async () =>
   JSON.stringify({ choice: "drop", confidence: 0.2, rationale: "irreversible — unsure" });
 
-async function seedNeedsInput(opts: { ref: string; options?: string[] }): Promise<string> {
+async function seedNeedsInput(opts: {
+  ref: string;
+  options?: string[];
+  humanOnly?: boolean;
+}): Promise<string> {
   const [row] = await db
     .insert(runs)
     .values({
@@ -38,6 +42,7 @@ async function seedNeedsInput(opts: { ref: string; options?: string[] }): Promis
         kind: "question",
         prompt: "Migrate the old rows or drop them?",
         ...(opts.options ? { options: opts.options } : {}),
+        ...(opts.humanOnly ? { humanOnly: true } : {}),
         raisedAt: new Date().toISOString(),
       },
     })
@@ -113,6 +118,22 @@ describe("resolveRunWithAthenaReal (real DB bindings)", () => {
     const ans = parseNeedsInputAnswer(row.answer);
     expect(ans?.answeredBy).toBe("Athena");
     expect(ans?.text).toBe("proceed");
+  });
+
+  it("escalates a human-only Ask (standard rail), but Ultra Athena answers it", async () => {
+    // standard: human-only flag → escalate, stays needs-input
+    const a = await seedNeedsInput({ ref: `${MARK}-HO`, options: ["yes", "no"], humanOnly: true });
+    const standard = await resolveRunWithAthenaReal(a, { complete: fakeAthenaComplete(), ultra: false });
+    expect(standard).toMatchObject({ status: "escalated", reason: "high-stakes" });
+    const [r1] = await db.select().from(runs).where(eq(runs.id, a));
+    expect(r1.state).toBe("needs-input");
+
+    // ultra: rail lifted → answers it (fresh run; the first is now attempted)
+    const b = await seedNeedsInput({ ref: `${MARK}-HO2`, options: ["yes", "no"], humanOnly: true });
+    const ultra = await resolveRunWithAthenaReal(b, { complete: fakeAthenaComplete(), ultra: true });
+    expect(ultra.status).toBe("answered");
+    const [r2] = await db.select().from(runs).where(eq(runs.id, b));
+    expect(r2.state).toBe("running");
   });
 
   it("is a no-op once the Run has left needs-input (one shot per Ask)", async () => {
