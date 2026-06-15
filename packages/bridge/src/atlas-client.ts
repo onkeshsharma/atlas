@@ -96,15 +96,21 @@ export class AtlasClient {
     if (status !== 200) throw new Error(`stdout returned ${status}`);
   }
 
-  /** true = deliverable landed + run completed; false = run moved under us. */
-  async postHelperResult(runId: string, body: HelperResultBody): Promise<boolean> {
+  /** ok = deliverable landed + run completed; else the honest rejection reason. */
+  async postHelperResult(
+    runId: string,
+    body: HelperResultBody,
+  ): Promise<{ ok: true } | { ok: false; reason: string }> {
     const { status } = await this.request(
       "POST",
       `/api/bridge/runs/${runId}/helper-result`,
       body,
     );
-    if (status === 200) return true;
-    if (status === 409 || status === 422) return false;
+    if (status === 200) return { ok: true };
+    // distinguish so the daemon can fail the run with an honest reason instead
+    // of stranding it for the orphan sweep to mislabel `bridge-lost` (R-723).
+    if (status === 422) return { ok: false, reason: "the deliverable did not match the required schema" };
+    if (status === 409) return { ok: false, reason: "the run had already moved" };
     throw new Error(`helper-result returned ${status}`);
   }
 

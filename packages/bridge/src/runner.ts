@@ -211,12 +211,21 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
         return;
       }
       case "helper-complete": {
-        const applied = await deps.client.postHelperResult(runId, outcome.payload);
-        deps.log(
-          applied
-            ? `run ${order.ref}: helper deliverable landed`
-            : `run ${order.ref}: helper deliverable rejected (run moved or invalid)`,
-        );
+        const res = await deps.client.postHelperResult(runId, outcome.payload);
+        if (res.ok) {
+          deps.log(`run ${order.ref}: helper deliverable landed`);
+        } else {
+          // fail the run with the real reason — never leave it 'running' for the
+          // orphan sweep to mislabel `bridge-lost` (the R-723 diagnosability bug).
+          deps.log(`run ${order.ref}: helper deliverable rejected — ${res.reason}; failing the run`);
+          await deps.client
+            .transition(runId, {
+              to: "failed",
+              failureKind: "engine-crash",
+              failureDetail: `helper deliverable rejected: ${res.reason}`,
+            })
+            .catch(() => {});
+        }
         await prune();
         return;
       }
