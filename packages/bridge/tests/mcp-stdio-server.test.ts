@@ -5,6 +5,7 @@ import {
   type AskResolution,
 } from "../src/engine/mcp/stdio-server.ts";
 import { parseHelperResultBody } from "../src/protocol.ts";
+import { VALID_SUMMARY } from "./fixtures/ingest-summary.ts";
 
 type Sent = Record<string, unknown>;
 
@@ -103,7 +104,7 @@ describe("mcp stdio server — ask_owner", () => {
 describe("mcp stdio server — submit_result", () => {
   it("accepts a valid ingest-project body and persists it", async () => {
     const { sent, submitResult, call } = harness();
-    const body = { kind: "ingest-project", summary: { overview: "x" }, suggestedTerms: [{ term: "Run", uses: 3 }] };
+    const body = { kind: "ingest-project", summary: VALID_SUMMARY, suggestedTerms: [{ term: "Run", uses: 3 }] };
     await call({ jsonrpc: "2.0", id: 8, method: "tools/call", params: { name: "submit_result", arguments: { body } } });
     expect(submitResult).toHaveBeenCalledWith(body);
     expect((sent[0].result as { content: Array<{ text: string }> }).content[0].text).toMatch(/Accepted ingest-project/);
@@ -135,10 +136,9 @@ describe("parseHelperResultBody", () => {
       kind: "enrich-ticket",
       enrichment: { a: 1 },
     });
-    expect(parseHelperResultBody({ kind: "ingest-project", summary: {} })).toEqual({
-      kind: "ingest-project",
-      summary: {},
-    });
+    // ADR-0008 — ingest-project summary is now validated strictly (see
+    // ingest-summary-validation.test.ts); {} is no longer a valid summary.
+    expect(parseHelperResultBody({ kind: "ingest-project", summary: { schemaVersion: 99 } })).toBeNull();
     // mismatches
     expect(parseHelperResultBody({ kind: "draft-brief" })).toBeNull();
     expect(parseHelperResultBody({ kind: "draft-brief", body: "" })).toBeNull();

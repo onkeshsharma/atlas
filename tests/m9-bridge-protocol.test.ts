@@ -35,6 +35,7 @@ import { parseRunDiffStats } from "@/src/domain/run/diff-stats";
 import { FAILURE_KINDS } from "@/src/domain/run/failure";
 import { parseIngestSummary } from "@/src/domain/project/ingest-summary";
 import { parseEnrichment } from "@/src/domain/ticket/enrichment";
+import { VALID_SUMMARY as BRIDGE_VALID_SUMMARY } from "../packages/bridge/tests/fixtures/ingest-summary";
 
 const RUN_ID = "11111111-2222-4333-8444-555555555555";
 
@@ -345,6 +346,14 @@ describe("fake-engine deliverables pass the OWNING modules' parsers", () => {
     expect(result?.kind).toBe("ingest-project");
     expect(parseIngestSummary(result?.summary)).not.toBeNull();
     expect(Array.isArray(result?.suggestedTerms)).toBe(true);
+  });
+
+  // ADR-0008 — the bridge's strict isValidIngestSummary is a MIRROR of Atlas's
+  // parseIngestSummary (bridge rejects in-turn → Gap-3 retry, no post-hoc 422 /
+  // R-723). Guard the mirror: the bridge's canonical "valid" fixture must be
+  // Atlas-valid, so the two can't silently disagree on the happy path.
+  it("the bridge's VALID_SUMMARY fixture passes Atlas's parseIngestSummary (mirror guard)", () => {
+    expect(parseIngestSummary(BRIDGE_VALID_SUMMARY)).not.toBeNull();
   });
 });
 
