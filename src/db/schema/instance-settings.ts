@@ -50,6 +50,13 @@ export const instanceSettings = pgTable(
      * vote when a single consult wasn't confident. Odd; default 3.
      */
     athenaCouncilSize: integer("athena_council_size").notNull().default(3),
+    /**
+     * ADR-0007 §7 (Phase 4) — the daily budget governor: max EXPENSIVE rungs
+     * (repo-aware bridge consult + Council convening) Athena may spend per
+     * rolling 24h. On cap she fails safe to the Owner (escalate, never silent
+     * overspend). 0 = unlimited. Cheap quick consults are never metered.
+     */
+    athenaDailyEscalationCap: integer("athena_daily_escalation_cap").notNull().default(0),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("instance_settings_single_row", sql`${t.id} = 1`)],

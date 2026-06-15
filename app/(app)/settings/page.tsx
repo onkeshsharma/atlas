@@ -33,6 +33,7 @@ import {
   afkLevel,
   athenaApiKeyIsSet,
   athenaCouncilSize,
+  athenaDailyEscalationCap,
   athenaLocation,
 } from "@/src/domain/settings/instance";
 import { secretsAvailable } from "@/src/lib/secret";
@@ -78,7 +79,7 @@ function ShortcutRow({
 
 export default async function PreferencesPage() {
   const user = await requireOwner();
-  const [rows, collapsed, afkLvl, afkDelay, afkLoc, councilSize, keyIsSet, bridges, cursor] =
+  const [rows, collapsed, afkLvl, afkDelay, afkLoc, councilSize, escalationCap, keyIsSet, bridges, cursor] =
     await Promise.all([
       projectRows(),
       sidebarCollapsed(user.id),
@@ -86,6 +87,7 @@ export default async function PreferencesPage() {
       afkFallbackMinutes(),
       athenaLocation(),
       athenaCouncilSize(),
+      athenaDailyEscalationCap(),
       athenaApiKeyIsSet(),
       bridgeViews(),
       latestCursor(),
@@ -187,6 +189,7 @@ export default async function PreferencesPage() {
             fallbackMinutes={afkDelay}
             location={afkLoc}
             councilSize={councilSize}
+            escalationCap={escalationCap}
           />
         </div>
         <div className="mt-9">

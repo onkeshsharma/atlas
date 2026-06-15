@@ -94,8 +94,14 @@ decisions** — the ones worth interrupting the Owner for.
 - A multi-phase build (each phase a tested slice): **Phase 1** AFK controls (3-level dial +
   rail + in-app key + delay + chip/activity/notifications) on the shipped cloud tier;
   **Phase 2** the bridge consult + repo-aware escalation (`consult-ask` command);
-  **Phase 3** the Council; **Phase 4** learning + budget. Fast-follows: per-Run AFK at
-  dispatch, per-project scope rules, AFK schedule.
+  **Phase 3** the Council; **Phase 4** learning + budget. **All four phases built + shipped
+  (2026-06-15).** Phase 4 lands decision memory (`athena_memory`, lexical Jaccard retrieval,
+  Owner-weighted, prunable from the activity view) injected as precedent into every tier's
+  prompt, and the budget governor (`athena_spend` ledger + `athena_daily_escalation_cap`,
+  rolling-24h, gates the expensive rungs — repo-aware consult + Council — and fails safe to
+  the Owner on cap). Fast-follows: per-Run AFK at dispatch, per-project scope rules, AFK
+  schedule, embeddings-based memory retrieval (the ranker is the seam), cloud-$ ceiling
+  (needs per-call token accounting; the count-based cap ships now), bridge-tier Council.
 - `ask_owner` gains an optional human-only/stakes signal (additive bridge change).
 - Glossary updated: Athena, AFK Mode (3 levels), Human-only Ask, Ultra Athena, Council
   (intake-atlas-v2/CONTEXT.md).

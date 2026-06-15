@@ -1,0 +1,1 @@
+ALTER TABLE "instance_settings" ADD COLUMN "athena_daily_escalation_cap" integer DEFAULT 0 NOT NULL;

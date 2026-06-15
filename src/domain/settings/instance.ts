@@ -128,6 +128,26 @@ export async function setAthenaCouncilSize(size: number): Promise<void> {
 }
 
 /**
+ * ADR-0007 §7 — the daily budget governor: max expensive rungs (repo-aware
+ * consult + Council) per rolling 24h. 0 = unlimited.
+ */
+export async function athenaDailyEscalationCap(): Promise<number> {
+  const rows = await db
+    .select({ n: instanceSettings.athenaDailyEscalationCap })
+    .from(instanceSettings);
+  return rows[0]?.n ?? 0;
+}
+
+export async function setAthenaDailyEscalationCap(cap: number): Promise<void> {
+  const v = Math.max(0, Math.floor(cap));
+  await db.execute(sql`
+    insert into instance_settings (id, athena_daily_escalation_cap, updated_at)
+    values (1, ${v}, now())
+    on conflict (id) do update set athena_daily_escalation_cap = ${v}, updated_at = now()
+  `);
+}
+
+/**
  * The cloud-tier Anthropic key (ADR-0007 §3), decrypted — or null to fall back
  * to the env var. Stored AES-256-GCM-encrypted; never returned in plaintext to
  * any UI (only `athenaApiKeyIsSet` is surfaced).

@@ -77,6 +77,30 @@ describe("resolveRunWithAthena", () => {
     });
   });
 
+  // ADR-0007 §7 — decision memory (learning) records on a successful answer.
+  it("records the decision into memory (source athena) when it answers", async () => {
+    const remember = vi.fn(async () => {});
+    const d = deps({ remember });
+    await resolveRunWithAthena("run-mem", d);
+    expect(remember).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ask: expect.objectContaining({ question: "migrate or drop?" }),
+        choice: "migrate",
+        confidence: 0.9,
+      }),
+    );
+  });
+
+  it("does NOT record when Athena abstains", async () => {
+    const remember = vi.fn(async () => {});
+    const d = deps({
+      complete: vi.fn(async () => JSON.stringify({ choice: "drop", confidence: 0.2, rationale: "x" })),
+      remember,
+    });
+    await resolveRunWithAthena("run-mem2", d);
+    expect(remember).not.toHaveBeenCalled();
+  });
+
   // ADR-0007 §5 — the Council escalation path (resolve wiring).
   it("convenes the Council when the single consult is low-confidence, and answers on its verdict", async () => {
     const council = vi.fn(async () => ({
@@ -122,6 +146,31 @@ describe("resolveRunWithAthena", () => {
     expect(council).not.toHaveBeenCalled();
     expect(d.answer).not.toHaveBeenCalled();
     expect(out).toMatchObject({ status: "escalated", reason: "high-stakes" });
+  });
+
+  // ADR-0007 §7 — the budget governor gates the Council (expensive rung).
+  it("skips the Council and escalates with reason 'budget' when the budget is spent", async () => {
+    const council = vi.fn(async () => ({ answered: true as const, choice: "migrate", confidence: 0.9, rationale: "x" }));
+    const d = deps({
+      complete: vi.fn(async () => JSON.stringify({ choice: "migrate", confidence: 0.3, rationale: "unsure" })),
+      council,
+      budgetOk: async () => false,
+    });
+    const out = await resolveRunWithAthena("run-b1", d);
+    expect(council).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ status: "escalated", reason: "budget" });
+  });
+
+  it("convenes the Council when budget remains", async () => {
+    const council = vi.fn(async () => ({ answered: true as const, choice: "migrate", confidence: 0.9, rationale: "x" }));
+    const d = deps({
+      complete: vi.fn(async () => JSON.stringify({ choice: "migrate", confidence: 0.3, rationale: "unsure" })),
+      council,
+      budgetOk: async () => true,
+    });
+    const out = await resolveRunWithAthena("run-b2", d);
+    expect(council).toHaveBeenCalled();
+    expect(out).toMatchObject({ status: "answered" });
   });
 
   it("escalates to the Owner when the Council also can't reach consensus", async () => {

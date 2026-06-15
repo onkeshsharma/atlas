@@ -43,6 +43,17 @@ export function buildAthenaPrompt(ask: AthenaAsk, context: AthenaContext): {
   if (context.brief) lines.push(`Brief:\n${context.brief}`);
   if (context.diffSummary) lines.push(`Diff so far: ${context.diffSummary}`);
   if (context.recentTranscript) lines.push(`Recent transcript (tail):\n${context.recentTranscript}`);
+  if (context.priorDecisions?.length) {
+    // ADR-0007 §7 — the Owner's precedents on similar past Asks. Follow them
+    // unless this Ask genuinely differs; Owner precedents carry the most weight.
+    lines.push("");
+    lines.push("Similar past decisions (precedent — follow them unless this Ask differs):");
+    for (const p of context.priorDecisions) {
+      const who = p.source === "owner" ? "Owner" : "Athena";
+      const why = p.rationale ? ` (${p.rationale})` : "";
+      lines.push(`- [${who}] Asked "${p.question}" → answered "${p.answer}"${why}`);
+    }
+  }
   lines.push("");
   lines.push(`The Run asks: ${ask.question}`);
   if (ask.options?.length) lines.push(`Options: ${ask.options.map((o) => `"${o}"`).join(", ")}`);

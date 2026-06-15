@@ -31,6 +31,16 @@ export type AthenaContext = {
   recentTranscript?: string;
   /** human summary of the diff-so-far (e.g. "3 files, +120/-8"). */
   diffSummary?: string;
+  /**
+   * ADR-0007 §7 — the most similar past decisions (decision memory), injected as
+   * precedent. Owner precedents are weighted higher at retrieval (memory.ts).
+   */
+  priorDecisions?: Array<{
+    question: string;
+    answer: string;
+    source: "owner" | "athena";
+    rationale?: string;
+  }>;
 };
 
 /**

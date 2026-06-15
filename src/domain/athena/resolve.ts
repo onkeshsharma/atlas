@@ -40,6 +40,17 @@ export type AthenaResolveDeps = {
   markAttempted: (runId: string) => Promise<void>;
   /** injected clock (server-side Date in prod). */
   now?: () => string;
+  /**
+   * ADR-0007 §7 — record this resolution into Athena's decision memory (source
+   * "athena"), so future consults retrieve it as precedent. Best-effort.
+   */
+  remember?: (decision: {
+    ask: AthenaAsk;
+    choice?: string;
+    text?: string;
+    confidence: number;
+    rationale?: string;
+  }) => Promise<void>;
   minConfidence?: number;
   /** ADR-0007 §4 — Ultra Athena: lift the high-stakes/human-only rail. */
   ultra?: boolean;
@@ -54,6 +65,11 @@ export type AthenaResolveDeps = {
     | { answered: true; choice?: string; text?: string; confidence: number; rationale: string }
     | { answered: false }
   >;
+  /**
+   * ADR-0007 §7 — the budget governor: false when the daily expensive-rung cap
+   * is spent. The Council is gated on it; on cap Athena fails safe to the Owner.
+   */
+  budgetOk?: () => Promise<boolean>;
 };
 
 export type AthenaResolveOutcome =
@@ -84,6 +100,11 @@ export async function resolveRunWithAthena(
   // Council (NOT high-stakes, which is the Owner's rail). Majority answers; a
   // split leaves the verdict unanswered → Owner.
   if (!verdict.answered && verdict.reason !== "high-stakes" && deps.council) {
+    // ADR-0007 §7 — gate the expensive rung on the budget; on cap, fail safe to
+    // the Owner rather than convene the Council (never silent overspend).
+    if (deps.budgetOk && !(await deps.budgetOk())) {
+      return { status: "escalated", reason: "budget", confidence: verdict.confidence };
+    }
     const cv = await deps.council(loaded.ask, loaded.context);
     if (cv.answered) {
       verdict = {
@@ -110,6 +131,19 @@ export async function resolveRunWithAthena(
     ...(verdict.rationale ? { rationale: verdict.rationale } : {}),
     confidence: verdict.confidence,
   });
+
+  if (applied && deps.remember) {
+    // ADR-0007 §7 — learn from this answer (best-effort; never fail the resolve).
+    await deps
+      .remember({
+        ask: loaded.ask,
+        ...(verdict.choice ? { choice: verdict.choice } : {}),
+        ...(verdict.text ? { text: verdict.text } : {}),
+        confidence: verdict.confidence,
+        ...(verdict.rationale ? { rationale: verdict.rationale } : {}),
+      })
+      .catch(() => {});
+  }
 
   return applied
     ? { status: "answered", confidence: verdict.confidence }

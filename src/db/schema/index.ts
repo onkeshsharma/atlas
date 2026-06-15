@@ -23,3 +23,5 @@ export * from "./project-members";
 // M13 — Notifier (notification outbox = audit + no-key fallback) + per-user inbox read marks
 export * from "./notification-outbox";
 export * from "./inbox-read-marks";
+// Phase 4 (ADR-0007 §7) — Athena decision memory (learning) + spend ledger (budget)
+export * from "./athena-memory";

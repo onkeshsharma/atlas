@@ -5,20 +5,24 @@
  */
 import Link from "next/link";
 
-import { MonoSectionLabel } from "@/src/components/kit";
+import { MonoSectionLabel, PillButton } from "@/src/components/kit";
 import { SettingsShell } from "@/src/components/settings/SettingsShell";
 import { athenaDecisions } from "@/src/domain/athena/activity";
+import { listMemories } from "@/src/domain/athena/memory";
 import { requireOwner } from "@/src/domain/auth/guard";
 import { bridgeViews } from "@/src/domain/bridge/queries";
 import { afkLevel } from "@/src/domain/settings/instance";
 import { shortAgo } from "@/src/lib/format";
 
+import { pruneMemoryAction } from "./actions";
+
 export const dynamic = "force-dynamic";
 
 export default async function AthenaActivityPage() {
   await requireOwner();
-  const [decisions, bridges, level] = await Promise.all([
+  const [decisions, memories, bridges, level] = await Promise.all([
     athenaDecisions(50),
+    listMemories(50),
     bridgeViews(),
     afkLevel(),
   ]);
@@ -83,6 +87,46 @@ export default async function AthenaActivityPage() {
                 </li>
               );
             })}
+          </ul>
+        )}
+      </section>
+
+      {/* Decision memory (ADR-0007 §7) — the precedents Athena learns from. */}
+      <section className="mt-20 pb-14">
+        <MonoSectionLabel>Decision memory</MonoSectionLabel>
+        <p className="mt-4 text-base text-stone-500 leading-relaxed max-w-xl">
+          Past decisions — yours and Athena&apos;s — that Athena retrieves as precedent on
+          similar Asks. Your decisions carry the most weight. Prune any you don&apos;t want
+          her to learn from.
+        </p>
+        {memories.length === 0 ? (
+          <p className="mt-7 text-sm italic text-stone-500">
+            Nothing learned yet — resolved decisions show up here.
+          </p>
+        ) : (
+          <ul className="mt-7 divide-y divide-stone-200">
+            {memories.map((m) => (
+              <li key={m.id} className="py-5 flex items-start justify-between gap-4 group">
+                <div className="min-w-0">
+                  <p className="text-sm text-stone-700 leading-relaxed">
+                    <span className="text-stone-500">{m.question}</span> →{" "}
+                    <span className="font-medium">&ldquo;{m.answer}&rdquo;</span>
+                  </p>
+                  <div className="mt-2 flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest">
+                    <span className={m.source === "owner" ? "text-stone-700" : "text-amber-600"}>
+                      {m.source}
+                    </span>
+                    <span className="text-stone-400">{shortAgo(m.at)}</span>
+                  </div>
+                </div>
+                <form action={pruneMemoryAction}>
+                  <input type="hidden" name="id" value={m.id} />
+                  <PillButton kind="ghost" ghostDanger type="submit">
+                    prune →
+                  </PillButton>
+                </form>
+              </li>
+            ))}
           </ul>
         )}
       </section>

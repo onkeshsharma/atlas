@@ -16,6 +16,7 @@ import {
   setAfkLevel,
   setAthenaApiKey,
   setAthenaCouncilSize,
+  setAthenaDailyEscalationCap,
   setAthenaLocation,
   type AfkLevel,
   type AthenaLocation,
@@ -59,6 +60,15 @@ export async function setAthenaCouncilSizeAction(value: string): Promise<void> {
   const size = Number.parseInt(value, 10);
   if (Number.isNaN(size)) return;
   await setAthenaCouncilSize(size);
+  revalidatePath("/settings");
+}
+
+/** ADR-0007 §7 — the daily budget governor (expensive-rung cap; 0 = unlimited). */
+export async function setAthenaEscalationCapAction(value: string): Promise<void> {
+  await requireOwner();
+  const cap = Number.parseInt(value, 10);
+  if (Number.isNaN(cap)) return;
+  await setAthenaDailyEscalationCap(cap);
   revalidatePath("/settings");
 }
 

@@ -12,6 +12,7 @@ import {
   setAfkDelayAction,
   setAfkLevelAction,
   setAthenaCouncilSizeAction,
+  setAthenaEscalationCapAction,
   setAthenaLocationAction,
 } from "./actions";
 
@@ -30,21 +31,31 @@ const COUNCIL_OPTIONS = [
   { value: "7", label: "7" },
 ];
 
+const BUDGET_OPTIONS = [
+  { value: "0", label: "∞" },
+  { value: "10", label: "10" },
+  { value: "25", label: "25" },
+  { value: "50", label: "50" },
+];
+
 export function AfkPrefControl({
   level,
   fallbackMinutes,
   location,
   councilSize,
+  escalationCap,
 }: {
   level: AfkLevel;
   fallbackMinutes: number;
   location: AthenaLocation;
   councilSize: number;
+  escalationCap: number;
 }) {
   const [value, setValue] = useState<AfkLevel>(level);
   const [delay, setDelay] = useState(String(fallbackMinutes));
   const [loc, setLoc] = useState<AthenaLocation>(location);
   const [council, setCouncil] = useState(String(councilSize));
+  const [budget, setBudget] = useState(String(escalationCap));
   const [pending, startTransition] = useTransition();
 
   return (
@@ -133,6 +144,28 @@ export function AfkPrefControl({
           />
           <span className="font-mono text-[9px] uppercase tracking-widest text-stone-400">
             {council === "1" ? "single delegate" : `${council} lenses vote · majority answers`}
+          </span>
+        </div>
+      )}
+
+      {value !== "off" && (
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-stone-500">
+            Daily budget
+          </span>
+          <SegmentedControl
+            size="micro"
+            options={BUDGET_OPTIONS}
+            value={budget}
+            onChange={(v) => {
+              setBudget(v);
+              startTransition(() => setAthenaEscalationCapAction(v));
+            }}
+          />
+          <span className="font-mono text-[9px] uppercase tracking-widest text-stone-400">
+            {budget === "0"
+              ? "unlimited escalations"
+              : `${budget} expensive consults / 24h · then asks you`}
           </span>
         </div>
       )}
