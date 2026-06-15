@@ -168,12 +168,16 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
     });
     batcher.start();
 
+    // ADR-0008 Phase 2 — tally the Run's skill invocations (posted after outcome).
+    const skillUses = new Map<string, number>();
+
     session = deps.engine.start({
       order,
       worktree,
       sandbox,
       timeoutMs: deps.engineTimeoutMs,
       onStdout: (text) => batcher.push(text),
+      onSkillUse: (skill) => skillUses.set(skill, (skillUses.get(skill) ?? 0) + 1),
       onQuestion: (question) => {
         void deps.client
           .transition(runId, { to: "needs-input", question })
@@ -206,6 +210,15 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
       } catch (err) {
         deps.log(`run ${order.ref}: brain harvest skipped — ${String(err)}`);
       }
+    }
+
+    // ADR-0008 Phase 2 — report this Run's skill usage (aggregated by skill).
+    if (skillUses.size > 0) {
+      const skills = [...skillUses.entries()].map(([skill, count]) => ({ skill, count }));
+      await deps.client
+        .postSkillUsage(runId, { skills })
+        .then((ok) => deps.log(`run ${order.ref}: skill usage — ${ok ? `${skills.length} skill(s)` : "rejected"}`))
+        .catch((err) => deps.log(`run ${order.ref}: skill usage post skipped — ${String(err)}`));
     }
 
     switch (outcome.result) {

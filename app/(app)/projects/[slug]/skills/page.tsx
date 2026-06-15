@@ -11,7 +11,7 @@ import { EmptyState, MonoSectionLabel, PageHeader } from "@/src/components/kit";
 import { LiveRefresh } from "@/src/components/live/LiveRefresh";
 import { requireOwner } from "@/src/domain/auth/guard";
 import { latestCursor } from "@/src/domain/live/broker";
-import { projectSkillsList } from "@/src/domain/project/brain";
+import { projectSkillsList, skillUsageCounts } from "@/src/domain/project/brain";
 import { projectBySlug } from "@/src/domain/project/queries";
 import { timeAgo } from "@/src/lib/format";
 
@@ -27,10 +27,18 @@ export default async function ProjectSkillsPage({
   const project = await projectBySlug(slug);
   if (!project) notFound();
 
-  const [skills, cursor] = await Promise.all([projectSkillsList(project.id), latestCursor()]);
+  const [skills, usage, cursor] = await Promise.all([
+    projectSkillsList(project.id),
+    skillUsageCounts(project.id),
+    latestCursor(),
+  ]);
   const lastSeen = skills.length
     ? skills.map((s) => s.lastSeenAt).reduce((a, b) => (a > b ? a : b))
     : null;
+  // usage of skills NOT in the live inventory (bundled/global skills, or ones
+  // since removed from the repo) — surfaced honestly rather than dropped.
+  const inventoryNames = new Set(skills.map((s) => s.name));
+  const otherUsed = [...usage.entries()].filter(([name]) => !inventoryNames.has(name));
 
   return (
     <main className="flex-1 px-16 pt-8 pb-24">
@@ -61,7 +69,12 @@ export default async function ProjectSkillsPage({
                     <li key={s.name} className="py-5">
                       <div className="flex items-baseline justify-between gap-4">
                         <span className="font-mono text-base font-medium text-stone-900">/{s.name}</span>
-                        <span className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-widest whitespace-nowrap">
+                        <span className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-widest whitespace-nowrap">
+                          {usage.get(s.name) ? (
+                            <span className="text-amber-600">used {usage.get(s.name)}×</span>
+                          ) : (
+                            <span className="text-stone-300">unused</span>
+                          )}
                           {!s.modelInvocable && <span className="text-stone-400">manual-only</span>}
                           {!s.userInvocable && <span className="text-stone-400">model-only</span>}
                           {s.modelInvocable && s.userInvocable && (
@@ -83,6 +96,17 @@ export default async function ProjectSkillsPage({
                     goodNews="The Bridge harvests .claude/skills on the next Run in this project."
                   />
                 </div>
+              )}
+              {otherUsed.length > 0 && (
+                <p className="mt-6 font-mono text-[10px] uppercase tracking-widest text-stone-400">
+                  also invoked:{" "}
+                  {otherUsed.map(([name, n], i) => (
+                    <span key={name}>
+                      {i > 0 && " · "}
+                      <span className="text-stone-600">/{name}</span> {n}×
+                    </span>
+                  ))}
+                </p>
               )}
             </section>
           </div>

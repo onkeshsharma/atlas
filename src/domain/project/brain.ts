@@ -7,10 +7,10 @@
  * has no interactive transactions, so this is a sequence of idempotent
  * statements (the M5 law) — a partial apply is self-healing on the next harvest.
  */
-import { and, asc, eq, isNull, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, notInArray, sql } from "drizzle-orm";
 
 import { db } from "@/src/db/client";
-import { projects, projectSkills } from "@/src/db/schema";
+import { projects, projectSkills, runs, skillUsage } from "@/src/db/schema";
 
 export type ProjectSkillInput = {
   name: string;
@@ -91,6 +91,53 @@ export type ProjectSkillView = {
   userInvocable: boolean;
   lastSeenAt: Date;
 };
+
+// ── usage ledger (ADR-0008 Phase 2) ────────────────────────────────────
+
+export type SkillUsageInput = { skill: string; count: number };
+
+export function parseSkillUsageBody(value: unknown): { skills: SkillUsageInput[] } | null {
+  if (!isRecord(value) || !Array.isArray(value.skills)) return null;
+  const skills: SkillUsageInput[] = [];
+  for (const s of value.skills) {
+    if (!isRecord(s) || typeof s.skill !== "string" || !s.skill) return null;
+    if (typeof s.count !== "number" || !Number.isFinite(s.count) || s.count < 1) return null;
+    skills.push({ skill: s.skill, count: Math.floor(s.count) });
+  }
+  return { skills };
+}
+
+/**
+ * Record a Run's skill invocations. Looks up the run's project; upserts one row
+ * per (run, skill) so a re-post is idempotent (set, not accumulate). Returns
+ * ok:false when the run is gone.
+ */
+export async function recordSkillUsage(
+  runId: string,
+  skills: SkillUsageInput[],
+): Promise<{ ok: boolean }> {
+  const [run] = await db.select({ projectId: runs.projectId }).from(runs).where(eq(runs.id, runId)).limit(1);
+  if (!run) return { ok: false };
+  for (const s of skills) {
+    await db.execute(sql`
+      insert into skill_usage (run_id, project_id, skill, count)
+      values (${runId}, ${run.projectId}, ${s.skill}, ${s.count})
+      on conflict (run_id, skill) do update set count = ${s.count}, created_at = now()
+    `);
+  }
+  return { ok: true };
+}
+
+/** per-skill invocation totals for a project (most-used first). */
+export async function skillUsageCounts(projectId: string): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ skill: skillUsage.skill, total: sql<number>`sum(${skillUsage.count})::int` })
+    .from(skillUsage)
+    .where(eq(skillUsage.projectId, projectId))
+    .groupBy(skillUsage.skill)
+    .orderBy(desc(sql`sum(${skillUsage.count})`));
+  return new Map(rows.map((r) => [r.skill, r.total]));
+}
 
 /** the live (non-removed) skill inventory for a project, sorted by name. */
 export async function projectSkillsList(projectId: string): Promise<ProjectSkillView[]> {

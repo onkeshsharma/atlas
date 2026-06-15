@@ -23,6 +23,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { HelperKind, HelperResultBody, NeedsInputAnswer, NeedsInputQuestion, RunLane } from "../protocol.ts";
+import { skillsUsedInFrame } from "../skills.ts";
 import { createRunIpcServer } from "./mcp/ipc.ts";
 import type { AskResolution } from "./mcp/stdio-server.ts";
 import { superviseChild } from "./process-session.ts";
@@ -272,6 +273,9 @@ export function realEngineAdapter(): EngineAdapter {
                 const message = frame.message as Record<string, unknown> | undefined;
                 const text = extractText(message?.content);
                 if (text) args.onStdout(text.endsWith("\n") ? text : `${text}\n`);
+                // ADR-0008 Phase 2 — observe skill invocations (a `Skill` tool_use
+                // block on this assistant frame; empirically locked, see skills.ts).
+                if (args.onSkillUse) for (const skill of skillsUsedInFrame(frame)) args.onSkillUse(skill);
                 break;
               }
               case "result":
