@@ -31,6 +31,8 @@ describe("resolveRunWithAthena", () => {
       choice: "migrate",
       answeredBy: "Athena",
       answeredAt: "2026-06-15T00:00:00.000Z",
+      rationale: "safe",
+      confidence: 0.9,
     });
     expect(out).toEqual({ status: "answered", confidence: 0.9 });
   });
@@ -70,6 +72,8 @@ describe("resolveRunWithAthena", () => {
       text: "unique on email",
       answeredBy: "Athena",
       answeredAt: "2026-06-15T00:00:00.000Z",
+      rationale: "x",
+      confidence: 0.85,
     });
   });
 });

@@ -35,6 +35,11 @@ export const instanceSettings = pgTable(
     afkLevel: text("afk_level").notNull().default("off"),
     /** ADR-0007 §4 — minutes an unanswered Ask waits before Athena's fallback (AFK off). */
     afkFallbackMinutes: integer("afk_fallback_minutes").notNull().default(10),
+    /**
+     * ADR-0007 §3 — the cloud-tier Anthropic key, AES-256-GCM ciphertext
+     * (src/lib/secret.ts). Null = use the env var. Never the plaintext.
+     */
+    athenaApiKeyEnc: text("athena_api_key_enc"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("instance_settings_single_row", sql`${t.id} = 1`)],

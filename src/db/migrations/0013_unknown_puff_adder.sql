@@ -1,0 +1,1 @@
+ALTER TABLE "instance_settings" ADD COLUMN "athena_api_key_enc" text;

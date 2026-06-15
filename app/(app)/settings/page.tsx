@@ -28,11 +28,13 @@ import { bridgeViews } from "@/src/domain/bridge/queries";
 import { projectRows } from "@/src/domain/cockpit/queries";
 import { latestCursor } from "@/src/domain/live/broker";
 import { sidebarCollapsed } from "@/src/domain/preferences/sidebar";
-import { afkFallbackMinutes, afkLevel } from "@/src/domain/settings/instance";
+import { afkFallbackMinutes, afkLevel, athenaApiKeyIsSet } from "@/src/domain/settings/instance";
+import { secretsAvailable } from "@/src/lib/secret";
 import { shortAgo } from "@/src/lib/format";
 
 import { pinProjectAction, unpinProjectAction } from "./actions";
 import { AfkPrefControl } from "./afk-pref-control";
+import { AthenaKeyControl } from "./athena-key-control";
 import { SidebarPrefControl } from "./sidebar-pref-control";
 
 export const dynamic = "force-dynamic";
@@ -70,14 +72,16 @@ function ShortcutRow({
 
 export default async function PreferencesPage() {
   const user = await requireOwner();
-  const [rows, collapsed, afkLvl, afkDelay, bridges, cursor] = await Promise.all([
+  const [rows, collapsed, afkLvl, afkDelay, keyIsSet, bridges, cursor] = await Promise.all([
     projectRows(),
     sidebarCollapsed(user.id),
     afkLevel(),
     afkFallbackMinutes(),
+    athenaApiKeyIsSet(),
     bridgeViews(),
     latestCursor(),
   ]);
+  const keyStorageAvailable = secretsAvailable();
   const pinned = rows.filter((p) => p.pinned);
   const unpinned = rows.filter((p) => !p.pinned);
   const healthyBridge = bridges.find((b) => b.health === "healthy");
@@ -170,6 +174,14 @@ export default async function PreferencesPage() {
         </p>
         <div className="mt-7">
           <AfkPrefControl level={afkLvl} fallbackMinutes={afkDelay} />
+        </div>
+        <div className="mt-9">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-stone-400">
+            Anthropic key (cloud tier)
+          </p>
+          <div className="mt-4">
+            <AthenaKeyControl isSet={keyIsSet} available={keyStorageAvailable} />
+          </div>
         </div>
       </section>
 

@@ -13,6 +13,7 @@ import {
   AFK_LEVELS,
   setAfkFallbackMinutes,
   setAfkLevel,
+  setAthenaApiKey,
   type AfkLevel,
 } from "@/src/domain/settings/instance";
 
@@ -37,6 +38,20 @@ export async function setAfkDelayAction(value: string): Promise<void> {
   const minutes = Number.parseInt(value, 10);
   if (Number.isNaN(minutes)) return;
   await setAfkFallbackMinutes(minutes);
+  revalidatePath("/settings");
+}
+
+/** ADR-0007 §3 — set the cloud-tier Anthropic key (stored encrypted at rest). */
+export async function setAthenaKeyAction(formData: FormData): Promise<void> {
+  await requireOwner();
+  await setAthenaApiKey(String(formData.get("key") ?? "") || null);
+  revalidatePath("/settings");
+}
+
+/** clear the in-app key (fall back to the env var). */
+export async function clearAthenaKeyAction(): Promise<void> {
+  await requireOwner();
+  await setAthenaApiKey(null);
   revalidatePath("/settings");
 }
 

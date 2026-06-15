@@ -9,6 +9,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/src/db/client";
 import { instanceSettings } from "@/src/db/schema";
+import { decryptSecret, encryptSecret } from "@/src/lib/secret";
 
 export const DEFAULT_RUN_CAP = 2;
 
@@ -81,5 +82,35 @@ export async function setAfkFallbackMinutes(minutes: number): Promise<void> {
     insert into instance_settings (id, afk_fallback_minutes, updated_at)
     values (1, ${value}, now())
     on conflict (id) do update set afk_fallback_minutes = ${value}, updated_at = now()
+  `);
+}
+
+/**
+ * The cloud-tier Anthropic key (ADR-0007 §3), decrypted — or null to fall back
+ * to the env var. Stored AES-256-GCM-encrypted; never returned in plaintext to
+ * any UI (only `athenaApiKeyIsSet` is surfaced).
+ */
+export async function athenaApiKey(): Promise<string | null> {
+  const rows = await db
+    .select({ enc: instanceSettings.athenaApiKeyEnc })
+    .from(instanceSettings);
+  return decryptSecret(rows[0]?.enc ?? null);
+}
+
+/** whether an in-app key is stored (for the masked "set ••••" display). */
+export async function athenaApiKeyIsSet(): Promise<boolean> {
+  const rows = await db
+    .select({ enc: instanceSettings.athenaApiKeyEnc })
+    .from(instanceSettings);
+  return !!rows[0]?.enc;
+}
+
+/** store (encrypted) or clear (null/empty) the in-app key. */
+export async function setAthenaApiKey(plaintext: string | null): Promise<void> {
+  const enc = plaintext && plaintext.trim() ? encryptSecret(plaintext.trim()) : null;
+  await db.execute(sql`
+    insert into instance_settings (id, athena_api_key_enc, updated_at)
+    values (1, ${enc}, now())
+    on conflict (id) do update set athena_api_key_enc = ${enc}, updated_at = now()
   `);
 }

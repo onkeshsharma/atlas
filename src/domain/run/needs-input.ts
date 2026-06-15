@@ -19,6 +19,12 @@ export type NeedsInputQuestion = {
   options?: string[];
   /** optional context line (file path, command, etc.). */
   context?: string;
+  /**
+   * ADR-0007 §4 — the Engine flagged this Ask high-stakes/irreversible. Athena
+   * must escalate it to the Owner unless under Ultra. (Emit side is bridge work;
+   * the resolver already reads it.)
+   */
+  humanOnly?: boolean;
   /** ISO timestamp the Engine raised it. */
   raisedAt: string;
 };
@@ -28,10 +34,14 @@ export type NeedsInputAnswer = {
   text?: string;
   /** chosen option (permission kind). */
   choice?: string;
-  /** display name of who answered — the Owner. */
+  /** display name of who answered — the Owner, or "Athena". */
   answeredBy: string;
   /** ISO timestamp. */
   answeredAt: string;
+  /** ADR-0007 — Athena's one-line reasoning (delegate answers only). */
+  rationale?: string;
+  /** ADR-0007 — Athena's confidence 0..1 (delegate answers only). */
+  confidence?: number;
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -56,6 +66,7 @@ export function parseNeedsInputQuestion(value: unknown): NeedsInputQuestion | nu
     prompt: value.prompt,
     options: value.options as string[] | undefined,
     context: value.context as string | undefined,
+    ...(value.humanOnly === true ? { humanOnly: true } : {}),
     raisedAt: value.raisedAt,
   };
 }
@@ -70,10 +81,14 @@ export function parseNeedsInputAnswer(value: unknown): NeedsInputAnswer | null {
   if (text !== undefined && typeof text !== "string") return null;
   if (choice !== undefined && typeof choice !== "string") return null;
   if (text === undefined && choice === undefined) return null;
+  const rationale = typeof value.rationale === "string" ? value.rationale : undefined;
+  const confidence = typeof value.confidence === "number" ? value.confidence : undefined;
   return {
     text: text as string | undefined,
     choice: choice as string | undefined,
     answeredBy: value.answeredBy,
     answeredAt: value.answeredAt,
+    ...(rationale ? { rationale } : {}),
+    ...(confidence !== undefined ? { confidence } : {}),
   };
 }

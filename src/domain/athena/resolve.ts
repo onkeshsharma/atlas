@@ -24,6 +24,9 @@ export type AthenaAnswer = {
   choice?: string;
   answeredBy: string;
   answeredAt: string;
+  /** ADR-0007 — Athena's reasoning + confidence, recorded for the audit. */
+  rationale?: string;
+  confidence?: number;
 };
 
 export type AthenaResolveDeps = {
@@ -77,6 +80,8 @@ export async function resolveRunWithAthena(
     ...(verdict.text ? { text: verdict.text } : {}),
     answeredBy: ATHENA_ACTOR,
     answeredAt: now(),
+    ...(verdict.rationale ? { rationale: verdict.rationale } : {}),
+    confidence: verdict.confidence,
   });
 
   return applied
