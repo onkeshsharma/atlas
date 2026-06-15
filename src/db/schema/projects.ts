@@ -49,6 +49,13 @@ export const projects = pgTable(
     ingestedAt: timestamp("ingested_at", { withTimezone: true }),
     /** M7 — the Engine-written Ingest Summary (J's sections); shape in domain. */
     ingestSummary: jsonb("ingest_summary"),
+    /**
+     * ADR-0008 Phase 2 — content hash of the project's CONSTITUTION (CLAUDE.md +
+     * AGENTS.md + skills), reported by the Bridge from the live worktree. The
+     * Project Brain is a freshness-tracked cache: a changed hash means the Brain
+     * has drifted from the repo. Null until first harvested.
+     */
+    constitutionHash: text("constitution_hash"),
     /** Today's pinned strip renders only pinned projects (E:9, PRD #10). */
     pinned: boolean("pinned").notNull().default(false),
     /** seed provenance (M6 charter §1) — demo rows are marked, never silent. */

@@ -21,6 +21,7 @@ import type { AtlasClient } from "./atlas-client.ts";
 import type { EngineAdapter, EngineSession } from "./engine/types.ts";
 import type { NeedsInputAnswer, WorkOrder } from "./protocol.ts";
 import { StdoutBatcher } from "./stdout-batcher.ts";
+import { constitutionHash, inventorySkills } from "./skills.ts";
 import { ensureClonedRepo, resolveProjectsHome } from "./clone.ts";
 import {
   captureDiffPatch,
@@ -190,6 +191,22 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
 
     const outcome = await session.done;
     await batcher.stop();
+
+    // ADR-0008 Phase 2 — harvest the capabilities facet (skills) + constitution
+    // hash from the live worktree (before any prune), keeping the Project Brain
+    // fresh. Best-effort: a harvest failure never affects the run outcome.
+    if (worktree) {
+      try {
+        const [skills, hash] = await Promise.all([
+          inventorySkills(worktree),
+          constitutionHash(worktree),
+        ]);
+        await deps.client.postProjectBrain(order.project.id, { skills, constitutionHash: hash });
+        deps.log(`run ${order.ref}: brain harvest — ${skills.length} skill(s)`);
+      } catch (err) {
+        deps.log(`run ${order.ref}: brain harvest skipped — ${String(err)}`);
+      }
+    }
 
     switch (outcome.result) {
       case "review-ready": {
