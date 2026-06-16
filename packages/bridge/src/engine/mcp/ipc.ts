@@ -21,7 +21,7 @@ import type { AskResolution } from "./stdio-server.ts";
 
 // child → daemon
 type IpcRequest =
-  | { type: "ask"; id: number; token: string; question: string; options?: string[] }
+  | { type: "ask"; id: number; token: string; question: string; options?: string[]; humanOnly?: boolean }
   | { type: "result"; id: number; token: string; body: HelperResultBody };
 
 // daemon → child
@@ -58,7 +58,7 @@ export type RunIpcHandlers = {
   /** per-Run shared secret the child must echo on every frame. */
   token: string;
   /** raise the Ask; resolves when the Owner/Athena answers (may take minutes). */
-  onAsk: (args: { question: string; options?: string[] }) => Promise<AskResolution>;
+  onAsk: (args: { question: string; options?: string[]; humanOnly?: boolean }) => Promise<AskResolution>;
   /** capture the validated helper deliverable; throw to NAK it. */
   onResult: (body: HelperResultBody) => void | Promise<void>;
 };
@@ -77,7 +77,13 @@ export function createRunIpcServer(handlers: RunIpcHandlers): RunIpcServer {
         // .then(call) so a SYNC throw in onAsk becomes a rejection, not an
         // uncaught exception in the socket handler (which would never reply).
         void Promise.resolve()
-          .then(() => handlers.onAsk({ question: msg.question, options: msg.options }))
+          .then(() =>
+            handlers.onAsk({
+              question: msg.question,
+              options: msg.options,
+              ...(msg.humanOnly ? { humanOnly: true } : {}),
+            }),
+          )
           .then((ans) => writeLine(socket, { type: "answer", id: msg.id, text: ans.text, choice: ans.choice }))
           .catch((err: unknown) =>
             // an Ask that errors out still needs a frame back so the child unblocks.
@@ -113,7 +119,7 @@ export function createRunIpcServer(handlers: RunIpcHandlers): RunIpcServer {
 }
 
 export type IpcClient = {
-  ask: (args: { question: string; options?: string[] }) => Promise<AskResolution>;
+  ask: (args: { question: string; options?: string[]; humanOnly?: boolean }) => Promise<AskResolution>;
   result: (body: HelperResultBody) => Promise<void>;
   close: () => void;
 };
@@ -134,7 +140,7 @@ export function connectIpc(opts: { port: number; token: string; host?: string })
 
   const rpc = (
     req:
-      | { type: "ask"; question: string; options?: string[] }
+      | { type: "ask"; question: string; options?: string[]; humanOnly?: boolean }
       | { type: "result"; body: HelperResultBody },
   ): Promise<IpcResponse> =>
     new Promise<IpcResponse>((resolve) => {
@@ -146,7 +152,12 @@ export function connectIpc(opts: { port: number; token: string; host?: string })
 
   return {
     ask: async (args) => {
-      const r = await rpc({ type: "ask", question: args.question, options: args.options });
+      const r = await rpc({
+        type: "ask",
+        question: args.question,
+        options: args.options,
+        ...(args.humanOnly ? { humanOnly: true } : {}),
+      });
       return r.type === "answer" ? { text: r.text, choice: r.choice } : {};
     },
     result: async (body) => {

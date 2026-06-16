@@ -93,6 +93,23 @@ describe("mcp stdio server — ask_owner", () => {
     expect((sent[0].result as { content: Array<{ text: string }> }).content[0].text).toBe("use a UNIQUE index");
   });
 
+  it("threads human_only through to the resolver (ADR-0007 §4 rail)", async () => {
+    const { askOwner, call } = harness();
+    await call({
+      jsonrpc: "2.0",
+      id: 51,
+      method: "tools/call",
+      params: { name: "ask_owner", arguments: { question: "drop prod table?", options: ["yes", "no"], human_only: true } },
+    });
+    expect(askOwner).toHaveBeenCalledWith({ question: "drop prod table?", options: ["yes", "no"], humanOnly: true });
+  });
+
+  it("omits humanOnly when human_only is not set", async () => {
+    const { askOwner, call } = harness();
+    await call({ jsonrpc: "2.0", id: 52, method: "tools/call", params: { name: "ask_owner", arguments: { question: "how?" } } });
+    expect(askOwner).toHaveBeenCalledWith({ question: "how?", options: undefined });
+  });
+
   it("rejects an empty question as a tool error without calling the resolver", async () => {
     const { sent, askOwner, call } = harness();
     await call({ jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "ask_owner", arguments: {} } });

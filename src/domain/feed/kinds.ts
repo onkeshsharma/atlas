@@ -65,6 +65,7 @@ export const KIND_WORD: Record<FeedEventKind, string> = {
   "profile-changed": "changed",
   "project-linked": "linked", // M18 — clone resolved; §1.1 bookkeeping
   "consult-requested": "consulting", // ADR-0007 Phase 2 — command row, not user-facing
+  "athena-escalated": "escalated", // ADR-0007 §6 — "Athena escalated R-12 — …"
 };
 
 export const KIND_CONNECTOR: Partial<Record<FeedEventKind, string>> = {
@@ -119,6 +120,7 @@ export const KIND_TONE: Record<FeedEventKind, DotTone> = {
   "profile-changed": "stone",
   "project-linked": "stone", // M18 — bookkeeping — neutral
   "consult-requested": "stone", // ADR-0007 Phase 2 — command row
+  "athena-escalated": "amber", // ADR-0007 §6 — needs the human, like needs-input
 };
 
 /** colored kind word in inbox sentences (Z:407–413 shape, canon palette). */
@@ -161,6 +163,7 @@ export const KIND_WORD_CLASS: Record<FeedEventKind, string> = {
   "profile-changed": "text-stone-700",
   "project-linked": "text-stone-700", // M18
   "consult-requested": "text-stone-700", // ADR-0007 Phase 2 — command row
+  "athena-escalated": "text-amber-700", // ADR-0007 §6 — needs the human
 };
 
 /** display text — dashes read as spaces. */

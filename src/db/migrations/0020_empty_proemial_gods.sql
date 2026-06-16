@@ -1,0 +1,1 @@
+ALTER TYPE "public"."feed_event_kind" ADD VALUE IF NOT EXISTS 'athena-escalated';

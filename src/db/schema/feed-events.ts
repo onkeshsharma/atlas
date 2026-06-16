@@ -84,6 +84,11 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   // IS the daemon's `consult-ask` command (the ship-requested idiom; payload
   // carries the Atlas-built prompt + repoAware). Not a user-facing feed entry.
   "consult-requested",
+  // ADR-0007 §6 (Phase-1 tail) — Athena tried and handed the decision back to the
+  // Owner (high-stakes rail, low confidence, abstain, or budget). This is the
+  // "worth interrupting you" signal: it surfaces in the inbox + drives the email
+  // notifier. payload carries { reason, confidence }.
+  "athena-escalated",
 ]);
 
 export const feedEvents = pgTable("feed_events", {
