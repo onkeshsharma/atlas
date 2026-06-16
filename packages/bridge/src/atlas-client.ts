@@ -173,4 +173,15 @@ export class AtlasClient {
     if (status === 404 || status === 409) return false;
     throw new Error(`postProjectBrain returned ${status}`);
   }
+
+  /** ADR-0008 Phase 2 — report a Run's skill invocations (aggregated by skill). */
+  async postSkillUsage(
+    runId: string,
+    body: { skills: Array<{ skill: string; count: number }> },
+  ): Promise<boolean> {
+    const { status } = await this.request("POST", `/api/bridge/runs/${runId}/skill-usage`, body);
+    if (status === 200) return true;
+    if (status === 404 || status === 409) return false;
+    throw new Error(`postSkillUsage returned ${status}`);
+  }
 }

@@ -8,9 +8,10 @@
  * so its history stays auditable and it drops out of the live inventory — the
  * same freshness posture as the rest of the Brain.
  */
-import { boolean, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { projects } from "./projects";
+import { runs } from "./runs";
 
 export const projectSkills = pgTable(
   "project_skills",
@@ -35,3 +36,29 @@ export const projectSkills = pgTable(
 );
 
 export type ProjectSkillRow = typeof projectSkills.$inferSelect;
+
+/**
+ * ADR-0008 Phase 2 — the skill-usage ledger: which Skills the Engine (or Athena)
+ * actually invoked, observed from the run stream (`Skill` tool_use). One row per
+ * (run, skill) with an invocation count — idempotent on re-post. Aggregated by
+ * skill for the project's usage counts; the foundation of cross-project
+ * recommendation (Phase 4: "this skill is heavy here, light there").
+ */
+export const skillUsage = pgTable(
+  "skill_usage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id),
+    skill: text("skill").notNull(),
+    count: integer("count").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("skill_usage_run_skill_unique").on(t.runId, t.skill)],
+);
+
+export type SkillUsageRow = typeof skillUsage.$inferSelect;

@@ -7,11 +7,14 @@ import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db } from "@/src/db/client";
-import { projects, projectSkills } from "@/src/db/schema";
+import { projects, projectSkills, runs, skillUsage } from "@/src/db/schema";
 import {
   applyProjectBrain,
   parseProjectBrainBody,
+  parseSkillUsageBody,
   projectSkillsList,
+  recordSkillUsage,
+  skillUsageCounts,
 } from "@/src/domain/project/brain";
 
 const MARK = `BRAIN-${Date.now()}`;
@@ -27,7 +30,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   try {
+    await db.delete(skillUsage).where(eq(skillUsage.projectId, projectId));
     await db.delete(projectSkills).where(eq(projectSkills.projectId, projectId));
+    await db.delete(runs).where(eq(runs.projectId, projectId));
   } finally {
     if (projectId) await db.delete(projects).where(inArray(projects.id, [projectId]));
   }
@@ -89,5 +94,42 @@ describe("applyProjectBrain (real DB)", () => {
     });
     list = await projectSkillsList(projectId);
     expect(list.map((s) => s.name)).toEqual(["triage"]); // grill + tdd now removed, triage back
+  });
+});
+
+describe("skill usage (real DB)", () => {
+  it("parses the body, records per-(run,skill) idempotently, and aggregates by skill", () => {
+    expect(parseSkillUsageBody({ skills: [{ skill: "grill", count: 2 }] })).toEqual({
+      skills: [{ skill: "grill", count: 2 }],
+    });
+    expect(parseSkillUsageBody({ skills: [{ skill: "x", count: 0 }] })).toBeNull(); // count must be ≥ 1
+    expect(parseSkillUsageBody({ skills: [{ skill: "", count: 1 }] })).toBeNull();
+    expect(parseSkillUsageBody(null)).toBeNull();
+  });
+
+  it("aggregates usage across runs and re-posts idempotently", async () => {
+    const mk = async (ref: string) => {
+      const [r] = await db
+        .insert(runs)
+        .values({ ref, projectId, title: ref, state: "shipped", lane: "owner" })
+        .returning({ id: runs.id });
+      return r.id;
+    };
+    const runA = await mk(`${MARK}-RA`);
+    const runB = await mk(`${MARK}-RB`);
+
+    expect((await recordSkillUsage(runA, [{ skill: "grill", count: 2 }, { skill: "tdd", count: 1 }])).ok).toBe(true);
+    expect((await recordSkillUsage(runB, [{ skill: "grill", count: 3 }])).ok).toBe(true);
+
+    let counts = await skillUsageCounts(projectId);
+    expect(counts.get("grill")).toBe(5); // 2 + 3 across runs
+    expect(counts.get("tdd")).toBe(1);
+
+    // re-post run A SETS (not accumulates) — idempotent.
+    await recordSkillUsage(runA, [{ skill: "grill", count: 2 }, { skill: "tdd", count: 1 }]);
+    counts = await skillUsageCounts(projectId);
+    expect(counts.get("grill")).toBe(5);
+
+    expect((await recordSkillUsage("00000000-0000-4000-8000-000000000000", [{ skill: "x", count: 1 }])).ok).toBe(false);
   });
 });
