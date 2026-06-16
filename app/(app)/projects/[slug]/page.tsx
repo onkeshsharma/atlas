@@ -290,6 +290,13 @@ export default async function ProjectLandingPage({
                   </span>{" "}
                   <span className="font-mono text-[10px] text-stone-400">→</span>
                 </RecentChip>
+                {/* ADR-0008 Phase 2 — the capabilities facet of the Project Brain */}
+                <RecentChip href={`/projects/${project.slug}/skills`}>
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-stone-700">
+                    Skills
+                  </span>{" "}
+                  <span className="font-mono text-[10px] text-stone-400">→</span>
+                </RecentChip>
               </div>
             </section>
 

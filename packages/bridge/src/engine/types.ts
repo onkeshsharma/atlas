@@ -47,6 +47,8 @@ export type EngineStartArgs = {
   timeoutMs: number;
   onStdout: (text: string) => void;
   onQuestion: (question: NeedsInputQuestion) => void;
+  /** ADR-0008 Phase 2 — a Skill the Engine invoked (one call per invocation). */
+  onSkillUse?: (skill: string) => void;
 };
 
 export type EngineAdapter = {

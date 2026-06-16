@@ -25,3 +25,5 @@ export * from "./notification-outbox";
 export * from "./inbox-read-marks";
 // Phase 4 (ADR-0007 §7) — Athena decision memory (learning) + spend ledger (budget)
 export * from "./athena-memory";
+// ADR-0008 Phase 2 — Project Brain: the capabilities facet (skills registry)
+export * from "./project-skills";

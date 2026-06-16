@@ -21,6 +21,7 @@ import type { AtlasClient } from "./atlas-client.ts";
 import type { EngineAdapter, EngineSession } from "./engine/types.ts";
 import type { NeedsInputAnswer, WorkOrder } from "./protocol.ts";
 import { StdoutBatcher } from "./stdout-batcher.ts";
+import { constitutionHash, inventorySkills } from "./skills.ts";
 import { ensureClonedRepo, resolveProjectsHome } from "./clone.ts";
 import {
   captureDiffPatch,
@@ -167,12 +168,16 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
     });
     batcher.start();
 
+    // ADR-0008 Phase 2 — tally the Run's skill invocations (posted after outcome).
+    const skillUses = new Map<string, number>();
+
     session = deps.engine.start({
       order,
       worktree,
       sandbox,
       timeoutMs: deps.engineTimeoutMs,
       onStdout: (text) => batcher.push(text),
+      onSkillUse: (skill) => skillUses.set(skill, (skillUses.get(skill) ?? 0) + 1),
       onQuestion: (question) => {
         void deps.client
           .transition(runId, { to: "needs-input", question })
@@ -190,6 +195,31 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
 
     const outcome = await session.done;
     await batcher.stop();
+
+    // ADR-0008 Phase 2 — harvest the capabilities facet (skills) + constitution
+    // hash from the live worktree (before any prune), keeping the Project Brain
+    // fresh. Best-effort: a harvest failure never affects the run outcome.
+    if (worktree) {
+      try {
+        const [skills, hash] = await Promise.all([
+          inventorySkills(worktree),
+          constitutionHash(worktree),
+        ]);
+        await deps.client.postProjectBrain(order.project.id, { skills, constitutionHash: hash });
+        deps.log(`run ${order.ref}: brain harvest — ${skills.length} skill(s)`);
+      } catch (err) {
+        deps.log(`run ${order.ref}: brain harvest skipped — ${String(err)}`);
+      }
+    }
+
+    // ADR-0008 Phase 2 — report this Run's skill usage (aggregated by skill).
+    if (skillUses.size > 0) {
+      const skills = [...skillUses.entries()].map(([skill, count]) => ({ skill, count }));
+      await deps.client
+        .postSkillUsage(runId, { skills })
+        .then((ok) => deps.log(`run ${order.ref}: skill usage — ${ok ? `${skills.length} skill(s)` : "rejected"}`))
+        .catch((err) => deps.log(`run ${order.ref}: skill usage post skipped — ${String(err)}`));
+    }
 
     switch (outcome.result) {
       case "review-ready": {
@@ -211,12 +241,21 @@ export function executeRun(runId: string, deps: RunnerDeps): RunExecution {
         return;
       }
       case "helper-complete": {
-        const applied = await deps.client.postHelperResult(runId, outcome.payload);
-        deps.log(
-          applied
-            ? `run ${order.ref}: helper deliverable landed`
-            : `run ${order.ref}: helper deliverable rejected (run moved or invalid)`,
-        );
+        const res = await deps.client.postHelperResult(runId, outcome.payload);
+        if (res.ok) {
+          deps.log(`run ${order.ref}: helper deliverable landed`);
+        } else {
+          // fail the run with the real reason — never leave it 'running' for the
+          // orphan sweep to mislabel `bridge-lost` (the R-723 diagnosability bug).
+          deps.log(`run ${order.ref}: helper deliverable rejected — ${res.reason}; failing the run`);
+          await deps.client
+            .transition(runId, {
+              to: "failed",
+              failureKind: "engine-crash",
+              failureDetail: `helper deliverable rejected: ${res.reason}`,
+            })
+            .catch(() => {});
+        }
         await prune();
         return;
       }

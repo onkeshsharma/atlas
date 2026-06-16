@@ -14,6 +14,7 @@ import type {
   WorkOrder,
 } from "./protocol.ts";
 import { parseSyncResponse, parseWorkOrder } from "./protocol.ts";
+import type { SkillInfo } from "./skills.ts";
 
 export class TokenRejectedError extends Error {
   constructor() {
@@ -96,15 +97,21 @@ export class AtlasClient {
     if (status !== 200) throw new Error(`stdout returned ${status}`);
   }
 
-  /** true = deliverable landed + run completed; false = run moved under us. */
-  async postHelperResult(runId: string, body: HelperResultBody): Promise<boolean> {
+  /** ok = deliverable landed + run completed; else the honest rejection reason. */
+  async postHelperResult(
+    runId: string,
+    body: HelperResultBody,
+  ): Promise<{ ok: true } | { ok: false; reason: string }> {
     const { status } = await this.request(
       "POST",
       `/api/bridge/runs/${runId}/helper-result`,
       body,
     );
-    if (status === 200) return true;
-    if (status === 409 || status === 422) return false;
+    if (status === 200) return { ok: true };
+    // distinguish so the daemon can fail the run with an honest reason instead
+    // of stranding it for the orphan sweep to mislabel `bridge-lost` (R-723).
+    if (status === 422) return { ok: false, reason: "the deliverable did not match the required schema" };
+    if (status === 409) return { ok: false, reason: "the run had already moved" };
     throw new Error(`helper-result returned ${status}`);
   }
 
@@ -147,5 +154,34 @@ export class AtlasClient {
     if (status === 200) return true;
     if (status === 404 || status === 409) return false;
     throw new Error(`setProjectLocalPath returned ${status}`);
+  }
+
+  /**
+   * ADR-0008 Phase 2 — report the project's harvested capabilities facet (the
+   * skill inventory) + the constitution hash (freshness) from the live worktree.
+   */
+  async postProjectBrain(
+    projectId: string,
+    body: { skills: SkillInfo[]; constitutionHash: string },
+  ): Promise<boolean> {
+    const { status } = await this.request(
+      "POST",
+      `/api/bridge/projects/${projectId}/brain`,
+      body,
+    );
+    if (status === 200) return true;
+    if (status === 404 || status === 409) return false;
+    throw new Error(`postProjectBrain returned ${status}`);
+  }
+
+  /** ADR-0008 Phase 2 — report a Run's skill invocations (aggregated by skill). */
+  async postSkillUsage(
+    runId: string,
+    body: { skills: Array<{ skill: string; count: number }> },
+  ): Promise<boolean> {
+    const { status } = await this.request("POST", `/api/bridge/runs/${runId}/skill-usage`, body);
+    if (status === 200) return true;
+    if (status === 404 || status === 409) return false;
+    throw new Error(`postSkillUsage returned ${status}`);
   }
 }

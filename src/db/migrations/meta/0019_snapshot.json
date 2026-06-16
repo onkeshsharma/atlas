@@ -1,6 +1,6 @@
 {
-  "id": "43b46c6b-02c2-4120-9a0a-ca7169fbe8d3",
-  "prevId": "fdae795e-1523-4dec-89a3-6414edbff99b",
+  "id": "dde268b8-eae1-43ce-bc82-c599e75934f0",
+  "prevId": "43b46c6b-02c2-4120-9a0a-ca7169fbe8d3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2202,6 +2202,107 @@
         "project_skills_project_id_projects_id_fk": {
           "name": "project_skills_project_id_projects_id_fk",
           "tableFrom": "project_skills",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.skill_usage": {
+      "name": "skill_usage",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "run_id": {
+          "name": "run_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "skill": {
+          "name": "skill",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "skill_usage_run_skill_unique": {
+          "name": "skill_usage_run_skill_unique",
+          "columns": [
+            {
+              "expression": "run_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "skill",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "skill_usage_run_id_runs_id_fk": {
+          "name": "skill_usage_run_id_runs_id_fk",
+          "tableFrom": "skill_usage",
+          "tableTo": "runs",
+          "columnsFrom": [
+            "run_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "skill_usage_project_id_projects_id_fk": {
+          "name": "skill_usage_project_id_projects_id_fk",
+          "tableFrom": "skill_usage",
           "tableTo": "projects",
           "columnsFrom": [
             "project_id"

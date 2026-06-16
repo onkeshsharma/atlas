@@ -1,1 +1,0 @@
-ALTER TYPE "public"."feed_event_kind" ADD VALUE 'athena-escalated';

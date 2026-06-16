@@ -190,6 +190,65 @@ export type HelperResultBody =
       suggestedTerms?: Array<{ term: string; uses: number }>;
     };
 
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((s) => typeof s === "string");
+}
+function isNumberArray(v: unknown): v is number[] {
+  return Array.isArray(v) && v.every((n) => typeof n === "number" && Number.isFinite(n));
+}
+const INGEST_SEVERITIES = new Set(["high", "medium", "low"]);
+
+/**
+ * Validate an ingest-project summary against the EXACT shape Atlas requires.
+ * MIRROR of src/domain/project/ingest-summary.ts `parseIngestSummary` — they MUST
+ * stay in lockstep: the bridge rejecting in-turn is what gives the Engine a Gap-3
+ * retry instead of a post-hoc 422 that strands the run (the R-723 failure).
+ */
+export function isValidIngestSummary(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (value.schemaVersion !== 1) return false;
+  if (typeof value.tagline !== "string") return false;
+  if (!isStringArray(value.engineRead)) return false;
+  if (!isStringArray(value.stack)) return false;
+  if (typeof value.stackProse !== "string") return false;
+  if (typeof value.architectureProse !== "string") return false;
+  if (!Array.isArray(value.architecture)) return false;
+  for (const n of value.architecture) {
+    if (!isRecord(n) || typeof n.name !== "string" || typeof n.sub !== "string" || typeof n.detail !== "string")
+      return false;
+  }
+  if (!Array.isArray(value.smells)) return false;
+  for (const s of value.smells) {
+    if (!isRecord(s) || typeof s.severity !== "string" || !INGEST_SEVERITIES.has(s.severity)) return false;
+    if (typeof s.title !== "string" || typeof s.file !== "string" || typeof s.detail !== "string") return false;
+  }
+  if (!Array.isArray(value.health)) return false;
+  for (const c of value.health) {
+    if (!isRecord(c) || typeof c.label !== "string" || typeof c.value !== "string" || typeof c.ok !== "boolean")
+      return false;
+  }
+  if (!isNumberArray(value.churnWeeks)) return false;
+  if (!Array.isArray(value.coverage)) return false;
+  for (const a of value.coverage) {
+    if (!isRecord(a) || typeof a.area !== "string" || typeof a.pct !== "number") return false;
+    if (a.hero !== undefined && typeof a.hero !== "boolean") return false;
+  }
+  if (!isRecord(value.stats)) return false;
+  const st = value.stats;
+  if (typeof st.coveragePct !== "number") return false;
+  if (st.prevCoveragePct !== null && typeof st.prevCoveragePct !== "number") return false;
+  if (typeof st.linesOfCode !== "string" || typeof st.files !== "number") return false;
+  if (!Array.isArray(value.commits)) return false;
+  for (const c of value.commits) {
+    if (!isRecord(c) || typeof c.sha !== "string" || typeof c.subject !== "string" || typeof c.at !== "string")
+      return false;
+  }
+  if (typeof value.commitsTotal !== "number") return false;
+  if (!isRecord(value.repo)) return false;
+  if (typeof value.repo.branch !== "string" || typeof value.repo.commitsSinceIngest !== "number") return false;
+  return true;
+}
+
 /**
  * Validate an untrusted `submit_result` payload (ADR-0006) into a
  * HelperResultBody. Returns null on any shape mismatch so the MCP tool can
@@ -209,7 +268,10 @@ export function parseHelperResultBody(value: unknown): HelperResultBody | null {
       if (typeof value.body !== "string" || value.body.length === 0) return null;
       return { kind: "draft-brief", body: value.body };
     case "ingest-project": {
-      if (!("summary" in value) || value.summary === undefined) return null;
+      // strict (mirrors Atlas) so a malformed summary is rejected in-turn — the
+      // Engine then retries within the same turn instead of the run being
+      // stranded by a post-hoc 422 (the R-723 failure).
+      if (!isValidIngestSummary(value.summary)) return null;
       let suggestedTerms: Array<{ term: string; uses: number }> | undefined;
       if (value.suggestedTerms !== undefined) {
         if (!Array.isArray(value.suggestedTerms)) return null;
