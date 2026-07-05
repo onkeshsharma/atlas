@@ -1,0 +1,37 @@
+name: CI
+
+# Static quality gate on every PR and push to main — typecheck · lint · tripwire.
+# No DB, no secrets, no deploy. Production deploys stay MANUAL (`vercel --prod`
+# from the Owner's machine, the same way every Atlas app ships). `pnpm test` is
+# intentionally excluded until a dedicated `ci` Neon branch exists — the
+# integration suite hits a real DB (tests/setup-env.ts).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks (typecheck · lint · tripwire)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck (app + bridge)
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Fidelity tripwire (all surfaces)
+        run: pnpm tripwire --sweep
