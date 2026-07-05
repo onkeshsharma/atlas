@@ -5,7 +5,7 @@
 import { and, count, desc, eq, gte, inArray, lt, max, sql } from "drizzle-orm";
 
 import { db } from "@/src/db/client";
-import { feedEvents, projects, tickets, type Ticket } from "@/src/db/schema";
+import { feedEvents, projects, runs, tickets, type Ticket } from "@/src/db/schema";
 
 /** the hero sentence's three numerals (E:122–140). */
 export type HeroCounts = { triage: number; reviewReady: number; failed: number };
@@ -121,10 +121,22 @@ export async function weekStats(now: Date = new Date()): Promise<WeekStats> {
   const lastWeek = new Date(thisWeek);
   lastWeek.setDate(lastWeek.getDate() - 7);
 
+  // Helper-Run completions also travel review-ready → shipped through
+  // applyRunTransition, so their feed rows read `shipped` — but an enrichment
+  // landing is NOT a code landing. Count a ship only when it has no run
+  // (legacy/seed history) or its run is OWNER-lane. Mirrors the canonical
+  // scope in insights/queries.ts (§ownerLaneOnly) so Today and Insights agree.
   const shippedRows = await db
     .select({ at: feedEvents.createdAt })
     .from(feedEvents)
-    .where(and(eq(feedEvents.kind, "shipped"), gte(feedEvents.createdAt, lastWeek)));
+    .leftJoin(runs, eq(feedEvents.runId, runs.id))
+    .where(
+      and(
+        eq(feedEvents.kind, "shipped"),
+        sql`(${feedEvents.runId} is null or ${runs.lane} = 'owner')`,
+        gte(feedEvents.createdAt, lastWeek),
+      ),
+    );
 
   let shippedThisWeek = 0;
   let shippedLastWeek = 0;

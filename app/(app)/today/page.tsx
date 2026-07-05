@@ -378,7 +378,10 @@ export default async function TodayPage() {
               <MonoSectionLabel rule>Pinned</MonoSectionLabel>
               <ul className="divide-y divide-stone-200">
                 {pinned.map((p) => (
-                  <li key={p.id} className="py-5 group cursor-pointer">
+                  <li key={p.id} className="py-5 group">
+                    {/* M6 project rows finally get hrefs (the M12 ticket-row
+                        fix's missed sibling) — the slug is on ProjectRow. */}
+                    <Link href={`/projects/${p.slug}`} className="block cursor-pointer">
                     <div className="flex items-baseline justify-between gap-6">
                       <div className="flex items-baseline gap-2">
                         <span className="text-amber-500">★</span>
@@ -409,6 +412,7 @@ export default async function TodayPage() {
                       {/* Activity sparkline — real 7-day feed counts (E:222–237) */}
                       <Sparkline data={sparklines.get(p.id) ?? [0, 0, 0, 0, 0, 0, 0]} />
                     </div>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -585,7 +589,8 @@ export default async function TodayPage() {
               <MonoSectionLabel>Other projects</MonoSectionLabel>
               <ul className="mt-4 space-y-3">
                 {others.map((p) => (
-                  <li key={p.id} className="group cursor-pointer">
+                  <li key={p.id} className="group">
+                    <Link href={`/projects/${p.slug}`} className="block cursor-pointer">
                     <div className="flex items-baseline justify-between">
                       <span className="text-sm tracking-tight text-stone-700 group-hover:text-stone-900">
                         {p.name}
@@ -599,6 +604,7 @@ export default async function TodayPage() {
                       <span>·</span>
                       <span>{p.lastActivityAt ? shortAgo(p.lastActivityAt) : "quiet"}</span>
                     </div>
+                    </Link>
                   </li>
                 ))}
               </ul>
