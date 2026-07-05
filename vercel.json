@@ -4,6 +4,10 @@
     {
       "path": "/api/notifier/cron",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/watcher/cron",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

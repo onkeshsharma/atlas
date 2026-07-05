@@ -89,6 +89,10 @@ export const feedEventKind = pgEnum("feed_event_kind", [
   // "worth interrupting you" signal: it surfaces in the inbox + drives the email
   // notifier. payload carries { reason, confidence }.
   "athena-escalated",
+  // Phase 2 — the Probable-Issues Watcher (appended). Atlas's own proactive
+  // advisory (runaway CPU / stuck run) — a scheduled scan emits it into the
+  // feed so a probable issue reaches the Owner without opening /activity.
+  "advisory",
 ]);
 
 export const feedEvents = pgTable("feed_events", {
