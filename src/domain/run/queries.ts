@@ -3,7 +3,7 @@
  * §3.3 Needs Input panel). M7/M8/M9 reuse these; extend here, never
  * inline SQL in pages.
  */
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/src/db/client";
 import { projects, runs, tickets } from "@/src/db/schema";
@@ -41,6 +41,27 @@ export async function activeRuns(): Promise<ActiveRunRow[]> {
     .where(inArray(runs.state, [...ACTIVE_STATES]))
     .orderBy(asc(runs.createdAt));
   return rows;
+}
+
+export type RunStateCounts = { queued: number; running: number; needsInput: number };
+
+/**
+ * Phase 1 — the Podium's live numerals: lightweight counts of active runs by
+ * state (no row/join fetch, unlike activeRuns). Runs in the shell layout on
+ * every route, so it stays a pure grouped count.
+ */
+export async function runStateCounts(): Promise<RunStateCounts> {
+  const rows = await db
+    .select({ state: runs.state, n: count() })
+    .from(runs)
+    .where(inArray(runs.state, [...ACTIVE_STATES]))
+    .groupBy(runs.state);
+  const by = new Map(rows.map((r) => [r.state, Number(r.n)]));
+  return {
+    queued: by.get("queued") ?? 0,
+    running: by.get("running") ?? 0,
+    needsInput: by.get("needs-input") ?? 0,
+  };
 }
 
 /**

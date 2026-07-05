@@ -13,6 +13,7 @@
 import { redirect } from "next/navigation";
 
 import { heroCounts } from "@/src/domain/cockpit/queries";
+import { runStateCounts } from "@/src/domain/run/queries";
 import { signOutAction } from "@/src/domain/auth/actions";
 import { requireUser } from "@/src/domain/auth/guard";
 import { bridgePresence } from "@/src/domain/bridge/status";
@@ -23,6 +24,7 @@ import { afkLevel } from "@/src/domain/settings/instance";
 import { athenaDecisionCount } from "@/src/domain/athena/activity";
 import { AfkChip } from "@/src/components/shell/AfkChip";
 import { AppSidebar } from "@/src/components/shell/AppSidebar";
+import { Podium } from "@/src/components/shell/Podium";
 import { PaletteMount } from "@/src/components/search/PaletteMount";
 import type { SidebarItem } from "@/src/components/kit";
 
@@ -42,11 +44,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // M9 — the sidebar BridgeStatus goes live from the heartbeat (the one
   // sanctioned shell touch — charter §4).
-  const [unread, counts, collapsed, bridge] = await Promise.all([
+  const [unread, counts, collapsed, bridge, runCounts] = await Promise.all([
     isCollab ? collabUnreadCount(user.id) : unreadCount(),
     isCollab ? null : heroCounts(),
     sidebarCollapsed(user.id),
     bridgePresence(),
+    isCollab ? null : runStateCounts(),
   ]);
 
   // ADR-0007 §6 — the AFK active chip (Owner only; only when AFK isn't off).
@@ -151,6 +154,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           only; no Search nav item — no variant draws one, the palette is
           the entry). Owner-only until M13 re-derives Collaborator nav. */}
       {user.role === "owner" && <PaletteMount />}
+      {/* Phase 1 — the Podium: cross-route live awareness (Owner only). Stays
+          live via the pages' existing LiveRefresh (router.refresh re-renders
+          this layout). Athena status lives in the AfkChip above; the Podium is
+          runs · needs-you · bridge. */}
+      {user.role === "owner" && (
+        <Podium
+          running={runCounts?.running ?? 0}
+          queued={runCounts?.queued ?? 0}
+          needsYou={(runCounts?.needsInput ?? 0) + (counts?.reviewReady ?? 0)}
+          bridge={bridge.status}
+        />
+      )}
     </div>
   );
 }
