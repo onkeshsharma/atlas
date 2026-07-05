@@ -130,6 +130,55 @@ export async function reviewReadyRunsForTickets(
   return map;
 }
 
+export type ReviewReadyRow = {
+  id: string;
+  ref: string;
+  title: string;
+  projectName: string;
+  ticketRef: string | null;
+  filesChanged: number;
+  insertions: number;
+  deletions: number;
+  since: Date;
+};
+
+/**
+ * Phase 1 — the Agent Inbox's Review lane: every review-ready OWNER run
+ * (helpers auto-ship and never wait on review), newest first, with a diff
+ * summary so the Owner can approve-and-ship without opening the diff first.
+ */
+export async function reviewReadyRuns(): Promise<ReviewReadyRow[]> {
+  const rows = await db
+    .select({
+      id: runs.id,
+      ref: runs.ref,
+      title: runs.title,
+      projectName: projects.name,
+      ticketRef: tickets.ref,
+      diffStats: runs.diffStats,
+      since: runs.updatedAt,
+    })
+    .from(runs)
+    .innerJoin(projects, eq(runs.projectId, projects.id))
+    .leftJoin(tickets, eq(runs.ticketId, tickets.id))
+    .where(and(eq(runs.lane, "owner"), eq(runs.state, "review-ready")))
+    .orderBy(desc(runs.updatedAt));
+  return rows.map((r) => {
+    const d = parseRunDiffStats(r.diffStats);
+    return {
+      id: r.id,
+      ref: r.ref,
+      title: r.title,
+      projectName: r.projectName,
+      ticketRef: r.ticketRef,
+      filesChanged: d?.filesChanged ?? 0,
+      insertions: d?.insertions ?? 0,
+      deletions: d?.deletions ?? 0,
+      since: r.since,
+    };
+  });
+}
+
 export type NeedsInputRow = {
   id: string;
   ref: string;
