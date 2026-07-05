@@ -1,11 +1,10 @@
 name: CI
 
-# Phase 0 — the gate that makes `vercel --prod` never a manual step again.
-#   checks: typecheck · lint · tripwire (static, no DB) — runs on every PR + push.
-#   deploy: migrate prod-first → vercel --prod — runs ONLY on push to main,
-#           and only after checks pass (matches the deploy runbook ordering).
-# `pnpm test` is intentionally NOT here yet: the integration suite hits a real
-# Neon DB (tests/setup-env.ts), so it needs a dedicated `ci` branch first.
+# Static quality gate on every PR and push to main — typecheck · lint · tripwire.
+# No DB, no secrets, no deploy. Production deploys stay MANUAL (`vercel --prod`
+# from the Owner's machine, the same way every Atlas app ships). `pnpm test` is
+# intentionally excluded until a dedicated `ci` Neon branch exists — the
+# integration suite hits a real DB (tests/setup-env.ts).
 
 on:
   push:
@@ -36,47 +35,3 @@ jobs:
         run: pnpm lint
       - name: Fidelity tripwire (all surfaces)
         run: pnpm tripwire --sweep
-
-  deploy:
-    name: Deploy production
-    needs: checks
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    # Never let two production deploys race (the runbook's manual invariant).
-    concurrency:
-      group: production-deploy
-      cancel-in-progress: false
-    env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: pnpm
-      - name: Fail fast if the Vercel token is missing
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::VERCEL_TOKEN secret is not set — add it before auto-deploy can run."
-            exit 1
-          fi
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      # Migrate PRODUCTION FIRST — additive migrations are safe under the
-      # still-live old code; new code deployed below then finds its schema.
-      - name: Migrate production database (first)
-        env:
-          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
-        run: pnpm db:migrate
-      - name: Deploy to Vercel (production)
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          pnpm dlx vercel@54 deploy --prod --yes --token="$VERCEL_TOKEN" | tee deploy.out
-          echo "Deployed → $(tail -1 deploy.out)"
