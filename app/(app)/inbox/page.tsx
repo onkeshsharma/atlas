@@ -26,6 +26,7 @@ import {
   PageHeader,
   PillButton,
   StateDot,
+  UnderlineInput,
 } from "@/src/components/kit";
 import { LiveRefresh } from "@/src/components/live/LiveRefresh";
 import { requireUser } from "@/src/domain/auth/guard";
@@ -44,9 +45,10 @@ import {
   type FeedRow,
 } from "@/src/domain/feed/queries";
 import { latestCursor } from "@/src/domain/live/broker";
+import { needsInputRuns, reviewReadyRuns } from "@/src/domain/run/queries";
 import { shortAgo } from "@/src/lib/format";
 
-import { markAllReadAction } from "./actions";
+import { answerRunAction, approveShipAction, markAllReadAction, sendBackAction } from "./actions";
 import { CollabInbox } from "./collab-inbox";
 import { FilterChips, type InboxFilter } from "./filter-chips";
 
@@ -54,6 +56,14 @@ export const dynamic = "force-dynamic";
 
 const GROUPS = ["Today", "Yesterday", "Earlier this week", "Last week", "Older"] as const;
 type Group = (typeof GROUPS)[number];
+
+/**
+ * Phase 1 — soft cap per Agent-Inbox lane. The header count stays honest (true
+ * total); only the first N render their action forms, with a "+N more →"
+ * overflow to the board. Keeps a busy day (many parallel runs — the whole
+ * point of the vision) from burying the Notify feed under a wall of forms.
+ */
+const LANE_CAP = 6;
 
 function groupFor(at: Date, now: Date): Group {
   const dayStart = new Date(now);
@@ -110,13 +120,16 @@ export default async function InboxPage({
   const lastWeek = new Date(thisWeek);
   lastWeek.setDate(lastWeek.getDate() - 7);
 
-  const [events, cursor, shippedThisWeek, totalThisWeek, totalLastWeek] = await Promise.all([
-    recentFeedEvents(50),
-    latestCursor(),
-    kindCountSince("shipped", thisWeek),
-    eventCountSince(thisWeek),
-    eventCountSince(lastWeek, thisWeek),
-  ]);
+  const [events, cursor, shippedThisWeek, totalThisWeek, totalLastWeek, questions, reviews] =
+    await Promise.all([
+      recentFeedEvents(50),
+      latestCursor(),
+      kindCountSince("shipped", thisWeek),
+      eventCountSince(thisWeek),
+      eventCountSince(lastWeek, thisWeek),
+      needsInputRuns(),
+      reviewReadyRuns(),
+    ]);
 
   const unread = events.filter((e) => e.readAt === null);
   const unreadReplies = unread.filter((e) => e.kind === "replied");
@@ -156,6 +169,151 @@ export default async function InboxPage({
                 week
               </p>
             </div>
+
+            {/* Phase 1 — the Agent Inbox: actionable lanes ABOVE the feed. Act
+                on a Question or a Review right here without navigating; the
+                grouped feed below stays the Notify lane. */}
+            {(questions.length > 0 || reviews.length > 0) && (
+              <div className="mt-10 space-y-10">
+                {questions.length > 0 && (
+                  <section>
+                    <MonoSectionLabel rule count={questions.length} dot="amber">
+                      Needs your answer
+                    </MonoSectionLabel>
+                    <ul className="divide-y divide-stone-200">
+                      {questions.slice(0, LANE_CAP).map((r) => (
+                        <li key={r.id} className="py-5">
+                          <div className="flex items-baseline justify-between gap-4">
+                            <Link
+                              href={`/runs/${r.ref}`}
+                              className="font-mono text-[10px] uppercase tracking-widest text-stone-500 hover:text-amber-600 cursor-pointer"
+                            >
+                              {r.ref} · {r.projectName}
+                            </Link>
+                            <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400 whitespace-nowrap">
+                              waiting {shortAgo(r.since)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm italic text-stone-700 leading-relaxed">
+                            {r.question.prompt}
+                          </p>
+                          {r.question.kind === "permission" && r.question.options?.length ? (
+                            <form
+                              action={answerRunAction}
+                              className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-2"
+                            >
+                              <input type="hidden" name="runId" value={r.id} />
+                              {r.question.options.map((option) => (
+                                <button
+                                  key={option}
+                                  type="submit"
+                                  name="choice"
+                                  value={option}
+                                  className="font-mono text-[10px] uppercase tracking-widest text-stone-700 hover:text-amber-600 cursor-pointer transition"
+                                >
+                                  {option} →
+                                </button>
+                              ))}
+                            </form>
+                          ) : (
+                            <form action={answerRunAction} className="mt-2 flex items-end gap-4">
+                              <input type="hidden" name="runId" value={r.id} />
+                              <div className="flex-1">
+                                <UnderlineInput
+                                  name="text"
+                                  placeholder="Answer the Engine…"
+                                  aria-label={`Answer ${r.ref}`}
+                                />
+                              </div>
+                              <span className="py-2">
+                                <PillButton kind="ghost" type="submit">
+                                  answer →
+                                </PillButton>
+                              </span>
+                            </form>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {questions.length > LANE_CAP && (
+                      <Link
+                        href="/board"
+                        className="mt-3 inline-block font-mono text-[10px] uppercase tracking-widest text-stone-500 hover:text-amber-600 cursor-pointer"
+                      >
+                        + {questions.length - LANE_CAP} more →
+                      </Link>
+                    )}
+                  </section>
+                )}
+
+                {reviews.length > 0 && (
+                  <section>
+                    <MonoSectionLabel rule count={reviews.length} dot="emerald">
+                      Ready for your review
+                    </MonoSectionLabel>
+                    <ul className="divide-y divide-stone-200">
+                      {reviews.slice(0, LANE_CAP).map((r) => (
+                        <li key={r.id} className="py-5">
+                          <div className="flex items-baseline justify-between gap-4">
+                            <Link
+                              href={`/runs/${r.ref}/diff`}
+                              className="text-base text-stone-900 hover:text-amber-600 cursor-pointer"
+                            >
+                              {r.title}
+                            </Link>
+                            <span className="font-mono text-[10px] uppercase tracking-widest text-stone-400 whitespace-nowrap">
+                              {shortAgo(r.since)}
+                            </span>
+                          </div>
+                          <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-stone-400">
+                            {r.ref} · {r.projectName}
+                            {r.filesChanged > 0 && (
+                              <>
+                                <span className="mx-1">·</span>
+                                {r.filesChanged} file{r.filesChanged === 1 ? "" : "s"}{" "}
+                                <span className="text-emerald-600">+{r.insertions}</span>{" "}
+                                <span className="text-rose-500">&minus;{r.deletions}</span>
+                              </>
+                            )}
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+                            <form action={approveShipAction}>
+                              <input type="hidden" name="runId" value={r.id} />
+                              <PillButton kind="ship" type="submit">
+                                Approve &amp; ship →
+                              </PillButton>
+                            </form>
+                            <Link
+                              href={`/runs/${r.ref}/diff`}
+                              className="font-mono text-[10px] uppercase tracking-widest text-stone-700 hover:text-amber-600 cursor-pointer"
+                            >
+                              review diff →
+                            </Link>
+                            <form action={sendBackAction}>
+                              <input type="hidden" name="runId" value={r.id} />
+                              <button
+                                type="submit"
+                                className="font-mono text-[10px] uppercase tracking-widest text-stone-500 hover:text-amber-600 cursor-pointer"
+                              >
+                                send back →
+                              </button>
+                            </form>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    {reviews.length > LANE_CAP && (
+                      <Link
+                        href="/board"
+                        className="mt-3 inline-block font-mono text-[10px] uppercase tracking-widest text-stone-500 hover:text-amber-600 cursor-pointer"
+                      >
+                        + {reviews.length - LANE_CAP} more →
+                      </Link>
+                    )}
+                  </section>
+                )}
+              </div>
+            )}
 
             <FilterChips selected={filter} />
 
