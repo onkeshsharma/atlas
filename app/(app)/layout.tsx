@@ -24,6 +24,7 @@ import { afkLevel } from "@/src/domain/settings/instance";
 import { athenaDecisionCount } from "@/src/domain/athena/activity";
 import { AfkChip } from "@/src/components/shell/AfkChip";
 import { AppSidebar } from "@/src/components/shell/AppSidebar";
+import { AttentionSignal } from "@/src/components/shell/AttentionSignal";
 import { Podium } from "@/src/components/shell/Podium";
 import { PaletteMount } from "@/src/components/search/PaletteMount";
 import type { SidebarItem } from "@/src/components/kit";
@@ -60,6 +61,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     since.setHours(0, 0, 0, 0);
     afkCount = await athenaDecisionCount(since.getTime());
   }
+
+  // Phase 1/2 — the shared "needs you" count (Questions + Reviews) the Podium
+  // shows and the attention-pull title-badge / desktop notification react to.
+  const needsYou = (runCounts?.needsInput ?? 0) + (counts?.reviewReady ?? 0);
 
   const items: SidebarItem[] = isCollab
     ? [
@@ -162,10 +167,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Podium
           running={runCounts?.running ?? 0}
           queued={runCounts?.queued ?? 0}
-          needsYou={(runCounts?.needsInput ?? 0) + (counts?.reviewReady ?? 0)}
+          needsYou={needsYou}
           bridge={bridge.status}
         />
       )}
+      {/* Phase 2 — attention-pull: title-badge + desktop notification when the
+          needs-you count rises (Owner only; renders nothing). */}
+      {user.role === "owner" && <AttentionSignal needsYou={needsYou} />}
     </div>
   );
 }
